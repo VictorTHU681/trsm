@@ -10,3 +10,4 @@ probe/bw_nodes
 probe/peak
 probe/trsm_kblas
 probe/ref.o
+probe/fast_variants.txt
