@@ -1043,6 +1043,8 @@ typedef struct {
     double* diag;           // 全部行块的对角打包
     size_t* diag_off;       // 每行块起点（double 下标）
     int jit;                // 1：GEMM 部分就地转置；0：用预打包
+    int ppmode;             // 0：预打包在并行区开头一次完成；1：打包作为任务流水式进行（大 L），消费者等 pflags
+    volatile int* pflags;   // 每条的打包完成标志（ppmode=1）
     double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
@@ -1062,6 +1064,8 @@ typedef struct {
 } ctx_t;
 
 typedef struct task_s {
+    int kind;           // 0 计算任务；1 打包条 g（流水式预打包）
+    long g;             // kind=1：16 行条编号
     int i, p;
     int seg, nseg;      // 段号 / 段数（nseg=1 为普通任务）
     long ch0, ch1;      // 本段负责的 K 段区间 [ch0, ch1)（以 kc 为单位）
@@ -1095,6 +1099,8 @@ static size_t g_pp_cap[2] = {0, 0};
 static int g_pp_node[2] = {-3, -3};
 static int* g_flags = NULL;
 static size_t g_flags_cap = 0;
+static int* g_pflags = NULL;
+static size_t g_pflags_cap = 0;
 static int* g_seg_cnt = NULL;
 static task_t* g_tasks = NULL;
 static size_t g_tasks_cap = 0;
@@ -1133,8 +1139,27 @@ static inline void wait_flag(const ctx_t* c, long idx)
     while (__atomic_load_n(&c->flags[idx], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
 }
 
+// 流水式打包任务：把 16 行条 g 的 L 子块（列 [0, i0)）转置成稠密 k 主序写到预打包缓冲
+static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
+{
+    uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+    long g = tk->g;
+    long i = (16 * g) / c->mb;
+    long i0 = i * c->mb;
+    long row0 = 16 * g;
+    long rows = c->m - row0; if (rows > 16) rows = 16;
+    double* dst = c->pp[0] + c->pp_off[g];
+    if (i0 > 0) {
+        if (rows == 16 && (i0 & 31) == 0) pack_strip_ld4(c->L, c->lda, row0, 0, i0, dst);
+        else pack_strip(c->L, c->lda, c->m, row0, 0, i0, dst);
+    }
+    __atomic_store_n(&c->pflags[g], 1, __ATOMIC_RELEASE);
+    if (c->prof >= 2) tb->t_pack += cyc() - t0;
+}
+
 static void run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn, int tid)
 {
+    if (tk->kind == 1) { run_pack_task(c, tk, tb); return; }
     const long mb = c->mb, nc = c->nc, kc = c->kc;
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
@@ -1188,6 +1213,12 @@ static void run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!c->jit && c->pp[1]) cpy = (int)((i + p) & 1);
+    if (!c->jit && c->ppmode == 1 && i0 > 0) {   // 等本行块各条打包完成
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        for (int r = 0; r < S; r++)
+            while (__atomic_load_n(&c->pflags[i0 / 16 + r], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
+        if (c->prof >= 2) tb->t_wait += cyc() - t0;
+    }
     int pend = 0;            // 有待回写的上一微块（暂存中）
     double* pend_c = NULL;
     long pend_cols = 0;
@@ -1343,7 +1374,7 @@ static void run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
-        if (pf_on && tkn && tkn->nseg == 1) {
+        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
             long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
@@ -1463,8 +1494,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 决定 GEMM 部分的 L 打包方式：L 下三角 ≤ 阈值时预打包（两份），否则 JIT
     size_t tri_bytes = (size_t)m * (m + 1) / 2 * 8;
     long jit_mb = env_int("TRSM_JIT_MB", 256);
-    c.jit = (tri_bytes > (size_t)jit_mb << 20) ? 1 : 0;
-    if (env_int("TRSM_JIT", -1) >= 0) c.jit = env_int("TRSM_JIT", -1);
+    int bigL = (tri_bytes > (size_t)jit_mb << 20) ? 1 : 0;
+    // 大 L：默认流水式打包任务（TRSM_PPMODE=1）；TRSM_JIT=1 强制就地转置
+    c.ppmode = bigL ? env_int("TRSM_PPMODE", 1) : 0;
+    c.jit = (bigL && c.ppmode == 0) ? 1 : 0;
+    if (env_int("TRSM_JIT", -1) >= 0) { c.jit = env_int("TRSM_JIT", -1); if (c.jit) c.ppmode = 0; }
 
     // 首次调用：X 的内存节点安排（不计时阶段）。TRSM_XNODE：-1 不动（默认），-2 迁到本地 DDR，≥0 指定节点
     if (g_first_call) {
@@ -1498,7 +1532,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         size_t need = (size_t)c.xp_chunks * c.npan * kc * nc;
         int xn = env_int("TRSM_XPNODE", -9);
         int node;
-        if (xn == -9) node = (g_hbm_node >= 0 && c.jit) ? g_cpu_node : -1;   // 大 L 走 JIT 时 X 副本放 DDR，与 HBM 上的 L 分流
+        if (xn == -9) node = (g_hbm_node >= 0 && bigL) ? g_cpu_node : -1;   // 大 L 时 X 副本放 DDR，与 HBM 上的 L 分流
         else if (xn == -2) node = g_cpu_node;
         else node = xn;
         if (g_xp_cap < need || g_xp_node != node) {
@@ -1522,8 +1556,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             off += (size_t)16 * (i * mb);
         }
         c.pp_off[c.nstrip] = off;
-        // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本
-        int split = env_int("TRSM_LSPLIT", 1);
+        // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本；流水式打包只有一份
+        int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", 1);
+        if (c.ppmode == 1 && g_pp[1]) { free_sized(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);
@@ -1553,6 +1588,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.flags = g_flags;
     c.seg_cnt = g_seg_cnt;
     c.next = 0;
+    if (g_pflags_cap < (size_t)c.nstrip) { free(g_pflags); g_pflags = calloc(c.nstrip, sizeof(int)); g_pflags_cap = c.nstrip; }
+    memset(g_pflags, 0, c.nstrip * sizeof(int));
+    c.pflags = g_pflags;
 
     // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
     // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)
@@ -1583,11 +1621,23 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             nitems += (long)nseg * c.npan;
             if (nseg > 1) part_doubles += (size_t)nseg * c.npan * mb * nc;
         }
+        if (c.ppmode == 1) nitems += c.nstrip;   // 打包任务
         if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
         if (g_part_cap < part_doubles) { free_sized(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
         long q = 0;
         size_t poff = 0;
+        // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块
+        int LA = env_int("TRSM_PACK_LA", 2);
+        long gnext = 0;   // 下一个待派发的打包条
+        if (c.ppmode == 1) {
+            long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
+            for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
+        }
         for (long i = 0; i < c.nrb; i++) {
+            if (c.ppmode == 1) {
+                long gend = (long)(i + LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
+                for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
+            }
             long nch = (i * mb) / kc;
             int nseg = 1;
             if (splitf > 0 && nch >= minch) {
@@ -1599,6 +1649,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (long p = 0; p < c.npan; p++) {
                 for (int s = 0; s < nseg; s++) {
                     task_t* t = &g_tasks[q++];
+                    t->kind = 0; t->g = 0;
                     t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
                     t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
                     t->part_off = poff;
@@ -1606,6 +1657,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (nseg > 1) poff += (size_t)nseg * mb * nc;
             }
         }
+        nitems = q;
         c.tasks = g_tasks;
         c.ntask_items = nitems;
         c.part = g_part;
@@ -1644,8 +1696,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             long mbi = m - i * mb; if (mbi > mb) mbi = mb;
             diag_prep_sub(L, lda, i * mb, (int)mbi, ditem_s[q], c.diag + c.diag_off[i] + diag_strip_off(ditem_s[q]));
         }
-        // 阶段 1b：预打包
-        if (!c.jit) {
+        // 阶段 1b：预打包（小 L 一次完成；大 L 由打包任务流水完成）
+        if (!c.jit && c.ppmode == 0) {
 #pragma omp for schedule(dynamic, 1) nowait
             for (long g = 0; g < c.nstrip; g++) {
                 long i = (16 * g) / mb;
@@ -1672,8 +1724,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (c.prof) {
         uint64_t t2 = cyc();
         double hz = (double)cyc_hz();
-        fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d tasks=%ld(items %ld) nth=%d hbm=%d Xnode=%d | setup %.3f ms, parallel %.3f ms\n",
-                m, n, mb, nc, kc, c.jit, c.ntask, c.ntask_items, nth, g_hbm_node, page_node_of(B),
+        fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d pp=%d tasks=%ld(items %ld) nth=%d hbm=%d Xnode=%d | setup %.3f ms, parallel %.3f ms\n",
+                m, n, mb, nc, kc, c.jit, c.ppmode, c.ntask, c.ntask_items, nth, g_hbm_node, page_node_of(B),
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
         if (c.prof >= 2) {
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
