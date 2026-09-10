@@ -1,0 +1,91 @@
+=== HOST
+cn20483
+Thu Sep 10 13:13:34 CST 2026
+=== 泛化正确性
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+=== 三用例分相 profile
+--- [kc128 默认（交错转置）]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312(items 312) nth=38 hbm=17 Xnode=17 | setup 0.020 ms, parallel 3.429 ms
+[trsm prof]  每线程平均 ms：prep 0.123 | load 0.445 pack 0.000 xcopy 0.199 wait 0.000 kloop 0.867 epi 0.071 dkloop 0.565 depi 0.125 store 0.521 | task 合计 2.839 | 尾部不均衡 0.416 ms | k 步 5271552（理想 0.716 ms，kloop 效率 50.0%）
+   512 x 19968         3.60    1454.0747     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 | setup 0.023 ms, parallel 47.282 ms
+[trsm prof]  每线程平均 ms：prep 0.517 | load 2.132 pack 0.000 xcopy 6.360 wait 0.001 kloop 29.482 epi 2.157 dkloop 2.350 depi 0.489 store 2.178 | task 合计 46.010 | 尾部不均衡 1.274 ms | k 步 98977536（理想 13.443 ms，kloop 效率 42.2%）
+  2432 x 17024        47.50    2119.8690     5.55e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268(items 300) nth=38 hbm=17 Xnode=17 | setup 0.021 ms, parallel 95.526 ms
+[trsm prof]  每线程平均 ms：prep 1.423 | load 0.470 pack 0.036 xcopy 7.862 wait 2.358 kloop 68.933 epi 3.506 dkloop 0.514 depi 0.105 store 0.478 | task 合计 85.616 | 尾部不均衡 13.944 ms | k 步 145044480（理想 19.700 ms，kloop 效率 28.4%）
+ 17024 x   512        95.68    1550.8653     1.28e-15     PASS
+--- [kc256]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=256 jit=0 tasks=312(items 312) nth=38 hbm=17 Xnode=17 | setup 0.020 ms, parallel 3.218 ms
+[trsm prof]  每线程平均 ms：prep 0.125 | load 0.452 pack 0.000 xcopy 0.225 wait 0.000 kloop 0.733 epi 0.040 dkloop 0.582 depi 0.124 store 0.510 | task 合计 2.696 | 尾部不均衡 0.367 ms | k 步 5271552（理想 0.716 ms，kloop 效率 54.5%）
+   512 x 19968         3.38    1548.9484     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=256 jit=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 | setup 0.025 ms, parallel 45.349 ms
+[trsm prof]  每线程平均 ms：prep 0.499 | load 2.261 pack 0.000 xcopy 9.869 wait 0.000 kloop 24.744 epi 1.383 dkloop 2.482 depi 0.491 store 2.276 | task 合计 44.044 | 尾部不均衡 1.262 ms | k 步 98977536（理想 13.443 ms，kloop 效率 49.4%）
+  2432 x 17024        45.53    2211.5795     3.89e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=256 jit=1 tasks=268(items 300) nth=38 hbm=17 Xnode=17 | setup 0.023 ms, parallel 84.034 ms
+[trsm prof]  每线程平均 ms：prep 1.427 | load 0.525 pack 0.058 xcopy 13.324 wait 2.595 kloop 55.550 epi 1.923 dkloop 0.519 depi 0.097 store 0.523 | task 合计 75.902 | 尾部不均衡 11.102 ms | k 步 145044480（理想 19.700 ms，kloop 效率 35.1%）
+ 17024 x   512        84.22    1761.9625     1.11e-15     PASS
+--- [kc256 xnode=ddr]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=256 jit=0 tasks=312(items 312) nth=38 hbm=17 Xnode=1 | setup 0.019 ms, parallel 3.650 ms
+[trsm prof]  每线程平均 ms：prep 0.126 | load 0.658 pack 0.000 xcopy 0.280 wait 0.000 kloop 0.734 epi 0.037 dkloop 0.566 depi 0.116 store 0.633 | task 合计 3.058 | 尾部不均衡 0.397 ms | k 步 5271552（理想 0.716 ms，kloop 效率 55.1%）
+   512 x 19968         3.82    1370.2316     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=256 jit=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=1 | setup 0.016 ms, parallel 45.289 ms
+[trsm prof]  每线程平均 ms：prep 0.508 | load 2.269 pack 0.000 xcopy 9.996 wait 0.013 kloop 24.453 epi 1.378 dkloop 2.442 depi 0.494 store 2.441 | task 合计 44.019 | 尾部不均衡 1.250 ms | k 步 98977536（理想 13.443 ms，kloop 效率 50.0%）
+  2432 x 17024        45.49    2213.2512     3.89e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=256 jit=1 tasks=268(items 300) nth=38 hbm=17 Xnode=1 | setup 0.023 ms, parallel 81.916 ms
+[trsm prof]  每线程平均 ms：prep 1.420 | load 0.531 pack 0.057 xcopy 13.355 wait 2.713 kloop 53.985 epi 1.946 dkloop 0.514 depi 0.097 store 0.543 | task 合计 74.531 | 尾部不均衡 11.040 ms | k 步 145044480（理想 19.700 ms，kloop 效率 36.1%）
+ 17024 x   512        82.13    1806.7565     1.11e-15     PASS
+--- [kc256 xnode=ddr splitf=12]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=256 jit=0 tasks=312(items 312) nth=38 hbm=17 Xnode=1 | setup 0.013 ms, parallel 3.648 ms
+[trsm prof]  每线程平均 ms：prep 0.126 | load 0.657 pack 0.000 xcopy 0.277 wait 0.000 kloop 0.742 epi 0.038 dkloop 0.571 depi 0.117 store 0.636 | task 合计 3.069 | 尾部不均衡 0.386 ms | k 步 5271552（理想 0.716 ms，kloop 效率 54.5%）
+   512 x 19968         3.84    1364.7513     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=256 jit=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=1 | setup 0.018 ms, parallel 45.694 ms
+[trsm prof]  每线程平均 ms：prep 0.500 | load 2.325 pack 0.000 xcopy 10.096 wait 0.000 kloop 24.606 epi 1.374 dkloop 2.465 depi 0.486 store 2.485 | task 合计 44.373 | 尾部不均衡 1.299 ms | k 步 98977536（理想 13.443 ms，kloop 效率 49.7%）
+  2432 x 17024        45.89    2194.1504     3.89e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=256 jit=1 tasks=268(items 488) nth=38 hbm=17 Xnode=1 | setup 0.016 ms, parallel 83.097 ms
+[trsm prof]  每线程平均 ms：prep 1.423 | load 0.914 pack 0.090 xcopy 16.863 wait 2.218 kloop 54.148 epi 2.036 dkloop 0.478 depi 0.083 store 0.570 | task 合计 78.203 | 尾部不均衡 5.448 ms | k 步 145044480（理想 19.700 ms，kloop 效率 36.1%）
+ 17024 x   512        83.30    1781.3542     5.55e-16     PASS
+--- [kc256 nt=0]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=256 jit=0 tasks=312(items 312) nth=38 hbm=17 Xnode=17 | setup 0.021 ms, parallel 3.198 ms
+[trsm prof]  每线程平均 ms：prep 0.117 | load 0.432 pack 0.000 xcopy 0.222 wait 0.000 kloop 0.735 epi 0.041 dkloop 0.569 depi 0.125 store 0.539 | task 合计 2.696 | 尾部不均衡 0.369 ms | k 步 5271552（理想 0.716 ms，kloop 效率 54.9%）
+   512 x 19968         3.34    1567.9204     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=256 jit=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 | setup 0.024 ms, parallel 44.789 ms
+[trsm prof]  每线程平均 ms：prep 0.511 | load 2.150 pack 0.000 xcopy 9.575 wait 0.000 kloop 24.604 epi 1.384 dkloop 2.489 depi 0.493 store 2.211 | task 合计 43.441 | 尾部不均衡 1.285 ms | k 步 98977536（理想 13.443 ms，kloop 效率 49.6%）
+  2432 x 17024        44.95    2239.8327     3.89e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=256 jit=1 tasks=268(items 300) nth=38 hbm=17 Xnode=17 | setup 0.023 ms, parallel 83.791 ms
+[trsm prof]  每线程平均 ms：prep 1.423 | load 0.526 pack 0.058 xcopy 13.345 wait 2.755 kloop 55.452 epi 1.950 dkloop 0.522 depi 0.097 store 0.527 | task 合计 76.022 | 尾部不均衡 11.086 ms | k 步 145044480（理想 19.700 ms，kloop 效率 35.2%）
+ 17024 x   512        83.97    1767.1541     1.11e-15     PASS
+--- [kc128 xnode=ddr splitf=12]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312(items 468) nth=38 hbm=17 Xnode=1 | setup 0.016 ms, parallel 3.655 ms
+[trsm prof]  每线程平均 ms：prep 0.116 | load 0.911 pack 0.000 xcopy 0.208 wait 0.000 kloop 0.797 epi 0.100 dkloop 0.514 depi 0.115 store 0.549 | task 合计 3.233 | 尾部不均衡 0.317 ms | k 步 5271552（理想 0.716 ms，kloop 效率 54.6%）
+   512 x 19968         3.85    1358.6511     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=1 | setup 0.026 ms, parallel 46.979 ms
+[trsm prof]  每线程平均 ms：prep 0.503 | load 2.163 pack 0.000 xcopy 6.267 wait 0.001 kloop 29.259 epi 2.177 dkloop 2.324 depi 0.487 store 2.312 | task 合计 45.861 | 尾部不均衡 1.279 ms | k 步 98977536（理想 13.443 ms，kloop 效率 42.6%）
+  2432 x 17024        47.17    2134.6179     5.55e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268(items 488) nth=38 hbm=17 Xnode=1 | setup 0.017 ms, parallel 90.960 ms
+[trsm prof]  每线程平均 ms：prep 1.420 | load 0.776 pack 0.059 xcopy 8.426 wait 2.241 kloop 68.201 epi 3.455 dkloop 0.475 depi 0.087 store 0.483 | task 合计 85.560 | 尾部不均衡 7.180 ms | k 步 145044480（理想 19.700 ms，kloop 效率 28.7%）
+ 17024 x   512        91.15    1627.9594     7.22e-16     PASS
+--- [kc256 mb192->kc192]
+[trsm prof] m=512 n=19968 mb=192 nc=128 kc=192 jit=0 tasks=468(items 468) nth=38 hbm=17 Xnode=1 | setup 0.023 ms, parallel 3.495 ms
+[trsm prof]  每线程平均 ms：prep 0.095 | load 0.480 pack 0.000 xcopy 0.452 wait 0.000 kloop 0.937 epi 0.079 dkloop 0.378 depi 0.115 store 0.672 | task 合计 3.157 | 尾部不均衡 0.272 ms | k 步 5271552（理想 0.716 ms，kloop 效率 54.4%）
+   512 x 19968         3.68    1420.4865     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=192 nc=128 kc=192 jit=0 tasks=1729(items 1729) nth=38 hbm=17 Xnode=1 | setup 0.028 ms, parallel 48.622 ms
+[trsm prof]  每线程平均 ms：prep 0.478 | load 2.177 pack 0.000 xcopy 11.069 wait 0.001 kloop 26.389 epi 1.856 dkloop 1.988 depi 0.507 store 2.690 | task 合计 47.375 | 尾部不均衡 1.336 ms | k 步 98977536（理想 13.443 ms，kloop 效率 47.4%）
+  2432 x 17024        48.82    2062.6438     5.00e-16     PASS
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=192 jit=1 tasks=356(items 512) nth=38 hbm=17 Xnode=1 | setup 0.027 ms, parallel 84.385 ms
+[trsm prof]  每线程平均 ms：prep 1.052 | load 0.683 pack 0.086 xcopy 15.072 wait 1.963 kloop 57.312 epi 2.503 dkloop 0.390 depi 0.090 store 0.528 | task 合计 79.666 | 尾部不均衡 5.418 ms | k 步 145044480（理想 19.700 ms，kloop 效率 34.1%）
+ 17024 x   512        84.60    1754.0016     8.88e-16     PASS
+=== DONE
+Thu Sep 10 13:14:02 CST 2026

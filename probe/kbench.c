@@ -91,7 +91,7 @@ int main(int argc, char** argv)
     for (long i = 0; i < kc * nc; i++) Xp[i] = 1e-3 * (i % 13);
     for (long i = 0; i < mb * nc; i++) C[i] = 1.0;
     memset(scratch, 0, 8192);
-    pf_t pfd = { (const char*)dummy, 2, -128 };
+    pf_t pfd = { (const char*)dummy, 1, -64, (const char*)dummy };
     uint64_t t0;
     const int reps = 2000;
     double r[16];
@@ -122,10 +122,10 @@ int main(int argc, char** argv)
     double rtr = to_cycles(cyc() - t0) / reps;
     // 真正的交错转置 K 循环（源 Ad 当作 16 行 L，行距 kc）：无回写 / 带回写
     t0 = cyc();
-    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr(Ad, 128, 128, Xp, nc * 8, kc, &pfd, scratch, C, nc * 8, 32, 0, Ad, kc * 8, Anext); }
+    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_noepi(Ad, 128, 128, Xp, nc * 8, kc, &pfd, Ad, kc * 8, Anext); }
     double rtr2 = to_cycles(cyc() - t0) / reps;
     t0 = cyc();
-    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr(Ad, 128, 128, Xp, nc * 8, kc, &pfd, scratch, C, nc * 8, 32, 1, Ad, kc * 8, Anext); za_dump(scratch); }
+    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_epi(Ad, 128, 128, Xp, nc * 8, kc, &pfd, scratch, C, nc * 8, 32, Ad, kc * 8, Anext); za_dump(scratch); }
     double rtr3 = to_cycles(cyc() - t0) / reps;
     sme_stop();
     // 转置正确性：Anext[k*16 + r] 应等于 Ad[r*kc + k]（源当作 16 行 × kc 列，行距 kc），只覆盖前 kc/4 列… 一个 K 循环转置 K/16 块 = kc/4 列
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
                 sme_start();
                 if (v == 1) {   // K 循环走线器 pldl1keep（8 行/微块，kc/8 个微块）
                     for (long q = 0; q < kc / 8; q++) {
-                        pf_t pf = { (const char*)(Xk + q * 8 * ldb), xlines, ldb * 8 - xlines * 64 };
+                        pf_t pf = { (const char*)(Xk + q * 8 * ldb), xlines, ldb * 8 - xlines * 64, (const char*)dummy };
                         sme_zero_za(); kloop_plain(A, 128, 128, Xp, nc * 8, kc, 32, &pf);
                     }
                 } else if (v == 2) {   // 突发 prfm pldl1keep
@@ -299,7 +299,7 @@ int main(int argc, char** argv)
                 } else if (v == 4) {   // 真实装载触碰（每行 16 条 ld1d 到哑寄存器）
                     for (long k = 0; k < kc; k++) for (long j = 0; j < nc; j += 8) asm volatile("ld1d z31.d, p0/z, [%0]" ::"r"(Xk + k * ldb + j) : "v31");
                 } else if (v == 5) {   // K 循环走线器，但每步 2 行连续（把面板当成连续 128 KB：pfn 极大，pfj 0）—— 检验连续目标
-                    pf_t pf = { (const char*)Xpan, 1L << 40, 0 };
+                    pf_t pf = { (const char*)Xpan, 1L << 40, 0, (const char*)dummy };
                     for (long q = 0; q < kc / 8; q++) { sme_zero_za(); kloop_plain(A, 128, 128, Xp, nc * 8, kc, 32, &pf); pf.p += 128 * 64; }
                 }
                 uint64_t tc0 = cyc();
