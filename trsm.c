@@ -1841,7 +1841,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     c.diag_off[c.nrb] = doff;
     // 对角打包副本：常规 1 份（默认节点）；面板驻留模式 TRSM_LCOPIES 份（默认 4）尽量放 HBM，38 线程同步扫同一条带时分散同址争用
-    c.ndiag = c.owner ? env_int("TRSM_LCOPIES", 4) : 1;
+    c.ndiag = c.owner ? env_int("TRSM_LCOPIES", 1) : 1;   // 实测 1/2/4/8 份无差别（同址争用不是瓶颈），默认 1
     if (c.ndiag < 1) c.ndiag = 1;
     if (c.ndiag > MAX_LCOPY) c.ndiag = MAX_LCOPY;
     for (int k = 0; k < c.ndiag; k++) {
