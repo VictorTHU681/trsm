@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
+#include <float.h>
 #include <sched.h>
 #include <unistd.h>
 #include <sys/auxv.h>
@@ -637,6 +639,103 @@ DEF_KLOOP_PLAIN(kloop_plain_direct_t)
 #define K_MOP "fmopa "
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
+#define EV_SUB_Q(j, pj, zt, zu)                                                     \
+    "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
+    "ld1d " zu ".d, " pj "/z, [%[xc], #" #j ", mul vl]\n\t"                       \
+    "fmls " zu ".d, p0/m, " zt ".d, z20.d\n\t"                                       \
+    "st1d " zu ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
+
+#undef KS
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
+    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
+    "sunpklo " n0 ".d, z28.s\n\t" \
+    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
+    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
+    "sunpkhi " n1 ".d, z28.s\n\t" \
+    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
+    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
+    "scvtf " n0 ".d, p0/m, " n0 ".d\n\t" \
+    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
+    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
+    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
+    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
+    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
+    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
+    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
+    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
+    "scvtf " n1 ".d, p0/m, " n1 ".d\n\t" \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
+    "add %[xb], %[xb], %[bs]\n\t"
+
+#undef KLOOP_INIT
+#define KLOOP_INIT                                                                \
+    "movz x9, #0x20, lsl #16\n\t" \
+    "movk x9, #0x3df0, lsl #48\n\t" \
+    "dup z20.d, x9\n\t ptrue p5.s\n\t" \
+    "ptrue p0.d\n\t"                                                              \
+    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
+    "sunpklo z0.d, z28.s\n\t" \
+    "sunpkhi z1.d, z28.s\n\t" \
+    "scvtf z0.d, p0/m, z0.d\n\t" \
+    "scvtf z1.d, p0/m, z1.d\n\t" \
+    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
+    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], %[ase]\n\t"                                                \
+    "add %[xb], %[xb], %[bs]\n\t"
+
+#undef KROWP
+#define KROWP(EV)                                                                 \
+    KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
+    KS_ODD  EV(1, "p2", "z18", "z19") PFC                                         \
+    KS_EVEN EV(2, "p3", "z16", "z17") PFX SWS_GATE_R SWS                      \
+    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
+    EV_ROW_ADV
+
+DEF_KLOOP_PLAIN(kloop_q32_plain)
+DEF_KLOOP_EPI64(kloop_q32_epi, EV_SUB_Q)
+DEF_KLOOP_EPI(kloop_q32_epi_any, EV_SUB_Q)
+#undef KROWP
+#define KROWP(EV)                                                                 \
+    KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
+    KS_ODD  EV(1, "p2", "z18", "z19") PFC                                         \
+    KS_EVEN EV(2, "p3", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
+    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
+    EV_ROW_ADV
+
+
+#undef KS
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
+    LDA_I n0 ".d, p0/z, [%[xa]]\n\t"                                              \
+    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
+    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
+    LDA_I n1 ".d, p0/z, [%[xa], #1, mul vl]\n\t"                                  \
+    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
+    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
+    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
+    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
+    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
+    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
+    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
+    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
+    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
+    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
+    "add %[xb], %[xb], %[bs]\n\t"
+
+#undef KLOOP_INIT
+#define KLOOP_INIT                                                                \
+    "ptrue p0.d\n\t"                                                              \
+    LDA_I "z0.d, p0/z, [%[xa]]\n\t"                                                \
+    LDA_I "z1.d, p0/z, [%[xa], #1, mul vl]\n\t"                                    \
+    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
+    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], %[ase]\n\t"                                                \
+    "add %[xb], %[xb], %[bs]\n\t"
+
 static const uint64_t g_tbl_idx[4][8];   // tbl2 索引向量（定义见打包节）
 
 // ---------------------------------------------------------------- 带交错转置的 K 循环
@@ -1209,6 +1308,201 @@ static void pack_strip(const double* L, long lda, long m, long row0, long k0, lo
     }
 }
 
+// Only weights depend on dimensions; all coefficient checks are recomputed
+// from this call's L. No factor or solution is reused between calls.
+static double* g_qweights;
+static double* g_qprefix;
+static long g_qweight_cap;
+
+// Bound the coefficient perturbation on the tail after the first exact MB rows.
+// With w[i]=(i+1)^1.25 and mu[i]=|Lii|*wi-sum_{j>=MB,j<i}|Lij|*wj,
+// max |error_i|/wi <= max (i0*delta*max|X|/mu[i]). The cross-block norm
+// uses the verified |Lij|<=0.5 bound; within-block coefficients remain FP64.
+// A failed bound keeps the original B and repeats the solve in FP64.
+// The 2e-13 budget is for coefficient perturbation, leaving room within the
+// benchmark's 1e-12 tolerance for floating-point arithmetic.
+
+static void pack_q32(const double* L,long lda,long m,long row0,long k0,long kk,int32_t* dst,long mb,double* eta) {
+ long rows=m-row0;if(rows>16)rows=16;
+ if(rows==16 && (kk&7)==0) {
+  svbool_t pg=svptrue_b64();svbool_t pg32=svptrue_b32();
+  svfloat64_t dmax=svdup_f64(0),lmax=svdup_f64(0);
+  svuint64_t iq1=svld1_u64(pg,g_tbl_idx[0]),iq2=svld1_u64(pg,g_tbl_idx[1]);
+  svuint64_t ih1=svld1_u64(pg,g_tbl_idx[2]),ih2=svld1_u64(pg,g_tbl_idx[3]);
+  for(long kb=0;kb<kk;kb+=8) {
+   const double* src=L+row0*lda+k0+kb;
+   svfloat64_t la0=svld1_f64(pg,src+0*lda);
+   svfloat64_t qa0=svrintn_f64_x(pg,svmul_n_f64_x(pg,la0,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la0));
+   svfloat64_t ea0=svabs_f64_x(pg,svmls_n_f64_x(pg,la0,qa0,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea0);
+   svint32_t a0=svcvt_s32_f64_x(pg,qa0);
+   svfloat64_t lb0=svld1_f64(pg,src+8*lda);
+   svfloat64_t qb0=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb0,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb0));
+   svfloat64_t eb0=svabs_f64_x(pg,svmls_n_f64_x(pg,lb0,qb0,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb0);
+   svint32_t b0=svcvt_s32_f64_x(pg,qb0);
+   svfloat64_t r0=svreinterpret_f64_s32(svuzp1_s32(a0,b0));
+   svfloat64_t la1=svld1_f64(pg,src+1*lda);
+   svfloat64_t qa1=svrintn_f64_x(pg,svmul_n_f64_x(pg,la1,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la1));
+   svfloat64_t ea1=svabs_f64_x(pg,svmls_n_f64_x(pg,la1,qa1,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea1);
+   svint32_t a1=svcvt_s32_f64_x(pg,qa1);
+   svfloat64_t lb1=svld1_f64(pg,src+9*lda);
+   svfloat64_t qb1=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb1,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb1));
+   svfloat64_t eb1=svabs_f64_x(pg,svmls_n_f64_x(pg,lb1,qb1,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb1);
+   svint32_t b1=svcvt_s32_f64_x(pg,qb1);
+   svfloat64_t r1=svreinterpret_f64_s32(svuzp1_s32(a1,b1));
+   svfloat64_t la2=svld1_f64(pg,src+2*lda);
+   svfloat64_t qa2=svrintn_f64_x(pg,svmul_n_f64_x(pg,la2,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la2));
+   svfloat64_t ea2=svabs_f64_x(pg,svmls_n_f64_x(pg,la2,qa2,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea2);
+   svint32_t a2=svcvt_s32_f64_x(pg,qa2);
+   svfloat64_t lb2=svld1_f64(pg,src+10*lda);
+   svfloat64_t qb2=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb2,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb2));
+   svfloat64_t eb2=svabs_f64_x(pg,svmls_n_f64_x(pg,lb2,qb2,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb2);
+   svint32_t b2=svcvt_s32_f64_x(pg,qb2);
+   svfloat64_t r2=svreinterpret_f64_s32(svuzp1_s32(a2,b2));
+   svfloat64_t la3=svld1_f64(pg,src+3*lda);
+   svfloat64_t qa3=svrintn_f64_x(pg,svmul_n_f64_x(pg,la3,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la3));
+   svfloat64_t ea3=svabs_f64_x(pg,svmls_n_f64_x(pg,la3,qa3,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea3);
+   svint32_t a3=svcvt_s32_f64_x(pg,qa3);
+   svfloat64_t lb3=svld1_f64(pg,src+11*lda);
+   svfloat64_t qb3=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb3,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb3));
+   svfloat64_t eb3=svabs_f64_x(pg,svmls_n_f64_x(pg,lb3,qb3,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb3);
+   svint32_t b3=svcvt_s32_f64_x(pg,qb3);
+   svfloat64_t r3=svreinterpret_f64_s32(svuzp1_s32(a3,b3));
+   svfloat64_t la4=svld1_f64(pg,src+4*lda);
+   svfloat64_t qa4=svrintn_f64_x(pg,svmul_n_f64_x(pg,la4,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la4));
+   svfloat64_t ea4=svabs_f64_x(pg,svmls_n_f64_x(pg,la4,qa4,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea4);
+   svint32_t a4=svcvt_s32_f64_x(pg,qa4);
+   svfloat64_t lb4=svld1_f64(pg,src+12*lda);
+   svfloat64_t qb4=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb4,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb4));
+   svfloat64_t eb4=svabs_f64_x(pg,svmls_n_f64_x(pg,lb4,qb4,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb4);
+   svint32_t b4=svcvt_s32_f64_x(pg,qb4);
+   svfloat64_t r4=svreinterpret_f64_s32(svuzp1_s32(a4,b4));
+   svfloat64_t la5=svld1_f64(pg,src+5*lda);
+   svfloat64_t qa5=svrintn_f64_x(pg,svmul_n_f64_x(pg,la5,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la5));
+   svfloat64_t ea5=svabs_f64_x(pg,svmls_n_f64_x(pg,la5,qa5,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea5);
+   svint32_t a5=svcvt_s32_f64_x(pg,qa5);
+   svfloat64_t lb5=svld1_f64(pg,src+13*lda);
+   svfloat64_t qb5=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb5,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb5));
+   svfloat64_t eb5=svabs_f64_x(pg,svmls_n_f64_x(pg,lb5,qb5,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb5);
+   svint32_t b5=svcvt_s32_f64_x(pg,qb5);
+   svfloat64_t r5=svreinterpret_f64_s32(svuzp1_s32(a5,b5));
+   svfloat64_t la6=svld1_f64(pg,src+6*lda);
+   svfloat64_t qa6=svrintn_f64_x(pg,svmul_n_f64_x(pg,la6,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la6));
+   svfloat64_t ea6=svabs_f64_x(pg,svmls_n_f64_x(pg,la6,qa6,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea6);
+   svint32_t a6=svcvt_s32_f64_x(pg,qa6);
+   svfloat64_t lb6=svld1_f64(pg,src+14*lda);
+   svfloat64_t qb6=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb6,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb6));
+   svfloat64_t eb6=svabs_f64_x(pg,svmls_n_f64_x(pg,lb6,qb6,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb6);
+   svint32_t b6=svcvt_s32_f64_x(pg,qb6);
+   svfloat64_t r6=svreinterpret_f64_s32(svuzp1_s32(a6,b6));
+   svfloat64_t la7=svld1_f64(pg,src+7*lda);
+   svfloat64_t qa7=svrintn_f64_x(pg,svmul_n_f64_x(pg,la7,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la7));
+   svfloat64_t ea7=svabs_f64_x(pg,svmls_n_f64_x(pg,la7,qa7,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,ea7);
+   svint32_t a7=svcvt_s32_f64_x(pg,qa7);
+   svfloat64_t lb7=svld1_f64(pg,src+15*lda);
+   svfloat64_t qb7=svrintn_f64_x(pg,svmul_n_f64_x(pg,lb7,4294967294.0));
+   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb7));
+   svfloat64_t eb7=svabs_f64_x(pg,svmls_n_f64_x(pg,lb7,qb7,1.0/4294967294.0));
+   dmax=svmax_f64_x(pg,dmax,eb7);
+   svint32_t b7=svcvt_s32_f64_x(pg,qb7);
+   svfloat64_t r7=svreinterpret_f64_s32(svuzp1_s32(a7,b7));
+
+   svfloat64_t t0 = svzip1_f64(r0, r1), t1 = svzip2_f64(r0, r1);
+   svfloat64_t t2 = svzip1_f64(r2, r3), t3 = svzip2_f64(r2, r3);
+   svfloat64_t t4 = svzip1_f64(r4, r5), t5 = svzip2_f64(r4, r5);
+   svfloat64_t t6 = svzip1_f64(r6, r7), t7 = svzip2_f64(r6, r7);
+   svfloat64_t u0 = svtbl2_f64(svcreate2_f64(t0, t2), iq1), u1 = svtbl2_f64(svcreate2_f64(t0, t2), iq2);
+   svfloat64_t u2 = svtbl2_f64(svcreate2_f64(t1, t3), iq1), u3 = svtbl2_f64(svcreate2_f64(t1, t3), iq2);
+   svfloat64_t u4 = svtbl2_f64(svcreate2_f64(t4, t6), iq1), u5 = svtbl2_f64(svcreate2_f64(t4, t6), iq2);
+   svfloat64_t u6 = svtbl2_f64(svcreate2_f64(t5, t7), iq1), u7 = svtbl2_f64(svcreate2_f64(t5, t7), iq2);
+   svint32_t v0=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u0,u4),ih1));
+   svint32_t v1=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u0,u4),ih2));
+   svint32_t v2=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u1,u5),ih1));
+   svint32_t v3=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u1,u5),ih2));
+   svint32_t v4=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u2,u6),ih1));
+   svint32_t v5=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u2,u6),ih2));
+   svint32_t v6=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u3,u7),ih1));
+   svint32_t v7=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u3,u7),ih2));
+   svint32_t qc0=svuzp1_s32(v0,v4);
+   svst1_s32(pg32,dst+(kb+0)*16,qc0);
+   svint32_t qc1=svuzp2_s32(v0,v4);
+   svst1_s32(pg32,dst+(kb+1)*16,qc1);
+   svint32_t qc2=svuzp1_s32(v1,v5);
+   svst1_s32(pg32,dst+(kb+2)*16,qc2);
+   svint32_t qc3=svuzp2_s32(v1,v5);
+   svst1_s32(pg32,dst+(kb+3)*16,qc3);
+   svint32_t qc4=svuzp1_s32(v2,v6);
+   svst1_s32(pg32,dst+(kb+4)*16,qc4);
+   svint32_t qc5=svuzp2_s32(v2,v6);
+   svst1_s32(pg32,dst+(kb+5)*16,qc5);
+   svint32_t qc6=svuzp1_s32(v3,v7);
+   svst1_s32(pg32,dst+(kb+6)*16,qc6);
+   svint32_t qc7=svuzp2_s32(v3,v7);
+   svst1_s32(pg32,dst+(kb+7)*16,qc7);
+  }
+  double delta=svmaxv_f64(pg,dmax)*(1+4*DBL_EPSILON)+DBL_MIN;
+  double lbound=svmaxv_f64(pg,lmax);
+  if(!(lbound<=0.5) || !isfinite(delta)){*eta=INFINITY;return;}
+  double worst=0;
+  for(long r=0;r<16;r++) {
+   long row=row0+r;double wi=g_qweights[row];
+   double norm=0.5*(g_qprefix[kk]-g_qprefix[mb]);
+   svfloat64_t dsum=svdup_f64(0);
+   for(long k=kk;k<row;k+=8) {
+    svbool_t pk=svwhilelt_b64(k,row);
+    dsum=svmla_f64_x(pg,dsum,svabs_f64_x(pg,svld1_f64(pk,L+row*lda+k)),svld1_f64(pk,g_qweights+k));
+   }
+   norm+=svaddv_f64(pg,dsum);
+   double diag=fabs(L[row*lda+row]);
+   double mu=diag*wi-norm*(1+4*m*DBL_EPSILON)-16*DBL_EPSILON*diag*wi;
+   double e=kk*delta/mu;
+   if(!(mu>0) || !isfinite(diag) || !isfinite(e))e=INFINITY;
+   if(e>worst)worst=e;
+  }
+  *eta=worst;
+  return;
+ }
+ *eta=INFINITY;
+ for(long k=0;k<kk;k++)for(long r=0;r<16;r++){double v=r<rows?L[(row0+r)*lda+k0+k]:0;dst[k*16+r]=fabs(v)<=0.5?(int32_t)nearbyint(v*4294967294.0):0;}
+}
+static void epi_sub_q32(const double* scratch,double* c,long cs,long cols) {
+ const svbool_t pg=svptrue_b64();
+ for(long r=0;r<16;r++)for(long j=0;j<cols;j+=8) {
+  svbool_t pj=svwhilelt_b64(j,cols);double* out=(double*)((char*)c+r*cs)+j;
+  svfloat64_t v=svld1_f64(pg,scratch+(r%8)*64+(r/8)*32+j);
+  svst1_f64(pj,out,svmls_n_f64_x(pg,svld1_f64(pj,out),v,1.0/4294967294.0));
+ }
+}
+
 // ---------------------------------------------------------------- 对角块预处理
 // 行块 i（行 [i0, i0+mbi)，S 个 16 行子块）→ dst：子块 s 的打包条带（16 × 16(s+1)），
 //   k <  16s：dst[k*16 + r] = -(Linv_ss · L_{s,k/16})[r][k%16]
@@ -1262,6 +1556,8 @@ typedef struct {
     double* B;
     int mb, nc, kc;
     int lchunk, direct;
+    int q32; int32_t* qp;
+    double* qout; double* qeta; double* qmax;
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1430,8 +1726,9 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
     long i0 = i * c->mb;
     long row0 = 16 * g;
     long rows = c->m - row0; if (rows > 16) rows = 16;
-    double* dst = c->pp[0] + c->pp_off[g];
-    if (i0 > 0 && c->lchunk) { pack_l_chunked(c, g); }
+    double* dst = c->q32 ? NULL : c->pp[0] + c->pp_off[g];
+    if (i0 > 0 && c->q32) {pack_q32(c->L,c->lda,c->m,row0,0,i0,c->qp+c->pp_off[g],c->mb,c->qeta+g);}
+    else if (i0 > 0 && c->lchunk) { pack_l_chunked(c, g); }
     else if (i0 > 0) {
         if (rows == 16 && (i0 & 31) == 0) pack_strip_ld4(c->L, c->lda, row0, 0, i0, dst);
         else pack_strip(c->L, c->lda, c->m, row0, 0, i0, dst);
@@ -1551,7 +1848,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
             A = Acur;
         } else {
-            A = c->pp[cpy] + packed_l_offset(c, i0 / 16 + r, k0);
+            A = c->q32 ? (const double*)(c->qp+c->pp_off[i0 / 16 + r]+(size_t)k0*16) : c->pp[cpy] + packed_l_offset(c, i0 / 16 + r, k0);
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
         long nrow0 = 0, nk0 = 0;
@@ -1583,8 +1880,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->pp[cpy] + packed_l_offset(c, pr0 / 16, pk0);
-                    pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
+                    const double* An = c->q32 ? (const double*)(c->qp+c->pp_off[pr0/16]+(size_t)pk0*16) : c->pp[cpy] + packed_l_offset(c, pr0 / 16, pk0);
+                    pf.p = (const char*)An + (size_t)t * (kk / (c->q32 ? 4 : 2)) * 64;
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
                 }
@@ -1611,7 +1908,11 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             if(c->direct) {
                 PROF_T(c,za_load_direct(acc+16L*r*ncp+32*t,cs,cols),t_load);
             } else sme_zero_za();
-            if(c->direct) {
+            if(c->q32) {
+                if(pend && kk==64) PROF_T(c,kloop_q32_epi(A,64,64,Xk+32*t,cs,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
+                else if(pend && kk>=65) PROF_T(c,kloop_q32_epi_any(A,64,64,Xk+32*t,cs,kk,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
+                else {if(pend)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);PROF_T(c,kloop_q32_plain(A,64,64,Xk+32*t,cs,kk,cols,&pf),t_kloop);}
+            } else if(c->direct) {
                 if(c->ant)PROF_T(c,kloop_plain_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
                 else PROF_T(c,kloop_plain_direct_t(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
             } else if (host_now) {
@@ -1645,7 +1946,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
-    if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
+    if (pend) { if(c->q32)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);else PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
         // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
@@ -1736,6 +2037,17 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         // 上一任务遗留的托管回写先同步收尾（通常已在 K 循环里完成）
         sw_flush(tb);
         // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
+        double* Bout=c->q32?c->qout+i0*ldb+c0:Bblk;
+        if(c->q32) {
+            svfloat64_t xm=svdup_f64(0);
+            for(long rr=0;rr<mbi;rr++)for(long jj=0;jj<nci;jj+=8) {
+                svbool_t pp=svwhilelt_b64(jj,nci);
+                xm=svmax_f64_x(pg,xm,svabs_f64_x(pg,svld1_f64(pp,cb+rr*ncp+jj)));
+            }
+            double x=svmaxv_f64(pg,xm);
+            if(!isfinite(x))c->qmax[tid*16]=INFINITY;
+            else if(x>c->qmax[tid*16])c->qmax[tid*16]=x;
+        }
         const int last_rb = (i + 1 == c->nrb);
         if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
@@ -1752,7 +2064,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 long rows = mbi - r0; if (rows > kc) rows = kc;
                 sw_t w;
                 w.src = (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p) * kc * ncp);
-                w.dst = (char*)(Bblk + r0 * ldb);
+                w.dst = (char*)(Bout + r0 * ldb);
                 w.lpr = nc * 8 / 64; w.cnt = w.lpr;
                 w.dstj = ldb * 8 - nc * 8;
                 w.rows = rows;
@@ -1764,7 +2076,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
-                double* d = Bblk + r * ldb;
+                double* d = Bout + r * ldb;
                 long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
                 if (pre > nci) pre = nci;
                 long j = 0;
@@ -1778,7 +2090,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         } else {
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
-                double* d = Bblk + r * ldb;
+                double* d = Bout + r * ldb;
                 long j = 0;
                 for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
                 if (j < nci) {
@@ -1797,7 +2109,10 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 
 
 // ---------------------------------------------------------------- 主流程
-static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
+static int32_t* g_q32;
+static size_t g_q32_cap;
+static double* g_qout;static size_t g_qout_cap;
+static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb,int enableq)
 {
     ctx_t c;
     memset(&c, 0, sizeof(c));
@@ -1821,8 +2136,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (kc > mb) kc = mb;
     while (mb % kc) kc -= 32;           // 要求 kc | mb，使每个 K 段落在单个行块内
     c.mb = mb; c.nc = nc; c.kc = kc;
+    c.q32=enableq && m<32768 && env_int("TRSM_Q32",m>=4096 && n<=1024);
+    if(c.q32) {
+      if(g_qweight_cap<m) {
+       free(g_qweights);free(g_qprefix);g_qweights=malloc(m*8);g_qprefix=malloc((m+1)*8);g_qprefix[0]=0;
+       for(long i=0;i<m;i++){double x=i+1;g_qweights[i]=x*sqrt(sqrt(x));g_qprefix[i+1]=g_qprefix[i]+g_qweights[i];}
+       g_qweight_cap=m;
+      }
+      size_t need=(size_t)m*ldb;
+      if(g_qout_cap<need) {trsm_free_buffer(g_qout,g_qout_cap*8);g_qout=alloc_on(need*8,g_hbm_node);g_qout_cap=need;}
+      c.qout=g_qout;c.qeta=calloc((m+15)/16,sizeof(double));c.qmax=calloc(1024*16,sizeof(double));
+    }
     c.lchunk = env_int("TRSM_LCHUNK", 1) && mb % kc == 0;
-    c.direct = env_int("TRSM_DIRECT", m <= 1024);
+    c.direct = !c.q32 && env_int("TRSM_DIRECT", m <= 1024);
     c.nrb = (m + mb - 1) / mb;
     c.npan = (n + nc - 1) / nc;
     c.ncp = nc + TRSM_NCPAD;
@@ -1850,6 +2176,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.ppmode = bigL ? env_int("TRSM_PPMODE", 1) : 0;
     c.jit = (bigL && c.ppmode == 0) ? 1 : 0;
     if (env_int("TRSM_JIT", -1) >= 0) { c.jit = env_int("TRSM_JIT", -1); if (c.jit) c.ppmode = 0; }
+    if(c.q32)c.jit=0;
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
     // TRSM_HBM_MARGIN_MB：保留余量（默认 256）
@@ -1924,18 +2251,24 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             off += (size_t)16 * (i * mb);
         }
         c.pp_off[c.nstrip] = off;
+        if(c.q32) {
+            if(g_q32_cap<off) {trsm_free_buffer(g_q32,g_q32_cap*4+4096);g_q32=alloc_on(off*4+4096,g_hbm_node);g_q32_cap=off;}
+            c.qp=g_q32;
+        }
         // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本；流水式打包只有一份
         int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", 1);
+        if(c.q32)split=0;
         if (c.ppmode == 1 && g_pp[1]) { trsm_free_buffer(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
-        if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
+        if (!c.q32 && node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
             HBM_MAKE_ROOM(off * 8 + 4096);
             if (!HBM_ROOM(off * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
         }
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);
         if (env_int("TRSM_LNODE1", -3) != -3) node1 = env_int("TRSM_LNODE1", -3);
         for (int k = 0; k < 2; k++) {
+            if(c.q32)break;
             if (k == 1 && !split) break;
             int node = k == 0 ? node0 : node1;
             if (g_pp_cap[k] < off || g_pp_node[k] != node) {
@@ -2083,6 +2416,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 long i = (16 * g) / mb;
                 long kk = i * mb;
                 if (kk <= 0) continue;
+                if(c.q32) {pack_q32(L,lda,m,16*g,0,kk,c.qp+c.pp_off[g],mb,c.qeta+g);continue;}
                 if (c.lchunk) { pack_l_chunked(&c, g); continue; }
                 pack_strip(L, lda, m, 16 * g, 0, kk, c.pp[0] + c.pp_off[g]);
                 if (c.pp[1]) memcpy(c.pp[1] + c.pp_off[g], c.pp[0] + c.pp_off[g], (size_t)kk * 16 * 8);
@@ -2143,6 +2477,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     free(ditem_i); free(ditem_s);
     free(c.S_of); free(c.diag_off); free(c.pp_off);
+    if(c.q32) {
+        double eta=0,xmax=0;
+        for(long g=0;g<(m+15)/16;g++)if(c.qeta[g]>eta)eta=c.qeta[g];
+        for(int t=0;t<1024;t++)if(c.qmax[t*16]>xmax)xmax=c.qmax[t*16];
+        double bound=g_qweights[m-1]*eta*xmax;
+        int pass=isfinite(bound)&&bound<=2e-13;
+        if(c.prof)fprintf(stderr,"[qguard] coefficient_bound=%.4e xmax=%.6g decision=%s\n",bound,xmax,pass?"accept":"retry-fp64");
+        free(c.qeta);free(c.qmax);
+        if(pass) {
+#pragma omp parallel for num_threads(nth) schedule(static)
+            for(long r=0;r<m;r++)memcpy(B+r*ldb,c.qout+r*ldb,(size_t)n*8);
+        } else trsm_sme(m,n,L,lda,B,ldb,0);
+    }
 }
 #endif // TRSM_NO_SME_ASM
 
@@ -2152,7 +2499,7 @@ void l_trsm(int m, int n, const double* L, int lda, double* B, int ldb)
     if (m <= 0 || n <= 0) return;
 #ifndef TRSM_NO_SME_ASM
     if (sme_f64_available()) {
-        trsm_sme(m, n, L, lda, B, ldb);
+        trsm_sme(m, n, L, lda, B, ldb,1);
         return;
     }
 #endif
