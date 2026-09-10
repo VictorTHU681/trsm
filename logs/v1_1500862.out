@@ -1,0 +1,86 @@
+=== HOST
+cn20486
+Thu Sep 10 11:53:08 CST 2026
+=== compile
+=== 泛化正确性（38 线程，默认参数）
+m=   54 n=  290 lda=   98 ldb=  324  maxerr=1.11e-16  ok
+m=  725 n=  319 lda=  758 ldb=  359  maxerr=1.11e-16  ok
+m=  560 n=   32 lda=  589 ldb=  100  maxerr=1.11e-16  ok
+m=  272 n=  482 lda=  298 ldb=  544  maxerr=1.11e-16  ok
+m=  464 n=   57 lda=  528 ldb=   85  maxerr=1.11e-16  ok
+m=   96 n=  334 lda=  130 ldb=  352  maxerr=1.11e-16  ok
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+=== 泛化正确性（小 mb/nc/kc，多边界）
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+=== 判题口径（--preferred=17），默认参数 mb=256 nc=128 kc=128
+--- [default]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=17 | setup 0.012 ms, parallel 3.547 ms
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=17 | setup 0.008 ms, parallel 3.437 ms
+   512 x 19968         3.60    1452.3763     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330 nth=38 hbm=17 Xnode=17 | setup 0.014 ms, parallel 57.890 ms
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330 nth=38 hbm=17 Xnode=17 | setup 0.013 ms, parallel 58.297 ms
+  2432 x 17024        58.22    1729.4052     5.55e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268 nth=38 hbm=17 Xnode=17 | setup 2.532 ms, parallel 111.740 ms
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268 nth=38 hbm=17 Xnode=17 | setup 0.014 ms, parallel 110.246 ms
+ 17024 x   512       110.40    1344.1053     1.33e-15     PASS
+=== X 迁到 DDR（TRSM_XNODE=-2）
+--- [xnode=ddr]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=1 | setup 0.014 ms, parallel 3.934 ms
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=1 | setup 0.008 ms, parallel 3.957 ms
+   512 x 19968         4.08    1284.4697     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330 nth=38 hbm=17 Xnode=1 | setup 0.016 ms, parallel 58.735 ms
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330 nth=38 hbm=17 Xnode=1 | setup 0.014 ms, parallel 57.943 ms
+  2432 x 17024        58.48    1721.7529     5.55e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268 nth=38 hbm=17 Xnode=1 | setup 54.034 ms, parallel 111.083 ms
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268 nth=38 hbm=17 Xnode=1 | setup 0.009 ms, parallel 108.439 ms
+ 17024 x   512       108.61    1366.2767     1.33e-15     PASS
+=== kc=256
+--- [kc256]
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=256 jit=0 tasks=312 nth=38 hbm=17 Xnode=17 | setup 0.013 ms, parallel 3.651 ms
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=256 jit=0 tasks=312 nth=38 hbm=17 Xnode=17 | setup 0.009 ms, parallel 3.644 ms
+   512 x 19968         3.76    1390.9225     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=256 jit=0 tasks=1330 nth=38 hbm=17 Xnode=17 | setup 0.015 ms, parallel 60.923 ms
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=256 jit=0 tasks=1330 nth=38 hbm=17 Xnode=17 | setup 0.008 ms, parallel 60.736 ms
+  2432 x 17024        60.96    1651.8300     3.89e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=256 jit=1 tasks=268 nth=38 hbm=17 Xnode=17 | setup 2.160 ms, parallel 102.368 ms
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=256 jit=1 tasks=268 nth=38 hbm=17 Xnode=17 | setup 0.015 ms, parallel 96.083 ms
+ 17024 x   512        96.23    1541.9712     1.11e-15     PASS
+=== mb=192 nc=128 kc=192
+--- [mb192]
+[trsm prof] m=512 n=19968 mb=192 nc=128 kc=192 jit=0 tasks=468 nth=38 hbm=17 Xnode=17 | setup 0.014 ms, parallel 3.777 ms
+[trsm prof] m=512 n=19968 mb=192 nc=128 kc=192 jit=0 tasks=468 nth=38 hbm=17 Xnode=17 | setup 0.009 ms, parallel 3.856 ms
+   512 x 19968         3.94    1329.8877     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=192 nc=128 kc=192 jit=0 tasks=1729 nth=38 hbm=17 Xnode=17 | setup 0.016 ms, parallel 61.217 ms
+[trsm prof] m=2432 n=17024 mb=192 nc=128 kc=192 jit=0 tasks=1729 nth=38 hbm=17 Xnode=17 | setup 0.015 ms, parallel 60.827 ms
+  2432 x 17024        61.15    1646.5152     5.00e-16     PASS
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=192 jit=1 tasks=356 nth=38 hbm=17 Xnode=17 | setup 2.329 ms, parallel 104.272 ms
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=192 jit=1 tasks=356 nth=38 hbm=17 Xnode=17 | setup 0.012 ms, parallel 99.201 ms
+ 17024 x   512        99.34    1493.7482     1.28e-15     PASS
+=== mb=128 nc=256 kc=128
+--- [nc256]
+[trsm prof] m=512 n=19968 mb=128 nc=256 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=17 | setup 0.008 ms, parallel 4.648 ms
+[trsm prof] m=512 n=19968 mb=128 nc=256 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=17 | setup 0.005 ms, parallel 4.666 ms
+   512 x 19968         4.78    1096.0032     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=128 nc=256 kc=128 jit=0 tasks=1273 nth=38 hbm=17 Xnode=17 | setup 0.013 ms, parallel 78.179 ms
+[trsm prof] m=2432 n=17024 mb=128 nc=256 kc=128 jit=0 tasks=1273 nth=38 hbm=17 Xnode=17 | setup 0.013 ms, parallel 78.283 ms
+  2432 x 17024        78.36    1285.0283     5.55e-16     PASS
+[trsm prof] m=17024 n=512 mb=128 nc=256 kc=128 jit=1 tasks=266 nth=38 hbm=17 Xnode=17 | setup 1.735 ms, parallel 115.680 ms
+[trsm prof] m=17024 n=512 mb=128 nc=256 kc=128 jit=1 tasks=266 nth=38 hbm=17 Xnode=17 | setup 0.017 ms, parallel 114.218 ms
+ 17024 x   512       114.37    1297.4216     1.33e-15     PASS
+=== 无 --preferred（全 DDR）对照
+[trsm prof] m=512 n=19968 mb=256 nc=128 kc=128 jit=0 tasks=312 nth=38 hbm=17 Xnode=1 | setup 0.009 ms, parallel 4.144 ms
+   512 x 19968         4.29    1219.9955     2.22e-16     PASS
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=128 jit=0 tasks=1330 nth=38 hbm=17 Xnode=1 | setup 0.008 ms, parallel 66.479 ms
+  2432 x 17024        66.47    1514.7535     5.55e-16     PASS
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 tasks=268 nth=38 hbm=17 Xnode=1 | setup 0.013 ms, parallel 132.964 ms
+ 17024 x   512       133.11    1114.7951     1.33e-15     PASS
+=== DONE
+Thu Sep 10 11:53:32 CST 2026

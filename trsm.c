@@ -563,6 +563,7 @@ typedef struct {
     volatile int* flags;    // nrb*npan
     volatile long next;
     int prof;
+    int pf;                 // 软件预取开关
 } ctx_t;
 
 typedef struct {
@@ -570,9 +571,19 @@ typedef struct {
     double* astrip;  // 16*kc
     double* scratch; // 4 KB (+余量)
     size_t cbuf_cap, astrip_cap;
+    // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
+    uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
+    long n_task, n_kstep;
 } tbuf_t;
 
+#define PROF_T(c, expr, field)                                           \
+    do {                                                                 \
+        if ((c)->prof >= 2) { uint64_t _t0 = cyc(); expr; tb->field += cyc() - _t0; } \
+        else { expr; }                                                   \
+    } while (0)
+
 static tbuf_t g_tb[1024];
+static uint64_t g_prep_cyc[1024], g_tail_cyc[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
 static double* g_pp[2] = {NULL, NULL};
@@ -619,9 +630,11 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
     const long bs = ldb * 8;      // X 行距字节
     const long cs = nc * 8;       // C 块行距字节
     double* Bblk = c->B + i0 * ldb + c0;
+    uint64_t tt0 = c->prof >= 2 ? cyc() : 0;
 
     // 1. C 块 ← B 子块（越界列/行补零）
     {
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * nc;
@@ -639,14 +652,16 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                 for (long j = 0; j < nc; j++) d[j] = 0.0;
             }
         }
+        if (c->prof >= 2) tb->t_load += cyc() - t0;
     }
 
     // 2. GEMM 段：C 块 -= L[i0.., k0..k0+kk) · X[k0..k0+kk, c0..]
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!c->jit && c->pp[1]) cpy = (int)((i + p) & 1);
+    const int pf_on = c->pf;
     for (long k0 = 0; k0 < i0; k0 += kc) {
         long kk = i0 - k0; if (kk > kc) kk = kc;
-        wait_flag(c, (k0 / mb) * c->npan + p);
+        PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
         const double* Xk = c->B + k0 * ldb + c0;
         // 下一段 X 面板的预取交给各行条分摊（每条 kk/S 行）
         long pf_rows_per_strip = (kk + S - 1) / S;
@@ -655,14 +670,14 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
             const double* A;
             const void* pfA; long pfs;
             if (c->jit) {
-                pack_strip(c->L, lda, c->m, i0 + 16 * r, k0, kk, tb->astrip);
+                PROF_T(c, pack_strip(c->L, lda, c->m, i0 + 16 * r, k0, kk, tb->astrip), t_pack);
                 A = tb->astrip;
                 // 预取下一条的 L 行（同段），最后一条预取下一段第 0 条
                 long nr = (r + 1 < S) ? i0 + 16 * (r + 1) : i0;
                 long nk = (r + 1 < S) ? k0 : k0n;
-                if (nk < i0) {
+                if (pf_on && nk < i0) {
                     long rows = c->m - nr; if (rows > 16) rows = 16;
-                    prefetch_rows(c->L + nr * lda + nk, rows, lda * 8, kc * 8);
+                    PROF_T(c, prefetch_rows(c->L + nr * lda + nk, rows, lda * 8, kc * 8), t_pf);
                 }
                 pfA = tb->astrip; pfs = 0;   // 占位：JIT 时 K 循环内不需要 A 预取
             } else {
@@ -670,20 +685,20 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                 // 下一条的打包数据（连续）：K 循环内每步预取 32 B 推进
                 const double* An = (r + 1 < S) ? c->pp[cpy] + c->pp_off[i0 / 16 + r + 1] + (size_t)k0 * 16
                                                : c->pp[cpy] + c->pp_off[i0 / 16] + (size_t)k0n * 16;
-                pfA = An; pfs = 32;
+                pfA = pf_on ? An : A; pfs = pf_on ? 32 : 0;
             }
-            if (k0n < i0) {
+            if (pf_on && k0n < i0) {
                 long pr0 = r * pf_rows_per_strip;
                 long prn = pf_rows_per_strip;
                 if (pr0 + prn > kk) prn = kk - pr0;
-                if (prn > 0) prefetch_rows(c->B + (k0n + pr0) * ldb + c0, prn, bs, nci * 8);
+                if (prn > 0) PROF_T(c, prefetch_rows(c->B + (k0n + pr0) * ldb + c0, prn, bs, nci * 8), t_pf);
             }
             for (long t = 0; t < ntile; t++) {
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 sme_zero_za();
-                kloop_16x32(A, Xk + 32 * t, bs, kk, cols, pfA, pfs);
-                za_dump(scratch);
-                epi_sub(scratch, cb + 16L * r * nc + 32 * t, cs, cols);
+                PROF_T(c, kloop_16x32(A, Xk + 32 * t, bs, kk, cols, pfA, pfs), t_kloop);
+                PROF_T(c, (za_dump(scratch), epi_sub(scratch, cb + 16L * r * nc + 32 * t, cs, cols)), t_epi);
+                tb->n_kstep += kk;
             }
         }
     }
@@ -698,15 +713,16 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
             for (long t = 0; t < ntile; t++) {
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 sme_zero_za();
-                kloop_16x32(A, cb + 32 * t, cs, K, cols, An, 64);
-                za_dump(scratch);
-                epi_set(scratch, cb + 16L * s * nc + 32 * t, cs, cols);
+                PROF_T(c, kloop_16x32(A, cb + 32 * t, cs, K, cols, An, pf_on ? 64 : 0), t_dkloop);
+                PROF_T(c, (za_dump(scratch), epi_set(scratch, cb + 16L * s * nc + 32 * t, cs, cols)), t_depi);
+                tb->n_kstep += K;
             }
         }
     }
 
     // 4. C 块 → X（非临时存储），发布 flag
     {
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long r = 0; r < mbi; r++) {
             const double* s = cb + r * nc;
@@ -718,8 +734,10 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                 svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
             }
         }
+        if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
     __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
 }
 
@@ -730,6 +748,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     memset(&c, 0, sizeof(c));
     c.m = m; c.n = n; c.lda = lda; c.ldb = ldb; c.L = L; c.B = B;
     c.prof = env_int("TRSM_PROFILE", 0);
+    c.pf = env_int("TRSM_PF", 1);
     int mb = env_int("TRSM_MB", 256), nc = env_int("TRSM_NC", 128), kc = env_int("TRSM_KC", 128);
     if (mb < 16) mb = 16;
     mb = (mb + 15) & ~15;
@@ -847,6 +866,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         int tid = omp_get_thread_num();
         pin_self(tid);
         ensure_tbuf(tid, (size_t)mb * nc, (size_t)16 * kc);
+        if (c.prof >= 2) {
+            tbuf_t* tb = &g_tb[tid];
+            tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
+            tb->t_dkloop = tb->t_depi = tb->t_store = tb->t_task = 0;
+            tb->n_task = tb->n_kstep = 0;
+        }
+        uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
         // 阶段 1：对角预处理
 #pragma omp for schedule(dynamic, 1) nowait
         for (long q = 0; q < ndiag_items; q++) {
@@ -866,6 +892,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             }
         }
 #pragma omp barrier
+        if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理 + barrier
         // 阶段 2：任务
         sme_start();
         for (;;) {
@@ -874,6 +901,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             run_task(&c, &g_tb[tid], t / c.npan, t % c.npan, tid);
         }
         sme_stop();
+        if (c.prof >= 2) g_tail_cyc[tid] = cyc();
     }
     if (c.prof) {
         uint64_t t2 = cyc();
@@ -881,6 +909,24 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d tasks=%ld nth=%d hbm=%d Xnode=%d | setup %.3f ms, parallel %.3f ms\n",
                 m, n, mb, nc, kc, c.jit, c.ntask, nth, g_hbm_node, page_node_of(B),
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
+        if (c.prof >= 2) {
+            double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
+            long nks = 0, ntk = 0;
+            uint64_t tail_min = ~0ull, tail_max = 0;
+            for (int t = 0; t < nth; t++) {
+                tbuf_t* tb = &g_tb[t];
+                sload += tb->t_load; spack += tb->t_pack; spf += tb->t_pf; swait += tb->t_wait; skl += tb->t_kloop;
+                sepi += tb->t_epi; sdkl += tb->t_dkloop; sdepi += tb->t_depi; sst += tb->t_store; stask += tb->t_task;
+                sprep += g_prep_cyc[t]; nks += tb->n_kstep; ntk += tb->n_task;
+                if (g_tail_cyc[t] < tail_min) tail_min = g_tail_cyc[t];
+                if (g_tail_cyc[t] > tail_max) tail_max = g_tail_cyc[t];
+            }
+            double f = 1e3 / hz / nth;   // 每线程平均 ms
+            double ideal_ms = (double)nks * 8.0 / 1.55e9 * 1e3 / nth;   // 每 k 步 8 周期 @1.55 GHz
+            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f pf %.3f wait %.3f kloop %.3f epi %.3f dkloop %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms | k 步 %ld（理想 %.3f ms，kloop 效率 %.1f%%）\n",
+                    sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sepi * f, sdkl * f, sdepi * f, sst * f, stask * f,
+                    (tail_max - tail_min) / hz * 1e3, nks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
+        }
     }
     free(ditem_i); free(ditem_s);
     free(c.S_of); free(c.diag_off); free(c.pp_off);
