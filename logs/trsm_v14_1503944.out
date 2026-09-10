@@ -1,0 +1,39 @@
+=== HOST
+cn20491
+Thu Sep 10 20:25:38 CST 2026
+[env] host=cn20491 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- [v14 默认]
+[trsm prof]  每线程平均 ms：prep 0.085 | load 0.350 pack 0.000 xcopy 0.000 wait 0.000 kloop 1.126 epi 0.335 dkloop 0.603 depi 0.187 store 0.206 | task 合计 2.896 | 尾部不均衡 0.211 ms | k 步 5271552（理想 0.716 ms，kloop 效率 41.4%）
+[trsm prof]  托管回写：排队 1277952 行，同步收尾 153344 行（12.0%）
+   512 x 19968         3.35    1560.4452     3.33e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.451 | load 1.652 pack 0.000 xcopy 0.000 wait 0.002 kloop 20.401 epi 4.858 dkloop 2.179 depi 0.566 store 0.743 | task 合计 32.302 | 尾部不均衡 0.815 ms | k 步 98977536（理想 13.443 ms，kloop 效率 59.5%）
+[trsm prof]  托管回写：排队 5175296 行，同步收尾 138624 行（2.7%）
+  2432 x 17024        33.37    3017.1230     7.77e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.793 | load 0.654 pack 2.933 xcopy 0.000 wait 1.034 kloop 29.851 epi 6.701 dkloop 0.360 depi 0.087 store 0.182 | task 合计 41.556 | 尾部不均衡 3.054 ms | k 步 145044480（理想 19.700 ms，kloop 效率 65.2%）
+[trsm prof]  托管回写：排队 1089536 行，同步收尾 45056 行（4.1%）
+ 17024 x   512        47.74    3108.3085     1.50e-15     PASS
+--- [swhost=0]
+[trsm prof]  每线程平均 ms：prep 0.081 | load 0.366 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.764 epi 0.243 dkloop 0.492 depi 0.190 store 0.719 | task 合计 2.883 | 尾部不均衡 0.210 ms | k 步 5271552（理想 0.716 ms，kloop 效率 57.0%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+   512 x 19968         3.34    1569.4092     3.33e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.456 | load 1.873 pack 0.000 xcopy 0.000 wait 0.002 kloop 18.781 epi 3.714 dkloop 1.946 depi 0.417 store 2.733 | task 合计 31.507 | 尾部不均衡 0.794 ms | k 步 98977536（理想 13.443 ms，kloop 效率 64.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+  2432 x 17024        32.60    3088.2106     7.77e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.792 | load 0.642 pack 2.887 xcopy 0.000 wait 1.436 kloop 30.006 epi 5.755 dkloop 0.312 depi 0.070 store 0.564 | task 合计 41.811 | 尾部不均衡 2.786 ms | k 步 145044480（理想 19.700 ms，kloop 效率 65.0%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+ 17024 x   512        47.70    3110.9595     1.50e-15     PASS
+--- [v14 默认 第二轮]
+[trsm prof]  每线程平均 ms：prep 0.086 | load 0.351 pack 0.000 xcopy 0.000 wait 0.000 kloop 1.153 epi 0.224 dkloop 0.598 depi 0.119 store 0.187 | task 合计 2.727 | 尾部不均衡 0.208 ms | k 步 5271552（理想 0.716 ms，kloop 效率 40.9%）
+[trsm prof]  托管回写：排队 1277952 行，同步收尾 153344 行（12.0%）
+   512 x 19968         3.17    1648.7454     3.33e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.468 | load 1.634 pack 0.000 xcopy 0.000 wait 0.002 kloop 20.412 epi 4.881 dkloop 2.069 depi 0.580 store 0.775 | task 合计 32.253 | 尾部不均衡 0.818 ms | k 步 98977536（理想 13.443 ms，kloop 效率 59.8%）
+[trsm prof]  托管回写：排队 5175296 行，同步收尾 138624 行（2.7%）
+  2432 x 17024        33.50    3006.0517     7.77e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.794 | load 0.661 pack 2.961 xcopy 0.000 wait 0.929 kloop 29.774 epi 6.665 dkloop 0.315 depi 0.085 store 0.197 | task 合计 41.311 | 尾部不均衡 2.853 ms | k 步 145044480（理想 19.700 ms，kloop 效率 65.5%）
+[trsm prof]  托管回写：排队 1089536 行，同步收尾 48128 行（4.4%）
+ 17024 x   512        47.32    3135.9408     1.50e-15     PASS
+=== 泛化正确性
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+=== DONE
+Thu Sep 10 20:26:07 CST 2026

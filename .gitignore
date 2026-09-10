@@ -1,0 +1,12 @@
+# 编译产物
+trsm_test
+trsm_test_*
+tt_*
+*.o
+probe/kbench
+probe/kbench_*
+probe/gen_test
+probe/bw_nodes
+probe/peak
+probe/trsm_kblas
+probe/ref.o

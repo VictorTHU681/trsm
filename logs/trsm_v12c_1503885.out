@@ -1,0 +1,26 @@
+=== HOST
+cn20482
+Thu Sep 10 20:21:19 CST 2026
+[env] host=cn20482 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- [v12c 默认]
+[trsm prof]  每线程平均 ms：prep 0.078 | load 0.369 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.781 epi 0.156 dkloop 0.488 depi 0.109 store 0.706 | task 合计 2.722 | 尾部不均衡 0.202 ms | k 步 5271552（理想 0.716 ms，kloop 效率 56.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+   512 x 19968         3.18    1645.6095     3.33e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.459 | load 1.948 pack 0.000 xcopy 0.000 wait 0.002 kloop 18.891 epi 3.766 dkloop 1.825 depi 0.412 store 2.936 | task 合计 31.818 | 尾部不均衡 0.813 ms | k 步 98977536（理想 13.443 ms，kloop 效率 64.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+  2432 x 17024        33.25    3028.2959     7.77e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.793 | load 0.657 pack 2.840 xcopy 0.000 wait 1.441 kloop 30.021 epi 5.795 dkloop 0.382 depi 0.073 store 0.552 | task 合计 41.983 | 尾部不均衡 2.980 ms | k 步 145044480（理想 19.700 ms，kloop 效率 64.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+ 17024 x   512        48.20    3078.8671     1.50e-15     PASS
+--- [xpnt=1]
+[trsm prof]  每线程平均 ms：prep 0.084 | load 0.370 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.741 epi 0.257 dkloop 0.475 depi 0.185 store 0.707 | task 合计 2.845 | 尾部不均衡 0.195 ms | k 步 5271552（理想 0.716 ms，kloop 效率 58.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+   512 x 19968         3.31    1580.3211     3.33e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.434 | load 1.899 pack 0.000 xcopy 0.000 wait 0.002 kloop 18.567 epi 4.337 dkloop 1.978 depi 0.590 store 2.876 | task 合计 32.184 | 尾部不均衡 0.816 ms | k 步 98977536（理想 13.443 ms，kloop 效率 65.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+  2432 x 17024        33.41    3013.5172     7.77e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.794 | load 0.653 pack 2.837 xcopy 0.000 wait 1.573 kloop 29.375 epi 6.668 dkloop 0.352 depi 0.086 store 0.564 | task 合计 42.110 | 尾部不均衡 2.830 ms | k 步 145044480（理想 19.700 ms，kloop 效率 66.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+ 17024 x   512        48.06    3087.6429     1.50e-15     PASS
+=== DONE
+Thu Sep 10 20:21:36 CST 2026

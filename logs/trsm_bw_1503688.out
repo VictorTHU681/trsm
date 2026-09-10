@@ -1,0 +1,28 @@
+=== HOST
+cn20483
+Thu Sep 10 19:33:16 CST 2026
+[env] host=cn20483 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+=== distance: 20 10 20 20 30 30 30 30 40 40 40 40 40 40 40 40 71 61 71 71 81 81 81 81 91 91 91 91 91 91 91 91
+node0 free=1250MB cpus=0-37;node1 free=14233MB cpus=38-75;node10 free=30018MB cpus=380-417;node11 free=30296MB cpus=418-455;node12 free=29609MB cpus=456-493;node13 free=29490MB cpus=494-531;node14 free=30356MB cpus=532-569;node15 free=28129MB cpus=570-607;node16 free=4096MB cpus=;node17 free=4096MB cpus=;node18 free=4096MB cpus=;node19 free=4096MB cpus=;node2 free=2889MB cpus=76-113;node20 free=4096MB cpus=;node21 free=4096MB cpus=;node22 free=4096MB cpus=;node23 free=4096MB cpus=;node24 free=4096MB cpus=;node25 free=4096MB cpus=;node26 free=4096MB cpus=;node27 free=4096MB cpus=;node28 free=4096MB cpus=;node29 free=4096MB cpus=;node3 free=21915MB cpus=114-151;node30 free=4096MB cpus=;node31 free=4096MB cpus=;node4 free=18101MB cpus=152-189;node5 free=19705MB cpus=190-227;node6 free=25232MB cpus=228-265;node7 free=15821MB cpus=266-303;node8 free=28875MB cpus=304-341;node9 free=28258MB cpus=342-379;
+  nodes=17               threads=38  read 306.1 GB/s (8.1 GB/s/thread)  [sink 4.94e-295]
+  nodes=1                threads=38  read 160.0 GB/s (4.2 GB/s/thread)  [sink 4.94e-295]
+  nodes=0                threads=38  read 142.4 GB/s (3.7 GB/s/thread)  [sink 4.94e-295]
+  nodes=2                threads=38  read 141.9 GB/s (3.7 GB/s/thread)  [sink 4.94e-295]
+  nodes=3                threads=38  read 140.5 GB/s (3.7 GB/s/thread)  [sink 4.94e-295]
+  nodes=16               threads=38  read 206.2 GB/s (5.4 GB/s/thread)  [sink 4.94e-295]
+  nodes=18               threads=38  read 206.2 GB/s (5.4 GB/s/thread)  [sink 4.94e-295]
+  nodes=19               threads=38  read 199.9 GB/s (5.3 GB/s/thread)  [sink 4.94e-295]
+  nodes=20               threads=38  read 142.7 GB/s (3.8 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,1             threads=38  read 303.8 GB/s (8.0 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,0             threads=38  read 203.1 GB/s (5.3 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,1,0           threads=38  read 178.6 GB/s (4.7 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,1,0,2         threads=38  read 170.8 GB/s (4.5 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,1,0,2,3       threads=38  read 165.7 GB/s (4.4 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,16            threads=38  read 240.7 GB/s (6.3 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,16,18         threads=38  read 234.1 GB/s (6.2 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,16,18,19      threads=38  read 226.5 GB/s (6.0 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,16,18,19,1,0,2,3 threads=38  read 195.3 GB/s (5.1 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,17,17,1       threads=38  read 310.0 GB/s (8.2 GB/s/thread)  [sink 4.94e-295]
+  nodes=17,17,1,0        threads=38  read 206.9 GB/s (5.4 GB/s/thread)  [sink 4.94e-295]
+=== DONE
+Thu Sep 10 19:33:30 CST 2026

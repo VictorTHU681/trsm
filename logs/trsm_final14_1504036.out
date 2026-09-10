@@ -1,0 +1,25 @@
+=== HOST
+cn20482
+Thu Sep 10 20:43:54 CST 2026
+=== run.sh 第 1 轮
+   512 x 19968         3.25    1608.4080     3.33e-16     PASS
+  2432 x 17024        33.46    3008.9514     7.77e-16     PASS
+ 17024 x   512        47.23    3141.6253     1.50e-15     PASS
+=== run.sh 第 2 轮
+   512 x 19968         3.07    1706.8936     3.33e-16     PASS
+  2432 x 17024        33.41    3013.8530     7.77e-16     PASS
+ 17024 x   512        47.41    3129.7632     1.50e-15     PASS
+[env] host=cn20482 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+=== 题面原样：OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test（无 --preferred）
+   512 x 19968         4.11    1273.8459     3.33e-16     PASS
+  2432 x 17024        36.81    2735.5443     7.77e-16     PASS
+ 17024 x   512        47.38    3131.5282     1.50e-15     PASS
+   512 x 19968         4.23    1237.9818     3.33e-16     PASS
+  2432 x 17024        37.04    2718.3616     7.77e-16     PASS
+ 17024 x   512        47.60    3117.5916     1.50e-15     PASS
+=== 泛化正确性
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+=== DONE
+Thu Sep 10 20:44:57 CST 2026

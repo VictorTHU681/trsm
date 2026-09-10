@@ -2,16 +2,14 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 echo "=== HOST"; hostname; date
-set +u; . /work_ssd/software/HPCKit/26.1.RC1/setvars.sh --use-gcc >/dev/null 2>&1; set -u
+. probe/env.sh
 FLAGS="-O3 -march=armv9-a+sme+sme-f64f64+sve2 -fopenmp"
 gcc $FLAGS bench_trsm.c trsm.c -o trsm_test_c3 -lm -lkblas 2>&1 | grep -E "error"; [[ -x trsm_test_c3 ]] || { echo COMPILE_FAIL; exit 1; }
-node=1; hbm=17
-export OMP_NUM_THREADS=38 OMP_PROC_BIND=close OMP_PLACES=cores OMP_DYNAMIC=FALSE OMP_WAIT_POLICY=active GOMP_SPINCOUNT=infinite
 run1() {
     local desc="$1"; shift
     echo "--- [$desc]"
-    env "$@" TRSM_PROFILE=2 numactl -N $node --preferred=$hbm ./trsm_test_c3 17024 512 1 2>&1 | grep -E "PASS|FAIL|prof\]|Error|rror|fault" | tail -3
-    grep -E "MemFree" /sys/devices/system/node/node$hbm/meminfo
+    env "$@" TRSM_PROFILE=2 numactl -N $node $MEMOPT ./trsm_test_c3 17024 512 1 2>&1 | grep -E "PASS|FAIL|prof\]|rror|fault|illed" | tail -3
+    [[ -n "$hbm" ]] && grep -E "MemFree" /sys/devices/system/node/node$hbm/meminfo
 }
 run1 "case3 pp=1 默认(pp→HBM preferred, Xp→DDR)" A=1
 run1 "case3 pp=1 pp→DDR" TRSM_LNODE0=1

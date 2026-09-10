@@ -1,0 +1,15 @@
+=== HOST
+cn20483
+Thu Sep 10 15:22:21 CST 2026
+--- [case3 pp=1 默认(pp→HBM preferred, Xp→DDR)]
+--- [case3 pp=1 pp→DDR]
+--- [case3 pp=1 pp→DDR xp→HBM]
+--- [case3 pp=1 LA=1]
+--- [case3 pp=1 LA=4]
+--- [case3 pp=1 kc=256]
+--- [case3 pp=1 mb192 kc96]
+--- [case3 pp=1 mb192 kc96 pp→DDR]
+--- [case3 pp=1 splitf=6]
+--- [case3 pp=1 nosplit]
+=== DONE
+Thu Sep 10 15:22:36 CST 2026

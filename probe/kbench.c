@@ -7,6 +7,15 @@
 
 static double to_cycles(uint64_t dt) { return (double)dt / (double)cyc_hz() * 1.55e9; }
 
+// 按 K 分派的托管回写 K 循环（kc=64 用专用变体，<64 退化为独立回写 + 普通 K 循环）
+static inline void kloop_epi_sub_any(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf,
+                                     const double* scratch, double* c, long cs, long ecols)
+{
+    if (K >= 65) kloop_epi_sub(pa, ase, aso, pb, bs, K, cols, pf, scratch, c, cs, ecols);
+    else if (K == 64) kloop_epi64_sub(pa, ase, aso, pb, bs, cols, pf, scratch, c, cs, ecols);
+    else { epi_sub_std(scratch, c, cs, ecols); kloop_plain(pa, ase, aso, pb, bs, K, cols, pf); }
+}
+
 // 可行性：K 循环每 2 步插入 2 ld1d + 5 permute(zip/tbl2) + 1 st1d（模拟交错转置的指令密度）
 #define KS_TR(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)               \
     "ld1d " n0 ".d, p0/z, [%[xa]]\n\t"                                            \
@@ -107,12 +116,21 @@ int main(int argc, char** argv)
     t0 = cyc();
     for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pfd); za_dump(scratch); epi_sub_std(scratch, C, nc * 8, 32); }
     r[2] = to_cycles(cyc() - t0) / reps;
-    t0 = cyc();
-    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_epi_sub(Ad, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C, nc * 8, 32); za_dump(scratch); }
-    r[3] = to_cycles(cyc() - t0) / reps;
-    t0 = cyc();
-    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_epi_set(Ad, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C, nc * 8, 32); za_dump(scratch); }
-    r[4] = to_cycles(cyc() - t0) / reps;
+    if (kc >= 65) {
+        t0 = cyc();
+        for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_epi_sub(Ad, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C, nc * 8, 32); za_dump(scratch); }
+        r[3] = to_cycles(cyc() - t0) / reps;
+        t0 = cyc();
+        for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_epi_set(Ad, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C, nc * 8, 32); za_dump(scratch); }
+        r[4] = to_cycles(cyc() - t0) / reps;
+    } else if (kc == 64) {
+        t0 = cyc();
+        for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_epi64_sub(Ad, 128, 128, Xp, nc * 8, 32, &pfd, scratch, C, nc * 8, 32); za_dump(scratch); }
+        r[3] = to_cycles(cyc() - t0) / reps;
+        t0 = cyc();
+        for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_epi64_set(Ad, 128, 128, Xp, nc * 8, 32, &pfd, scratch, C, nc * 8, 32); za_dump(scratch); }
+        r[4] = to_cycles(cyc() - t0) / reps;
+    } else { r[3] = r[4] = 0; }
     sme_stop();
     double* tb2 = alloc_on(8192, -1); memset(tb2, 0, 8192);   // 注意：系统调用会退出流式模式，必须在 smstart 之前分配
     double* Anext = alloc_on(16 * kc * 8, -1); memset(Anext, 0, 16 * kc * 8);
@@ -190,7 +208,7 @@ int main(int argc, char** argv)
         for (long rr = 0; rr < S; rr++)
             for (long t = 0; t < ntile; t++) {
                 sme_zero_za();
-                if (pend) kloop_epi_sub(A, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pfd, scratch, pc, nc * 8, 32);
+                if (pend) kloop_epi_sub_any(A, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pfd, scratch, pc, nc * 8, 32);
                 else kloop_plain(A, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pfd);
                 za_dump(scratch);
                 pend = 1; pc = C + 16 * rr * nc + 32 * t;
@@ -206,7 +224,7 @@ int main(int argc, char** argv)
             pack_strip_ld4(Lsrc, lda, 0, 0, kc, A);
             for (long t = 0; t < ntile; t++) {
                 sme_zero_za();
-                if (pend) kloop_epi_sub(A, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pfd, scratch, pc, nc * 8, 32);
+                if (pend) kloop_epi_sub_any(A, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pfd, scratch, pc, nc * 8, 32);
                 else kloop_plain(A, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pfd);
                 za_dump(scratch);
                 pend = 1; pc = C + 16 * rr * nc + 32 * t;
@@ -253,7 +271,7 @@ int main(int argc, char** argv)
                         xrow_next += rows_per_tile;
                     }
                     sme_zero_za();
-                    if (pend) kloop_epi_sub(A, 128, 128, Xpan + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
+                    if (pend) kloop_epi_sub_any(A, 128, 128, Xpan + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
                     else kloop_plain(A, 128, 128, Xpan + 32 * t, nc * 8, kc, 32, &pf);
                     za_dump(scratch);
                     pend = 1; pc = C + 16 * rr * nc + 32 * t;
@@ -370,7 +388,7 @@ int main(int argc, char** argv)
                     if (host_now) {
                         if (pend) kloop_tr_epi(Acur, Xk + 32 * t, nc * 8, kc, &pf, scratch, pc, nc * 8, 32, Lbig + nrow0 * lda + nk0 + kb0, lda * 8, Abf[(q + 1) & 1] + kb0 * 16);
                         else kloop_tr_noepi(Acur, Xk + 32 * t, nc * 8, kc, &pf, Lbig + nrow0 * lda + nk0 + kb0, lda * 8, Abf[(q + 1) & 1] + kb0 * 16);
-                    } else if (pend) kloop_epi_sub(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
+                    } else if (pend) kloop_epi_sub_any(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
                     else kloop_plain(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf);
                     za_dump(scratch);
                     pend = 1; pc = C + 16 * rr * nc + 32 * t;
@@ -491,7 +509,7 @@ int main(int argc, char** argv)
                         }
                         if (variant != 0 && variant != 5 && variant != 4) { pf.pc = (const char*)(cfix ? C : C + 16 * rr * nc + 32 * t); pf.pcs = nc * 8; }   // C 行 pldl2keep 触碰
                         sme_zero_za();
-                        if (pend) kloop_epi_sub(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
+                        if (pend) kloop_epi_sub_any(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
                         else kloop_plain(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf);
                         za_dump(scratch);
                         pend = 1; pc = cfix ? C : C + 16 * rr * nc + 32 * t;
@@ -582,7 +600,7 @@ int main(int argc, char** argv)
                     for (int t = 0; t < 4; t++) { pf_t pf = { (const char*)As + (size_t)t * (kc / 2) * 64, 1L << 40, 0, (const char*)dummy, (const char*)dummy, 0 }; sme_zero_za(); kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pf); }
                     for (int n = 0; n < Ns[vi]; n++) {   // 干扰：冷 A 条 + 宿主回写到 cbuf 的不同微块
                         const double* Ai = PP2 + (size_t)(base + 1 + n) * stripd;
-                        sme_zero_za(); kloop_epi_sub(Ai, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C + (n % 64) * 32 * 16, nc * 8, 32); za_dump(scratch);
+                        sme_zero_za(); kloop_epi_sub_any(Ai, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C + (n % 64) * 32 * 16, nc * 8, 32); za_dump(scratch);
                     }
                     sme_zero_za();
                     uint64_t tp = cyc();

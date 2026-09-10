@@ -1,0 +1,23 @@
+=== HOST
+cn20483
+Thu Sep 10 19:56:13 CST 2026
+[env] host=cn20483 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- 32 MB/线程，HBM17
+  nodes=17         share=1  stagger=0KB threads=38  read 305.5 GB/s (8.0 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=2  stagger=0KB threads=38  read 238.0 GB/s (6.3 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=4  stagger=0KB threads=38  read 233.7 GB/s (6.1 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=19 stagger=0KB threads=38  read 202.1 GB/s (5.3 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=38 stagger=0KB threads=38  read 167.7 GB/s (4.4 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=38 stagger=64KB threads=38  read 176.5 GB/s (4.6 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=38 stagger=1024KB threads=38  read 176.3 GB/s (4.6 GB/s/thread)  [sink 4.94e-295]
+  nodes=17         share=4  stagger=64KB threads=38  read 231.2 GB/s (6.1 GB/s/thread)  [sink 4.94e-295]
+--- 8 MB，HBM17（38 核聚合 L2 29 MB）
+  nodes=17         share=38 stagger=0KB threads=38  read 147.3 GB/s (3.9 GB/s/thread)  [sink 1.235e-295]
+  nodes=17         share=38 stagger=64KB threads=38  read 174.4 GB/s (4.6 GB/s/thread)  [sink 1.235e-295]
+  nodes=17         share=4  stagger=0KB threads=38  read 196.9 GB/s (5.2 GB/s/thread)  [sink 1.235e-295]
+--- DDR1
+  nodes=1          share=1  stagger=0KB threads=38  read 160.0 GB/s (4.2 GB/s/thread)  [sink 4.94e-295]
+  nodes=1          share=38 stagger=0KB threads=38  read 159.7 GB/s (4.2 GB/s/thread)  [sink 4.94e-295]
+  nodes=1          share=4  stagger=0KB threads=38  read 237.3 GB/s (6.2 GB/s/thread)  [sink 4.94e-295]
+=== DONE
+Thu Sep 10 19:56:18 CST 2026
