@@ -2052,18 +2052,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 #pragma omp barrier
         if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理 + barrier
         // 阶段 2：任务
-        sme_start();
-        g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
+        // 面板驻留模式的线程调度表在进入流式模式前建好（流式区内 malloc 等系统调用会清 PSTATE.SM → 后续 SME 指令 SIGILL）：
+        // 线程 tid 的连续区间 [a, b)（面板主序）。区间两端可能各含一个不完整面板：
+        // 尾部不完整面板（行块 0..ib，被下一线程接着算）放到调度最前，头部不完整面板（行块 ia..，依赖上一线程算出的前几块）放到最后，
+        // 这样跨线程依赖在到达时早已满足。完整面板按行块顺序做完，B 操作数来自本线程面板缓冲。
+        long* sched = NULL;
+        long k = 0, khead = -1;   // khead：头部不完整面板在 sched 中的起点（其前几个行块由上一线程算出）
+        long pa = 0, ia = 0;
         if (c.owner) {
-            // 线程 tid 的连续区间 [a, b)（面板主序）。区间两端可能各含一个不完整面板：
-            // 尾部不完整面板（行块 0..ib，被下一线程接着算）放到调度最前，头部不完整面板（行块 ia..，依赖上一线程算出的前几块）放到最后，
-            // 这样跨线程依赖在到达时早已满足。完整面板按行块顺序做完，B 操作数来自本线程面板缓冲。
             long a = c.owner_bound[tid], b = c.owner_bound[tid + 1];
             long nrb = c.nrb;
             long cnt = b - a;
-            long* sched = cnt > 0 ? malloc(sizeof(long) * cnt) : NULL;
-            long k = 0, khead = -1;   // khead：头部不完整面板在 sched 中的起点（其前几个行块由上一线程算出）
-            long pa = a / nrb, ia = a % nrb;
+            sched = cnt > 0 ? malloc(sizeof(long) * cnt) : NULL;
+            pa = a / nrb; ia = a % nrb;
             if (cnt > 0) {
                 long pb = (b - 1) / nrb, ib = (b - 1) % nrb;
                 if (pa == pb) {
@@ -2077,6 +2078,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     if (ia != 0) { khead = k; for (long i = ia; i < nrb; i++) sched[k++] = pa * nrb + i; }
                 }
             }
+        }
+        sme_start();
+        g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
+        if (c.owner) {
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
@@ -2095,7 +2100,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
                 run_task(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
             }
-            free(sched);
         } else {
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
@@ -2106,6 +2110,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         }
         sme_stop();
+        free(sched);
         {   // 遗留的托管回写收尾
             uint64_t t0 = c.prof >= 2 ? cyc() : 0;
             sw_flush(&g_tb[tid]);
