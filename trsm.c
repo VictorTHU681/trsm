@@ -424,7 +424,7 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     KS_EVEN PFL PFX SWS_GATE_K SWS                                                \
     "subs %[k], %[k], #1\n\t"                                                     \
     "b.eq 5f\n\t"                                                                 \
-    KS_ODD PFL PFX PFC                                                            \
+    KS_ODD PFC                                                                    \
     "subs %[k], %[k], #1\n\t"                                                     \
     "b.ne 1b\n\t"                                                                 \
     "6:\n\t" FM_EVEN                                                              \
@@ -518,15 +518,16 @@ DEF_KLOOP_PLAIN(kloop_plain)
 #ifndef TRSM_HOSTPF
 #define TRSM_HOSTPF 1
 #endif
+// L/X 走线器按每两步一个 cache 行发预取，与调度器的 K/2 行预算一致。
 #if TRSM_HOSTPF
 #define KROWP(EV)                                                                 \
     KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
-    KS_ODD  EV(1, "p2", "z18", "z19") PFL PFX PFC                                 \
+    KS_ODD  EV(1, "p2", "z18", "z19") PFC                                         \
     KS_EVEN EV(2, "p3", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
-    KS_ODD  EV(3, "p4", "z18", "z19") PFL PFX                                     \
+    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
     EV_ROW_ADV
 #define HPF1 PFL PFX
-#define HPF2 PFL PFX PFC
+#define HPF2 PFC
 #else
 #define KROWP(EV) KROW(EV)
 #define HPF1
