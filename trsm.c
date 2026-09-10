@@ -355,9 +355,12 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
 #else
 #define PF_INSN(x) "prfm " TRSM_STR(TRSM_PF_HINT) ", [" x "]\n\t"
 #endif
+// Prepacked strips are contiguous; this sentinel skips row-wrap bookkeeping.
+#define PF_CONTIG_LINES (1L << 40)
 #define PFL                                                                       \
     PF_INSN("%[xpf]")                                                             \
     "add %[xpf], %[xpf], #64\n\t"                                                 \
+    "tbnz %[pfn], #40, 8f\n\t"                                                   \
     "subs %[pfc], %[pfc], #1\n\t"                                                 \
     "b.gt 8f\n\t"                                                                 \
     "add %[xpf], %[xpf], %[pfj]\n\t"                                              \
@@ -1512,7 +1515,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 } else {
                     const double* An = c->pp[cpy] + c->pp_off[pr0 / 16] + (size_t)pk0 * 16;
                     pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
-                    pf.pfn = 1L << 40;
+                    pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
                 }
             }
