@@ -1,0 +1,10 @@
+=== HOST
+cn20485
+Thu Sep 10 22:12:47 CST 2026
+[env] host=cn20485 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+kbench.c:27311: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,4],[x0]'
+kbench.c:27312: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,5],[x0,#1,mul vl]'
+kbench.c:27313: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,6],[x0,#2,mul vl]'
+kbench.c:27314: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,7],[x0,#3,mul vl]'
+kbench.c:27311: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,4],[x0]'
+KB_COMPILE_FAIL

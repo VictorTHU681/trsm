@@ -1,0 +1,28 @@
+=== HOST
+cn20490
+Thu Sep 10 21:25:48 CST 2026
+[env] host=cn20490 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- 第 1 轮（题面原样，无 --preferred）
+[trsm prof] load 1.003 kloop 1.045 epi 0.249 dkloop 0.653 depi 0.166 store 4.967 | kloop 效率 42.2%）
+[trsm prof] load 0.392 kloop 0.808 epi 0.245 dkloop 0.530 depi 0.197 store 0.518 | kloop 效率 53.5%）
+ 512 x 19968 3.26 1606.7279 3.33e-16 PASS
+[trsm prof] load 2.740 kloop 20.941 epi 4.624 dkloop 2.383 depi 0.586 store 10.671 | kloop 效率 57.6%）
+[trsm prof] load 1.697 wait 0.051 kloop 19.111 epi 4.490 dkloop 2.025 depi 0.586 store 1.951 | kloop 效率 63.6%）
+ 2432 x 17024 32.94 3056.9550 7.77e-16 PASS
+[trsm prof] load 1.116 pack 7.424 wait 0.900 kloop 30.831 epi 6.675 dkloop 0.344 depi 0.088 store 0.496 | kloop 效率 63.2%）
+[trsm prof] load 0.691 pack 3.055 wait 0.984 kloop 30.033 epi 6.702 dkloop 0.319 depi 0.087 store 0.194 | kloop 效率 64.9%）
+ 17024 x 512 47.85 3100.8797 1.50e-15 PASS
+--- 第 2 轮（题面原样，无 --preferred）
+[trsm prof] load 0.990 kloop 1.057 epi 0.261 dkloop 0.664 depi 0.167 store 4.771 | kloop 效率 41.6%）
+[trsm prof] load 0.397 kloop 0.808 epi 0.252 dkloop 0.528 depi 0.192 store 0.489 | kloop 效率 53.6%）
+ 512 x 19968 3.26 1608.0063 3.33e-16 PASS
+[trsm prof] load 2.571 kloop 20.718 epi 4.632 dkloop 2.341 depi 0.591 store 10.204 | kloop 效率 58.3%）
+[trsm prof] load 1.741 kloop 18.985 epi 4.496 dkloop 2.049 depi 0.597 store 1.971 | kloop 效率 63.9%）
+ 2432 x 17024 32.90 3060.3157 7.77e-16 PASS
+[trsm prof] load 1.253 pack 8.188 wait 0.682 kloop 31.450 epi 5.854 dkloop 0.346 depi 0.077 store 0.662 | kloop 效率 62.0%）
+[trsm prof] load 0.690 pack 3.050 wait 0.886 kloop 30.679 epi 5.774 dkloop 0.315 depi 0.071 store 0.187 | kloop 效率 63.6%）
+ 17024 x 512 47.75 3107.4834 1.50e-15 PASS
+=== 泛化正确性
+ALL PASS: 0 failures
+=== DONE
+Thu Sep 10 21:26:14 CST 2026

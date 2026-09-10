@@ -1,0 +1,9 @@
+=== HOST
+cn20494
+Thu Sep 10 21:58:24 CST 2026
+[env] host=cn20494 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+1. kloop_plain A 128B/k          :      538 周期 = 8.41 周期/步
+2h. kloop_epi_sub(宿主回写)+dump  :      745 周期 → 额外 233
+SIG11 at pc=0x40b360 insn=a5e0a024
+=== DONE
+Thu Sep 10 21:58:43 CST 2026

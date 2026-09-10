@@ -435,6 +435,11 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
 // 托管回写走线器：K 循环内每 2 步把 1 个 cache 行从 src（连续，Xp）拷到 dst（行距 ldb 的 X），stnt1d 不分配。
 // 状态在 x12..x17：src dst cnt(本行剩余行数) dstj(行末跳) rows(剩余行) lpr(每行 cache 行数)；进出内核时从本结构装载/保存。
 typedef struct { const char* src; char* dst; long cnt; long dstj; long rows; long lpr; } sw_t;
+// cbuf / Xp 行距填充（double 数，编译期常量：走线器行末源跳用立即数）
+#ifndef TRSM_NCPAD
+#define TRSM_NCPAD 0   // 8（+64 B）实测三用例都略差 1–3%，对角阶段无变化
+#endif
+#define TRSM_NCPAD_BYTES (TRSM_NCPAD * 8)
 static sw_t g_sw_none;   // rows=0：无事可做
 #define SW_LOAD  "ldp x12, x13, [%[sw]]\n\t ldp x14, x15, [%[sw], #16]\n\t ldp x16, x17, [%[sw], #32]\n\t"
 #define SW_SAVE  "stp x12, x13, [%[sw]]\n\t str x14, [%[sw], #16]\n\t str x16, [%[sw], #32]\n\t"
@@ -475,6 +480,7 @@ static sw_t g_sw_none;   // rows=0：无事可做
     "subs x14, x14, #1\n\t"                                                       \
     "b.gt 9f\n\t"                                                                 \
     "add x13, x13, x15\n\t"                                                       \
+    "add x12, x12, #" TRSM_STR(TRSM_NCPAD_BYTES) "\n\t"                           \
     "mov x14, x17\n\t"                                                            \
     "sub x16, x16, #1\n\t"                                                        \
     "9:\n\t"
@@ -1203,6 +1209,7 @@ typedef struct {
     double* B;
     int mb, nc, kc;
     long nrb, npan, ntask;
+    long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
     double* diag;           // 全部行块的对角打包
     size_t* diag_off;       // 每行块起点（double 下标）
@@ -1265,7 +1272,7 @@ static void sw_run_region(sw_t* w, tbuf_t* tb)
         for (long l = 0; l < w->cnt; l++)
             svstnt1_f64(pg, (double*)(w->dst + 64 * l), svld1_f64(pg, (const double*)(w->src + 64 * l)));
         tb->n_swflush += w->cnt;
-        w->src += 64 * w->cnt;
+        w->src += 64 * w->cnt + TRSM_NCPAD_BYTES;
         w->dst += 64 * w->cnt + w->dstj;
         w->cnt = w->lpr;
         w->rows--;
@@ -1360,7 +1367,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
     const task_t* tkn = tkn_guess;
-    const long mb = c->mb, nc = c->nc, kc = c->kc;
+    const long mb = c->mb, nc = c->nc, kc = c->kc, ncp = c->ncp;
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
@@ -1371,7 +1378,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     double* cb = tb->cbuf;
     double* scratch = tb->scratch;
     const long ldb = c->ldb, lda = c->lda;
-    const long cs = nc * 8;       // C 块 / X 面板缓冲行距字节
+    const long cs = ncp * 8;      // C 块 / X 面板缓冲行距字节（含 64 B 填充，17 个 cache 行）
     double* Bblk = c->B + i0 * ldb + c0;
     const pf_t pf_dummy = { (const char*)tb->scratch2, 1, -64, (const char*)tb->scratch2, (const char*)tb->scratch2, 0, &tb->sw };
     const int pf_on = c->pf;
@@ -1379,19 +1386,19 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 
     // 分裂段：部分和写到专用缓冲（从 0 开始累加），普通任务直接用 C 块
     const int split = tk->nseg > 1;
-    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * nc : cb;
+    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : cb;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
     if (split) {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
-        for (long q = 0; q < 16L * S * nc; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
+        for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
         if (c->prof >= 2) tb->t_load += cyc() - t0;
     } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long r = 0; r < 16L * S; r++) {
-            double* d = cb + r * nc;
+            double* d = cb + r * ncp;
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
@@ -1428,6 +1435,9 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     const long nchunks = (kend - chfirst * kc + kc - 1) / kc;
     const long nstrips = nchunks * S;
     double* Abuf[2] = { tb->astrip, tb->astrip + 64L * kc };
+    // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
+    const char* dpf = (const char*)(c->diag + c->diag_off[i]);
+    const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     for (long q = 0; q < nstrips; q++) {
@@ -1438,8 +1448,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
         if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * nc;          // 本段 B 面板（连续，行距 nc）
-        const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * nc;   // 下一段面板（预取目标）
+        const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
+        const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
         (void)xlines;
         // 本条 A
         const double* A;
@@ -1500,19 +1510,24 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                     pf.pfj = 0;
                 }
             }
-            // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行
+            // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
+            int p2_used = 0;
             if (pf_on && k0n < kend) {
-                long slots_needed = (kk * nc * 8 + kk * 32 - 1) / (kk * 32);   // 每槽 kk/2 行
+                long slots_needed = (kk * ncp * 8 + kk * 32 - 1) / (kk * 32);  // 每槽 kk/2 行
                 long strips_needed = (slots_needed + ntile - 1) / ntile;
                 long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
                 if (r >= xstart) {
                     long slot = (r - xstart) * ntile + t;
-                    if (slot < slots_needed) pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64;
+                    if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
+            }
+            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
+                pf.p2 = dpf;
+                dpf += (kk / 2) * 64;
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
-            if (pf_on) { pf.pc = (const char*)(acc + 16L * r * nc + 32 * t); pf.pcs = cs; }
+            if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             sw_advance(tb);
             sme_zero_za();
             if (host_now) {
@@ -1537,7 +1552,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 else PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
             PROF_T(c, za_dump(scratch), t_epi);
-            pend = 1; pend_c = acc + 16L * r * nc + 32 * t; pend_cols = cols;
+            pend = 1; pend_c = acc + 16L * r * ncp + 32 * t; pend_cols = cols;
             tb->n_kstep += kk;
         }
     }
@@ -1550,7 +1565,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long r = 0; r < 16L * S; r++) {
-            double* d = cb + r * nc;
+            double* d = cb + r * ncp;
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
@@ -1566,8 +1581,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
         }
         for (int sg = 0; sg < tk->nseg; sg++) {
-            const double* P = c->part + tk->part_off + (size_t)sg * mb * nc;
-            for (long q = 0; q < 16L * S * nc; q += 8)
+            const double* P = c->part + tk->part_off + (size_t)sg * mb * ncp;
+            for (long q = 0; q < 16L * S * ncp; q += 8)
                 svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
         }
         if (c->prof >= 2) tb->t_load += cyc() - t0;
@@ -1605,7 +1620,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                     nb_done += rows_this;
                 }
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
-                if (pf_on) { pf.pc = (const char*)(cb + 16L * s * nc + 32 * t); pf.pcs = cs; }
+                if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
                 sme_zero_za();
                 if (pend && K >= 65) {
@@ -1617,7 +1632,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                     PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_depi);
-                pend = 1; pend_c = cb + 16L * s * nc + 32 * t; pend_cols = cols;
+                pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
                 tb->n_kstep += K;
             }
             // 条末必须落地：下一条把这些行当 B 操作数
@@ -1631,22 +1646,23 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         const svbool_t pg = svptrue_b64();
         // 上一任务遗留的托管回写先同步收尾（通常已在 K 循环里完成）
         sw_flush(tb);
-        // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）
-        for (long r = 0; r < mbi; r++) {
+        // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
+        const int last_rb = (i + 1 == c->nrb);
+        if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
-            double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * nc + (gr % kc) * nc;
-            const double* s = cb + r * nc;
+            double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
+            const double* s = cb + r * ncp;
             if (c->xpnt) for (long j = 0; j < nc; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
             else for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
         }
-        // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
+        // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
-        const int can_sw = c->swhost && nci == nc && ((nc * 8) & 63) == 0;
+        const int can_sw = c->swhost && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
         if (can_sw) {
             for (long r0 = 0; r0 < mbi; r0 += kc) {
                 long rows = mbi - r0; if (rows > kc) rows = kc;
                 sw_t w;
-                w.src = (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p) * kc * nc);
+                w.src = (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p) * kc * ncp);
                 w.dst = (char*)(Bblk + r0 * ldb);
                 w.lpr = nc * 8 / 64; w.cnt = w.lpr;
                 w.dstj = ldb * 8 - nc * 8;
@@ -1655,10 +1671,15 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 tb->n_swq += rows * w.lpr;
             }
         } else if (c->ntstore) {
+            // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
+            // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
-                const double* s = cb + r * nc;
+                const double* s = cb + r * ncp;
                 double* d = Bblk + r * ldb;
+                long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
+                if (pre > nci) pre = nci;
                 long j = 0;
+                if (pre) { svbool_t ph = svwhilelt_b64(0L, pre); svstnt1_f64(ph, d, svld1_f64(ph, s)); j = pre; }
                 for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
                 if (j < nci) {
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
@@ -1667,7 +1688,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
         } else {
             for (long r = 0; r < mbi; r++) {
-                const double* s = cb + r * nc;
+                const double* s = cb + r * ncp;
                 double* d = Bblk + r * ldb;
                 long j = 0;
                 for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
@@ -1713,6 +1734,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.mb = mb; c.nc = nc; c.kc = kc;
     c.nrb = (m + mb - 1) / mb;
     c.npan = (n + nc - 1) / nc;
+    c.ncp = nc + TRSM_NCPAD;
     if (c.swhost < 0) c.swhost = c.npan <= 8;
     c.ntask = c.nrb * c.npan;
     c.nstrip = (m + 15) / 16;
@@ -1738,6 +1760,14 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.jit = (bigL && c.ppmode == 0) ? 1 : 0;
     if (env_int("TRSM_JIT", -1) >= 0) { c.jit = env_int("TRSM_JIT", -1); if (c.jit) c.ppmode = 0; }
 
+    // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
+    // TRSM_HBM_MARGIN_MB：保留余量（默认 256）
+    const size_t hbm_margin = (size_t)env_int("TRSM_HBM_MARGIN_MB", 256) << 20;
+#define HBM_ROOM(bytes) (g_hbm_node >= 0 && node_free_bytes(g_hbm_node) > (bytes) + hbm_margin)
+#define HBM_MAKE_ROOM(bytes) do { \
+        if (g_hbm_node >= 0 && !HBM_ROOM(bytes) && page_node_of(L) == g_hbm_node && g_cpu_node >= 0) \
+            move_range_to_node((void*)L, (size_t)m * lda * 8, g_cpu_node); \
+    } while (0)
     // X 的内存放置：判题命令 `numactl -N 1` 不带 -m，B/X 落在本地 DDR（160 GB/s）；X 的跨行读写是 case1/2 的主要流量，
     // 放到 HBM 快 10–25%。每次调用都检查：不在 HBM 且 HBM 空余足够时迁过去（只有第一次真的搬页，之后是一次 get_mempolicy）。
     // TRSM_XNODE：-3 自动（默认），-1 不动，-2 迁到本地 DDR，≥0 指定节点
@@ -1746,8 +1776,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         size_t xbytes = (size_t)m * ldb * 8;
         int target = -1;
         if (xn == -3) {
-            if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node && node_free_bytes(g_hbm_node) > xbytes + ((size_t)1 << 30))
-                target = g_hbm_node;
+            if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node) { HBM_MAKE_ROOM(xbytes); if (HBM_ROOM(xbytes)) target = g_hbm_node; }
         } else if (xn == -2) target = g_cpu_node;
         else target = xn;
         if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
@@ -1774,10 +1803,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定
     {
         c.xp_chunks = (m + kc - 1) / kc;
-        size_t need = (size_t)c.xp_chunks * c.npan * kc * nc;
+        size_t need = (size_t)c.xp_chunks * c.npan * kc * c.ncp;
         int xn = env_int("TRSM_XPNODE", -9);
         int node;
-        if (xn == -9) node = (g_hbm_node >= 0 && bigL) ? g_cpu_node : -1;   // 大 L 时 X 副本放 DDR，与 HBM 上的 L 分流
+        if (xn == -9) {   // 自动：B 操作数流对延迟敏感，尽量进 HBM（判题命令不带 -m，"默认策略"意味着 DDR）
+            if (g_xp_cap >= need && g_xp_node == g_hbm_node && g_hbm_node >= 0) node = g_hbm_node;   // 已在 HBM，沿用
+            else { HBM_MAKE_ROOM(need * 8); node = HBM_ROOM(need * 8) ? g_hbm_node : (g_cpu_node >= 0 ? g_cpu_node : -1); }
+        }
         else if (xn == -2) node = g_cpu_node;
         else node = xn;
         if (g_xp_cap < need || g_xp_node != node) {
@@ -1806,6 +1838,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (c.ppmode == 1 && g_pp[1]) { free_sized(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
+        if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
+            HBM_MAKE_ROOM(off * 8 + 4096);
+            if (!HBM_ROOM(off * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
+        }
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);
         if (env_int("TRSM_LNODE1", -3) != -3) node1 = env_int("TRSM_LNODE1", -3);
         for (int k = 0; k < 2; k++) {
@@ -1864,7 +1900,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (nseg < 1) nseg = 1;
             }
             nitems += (long)nseg * c.npan;
-            if (nseg > 1) part_doubles += (size_t)nseg * c.npan * mb * nc;
+            if (nseg > 1) part_doubles += (size_t)nseg * c.npan * mb * c.ncp;
         }
         if (c.ppmode == 1) nitems += c.nstrip;   // 打包任务
         if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
@@ -1899,7 +1935,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
                     t->part_off = poff;
                 }
-                if (nseg > 1) poff += (size_t)nseg * mb * nc;
+                if (nseg > 1) poff += (size_t)nseg * mb * c.ncp;
             }
         }
         nitems = q;
@@ -1926,7 +1962,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         int tid = omp_get_thread_num();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)mb * nc, (size_t)128 * kc, (size_t)kc * nc);
+        ensure_tbuf(tid, (size_t)mb * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
@@ -1976,8 +2012,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (c.prof) {
         uint64_t t2 = cyc();
         double hz = (double)cyc_hz();
-        fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d pp=%d tasks=%ld(items %ld) nth=%d hbm=%d Xnode=%d | setup %.3f ms, parallel %.3f ms\n",
-                m, n, mb, nc, kc, c.jit, c.ppmode, c.ntask, c.ntask_items, nth, g_hbm_node, page_node_of(B),
+        fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d pp=%d tasks=%ld(items %ld) nth=%d hbm=%d Xnode=%d Lnode=%d Xp=%d pp0=%d pp1=%d hbmfree=%zuMB | setup %.3f ms, parallel %.3f ms\n",
+                m, n, mb, nc, kc, c.jit, c.ppmode, c.ntask, c.ntask_items, nth, g_hbm_node, page_node_of(B), page_node_of(L),
+                c.xp ? page_node_of(c.xp) : -1, c.pp[0] ? page_node_of(c.pp[0]) : -1, c.pp[1] ? page_node_of(c.pp[1]) : -1,
+                g_hbm_node >= 0 ? node_free_bytes(g_hbm_node) >> 20 : 0,
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
         if (c.prof >= 2) {
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;

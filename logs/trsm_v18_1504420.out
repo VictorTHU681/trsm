@@ -1,0 +1,88 @@
+=== HOST
+cn20491
+Thu Sep 10 21:53:59 CST 2026
+[env] host=cn20491 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- [v18 默认（X/Xp/pp → HBM）]
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3948MB
+[trsm prof] load 0.388 kloop 0.801 epi 0.263 dkloop 0.501 depi 0.192 store 0.439 | kloop 效率 55.0%）
+ 512 x 19968 3.43 1525.7278 3.33e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3446MB
+[trsm prof] load 1.847 kloop 18.895 epi 4.496 dkloop 1.926 depi 0.557 store 1.888 | kloop 效率 64.6%）
+ 2432 x 17024 32.93 3057.9147 7.77e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2850MB
+[trsm prof] load 0.681 pack 2.962 wait 0.982 kloop 29.596 epi 6.728 dkloop 0.313 depi 0.085 store 0.180 | kloop 效率 65.9%）
+ 17024 x 512 47.78 3105.4945 1.50e-15 PASS
+--- [Xp → DDR]
+hbm=17 Xnode=17 Lnode=1 Xp=1 pp0=17 pp1=1 hbmfree=4009MB
+[trsm prof] load 0.410 kloop 0.814 epi 0.233 dkloop 0.527 depi 0.205 store 0.557 | kloop 效率 53.4%）
+ 512 x 19968 3.64 1437.4109 3.33e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=1 pp0=17 pp1=1 hbmfree=3750MB
+[trsm prof] load 1.870 kloop 19.173 epi 4.537 dkloop 1.928 depi 0.577 store 2.138 | kloop 效率 63.7%）
+ 2432 x 17024 33.47 3008.3176 7.77e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=1 pp0=17 pp1=-1 hbmfree=2920MB
+[trsm prof] load 0.688 pack 3.072 wait 0.948 kloop 29.706 epi 6.688 dkloop 0.313 depi 0.084 store 0.185 | kloop 效率 65.6%）
+ 17024 x 512 47.70 3110.6871 1.50e-15 PASS
+--- [pp → DDR]
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=1 pp1=1 hbmfree=3951MB
+[trsm prof] load 0.398 kloop 0.797 epi 0.262 dkloop 0.500 depi 0.183 store 0.405 | kloop 效率 55.2%）
+ 512 x 19968 3.64 1437.1070 3.33e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=1 pp1=1 hbmfree=3473MB
+[trsm prof] load 1.893 kloop 18.950 epi 4.512 dkloop 1.914 depi 0.565 store 1.895 | kloop 效率 64.4%）
+ 2432 x 17024 33.64 2993.3917 7.77e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=1 pp1=-1 hbmfree=3946MB
+[trsm prof] load 0.773 pack 3.593 wait 0.928 kloop 29.899 epi 6.728 dkloop 0.320 depi 0.085 store 0.168 | kloop 效率 65.2%）
+ 17024 x 512 48.90 3034.4547 1.50e-15 PASS
+--- [Xp、pp → DDR（= 旧默认）]
+hbm=17 Xnode=17 Lnode=1 Xp=1 pp0=1 pp1=1 hbmfree=4010MB
+[trsm prof] load 0.391 kloop 0.812 epi 0.249 dkloop 0.537 depi 0.187 store 0.544 | kloop 效率 53.1%）
+ 512 x 19968 3.87 1352.4542 3.33e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=1 pp0=1 pp1=1 hbmfree=3770MB
+[trsm prof] load 1.813 kloop 19.401 epi 4.515 dkloop 1.892 depi 0.542 store 2.093 | kloop 效率 63.1%）
+ 2432 x 17024 34.27 2938.5750 7.77e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=1 pp0=1 pp1=-1 hbmfree=4012MB
+[trsm prof] load 1.062 pack 5.416 wait 1.019 kloop 36.812 epi 7.444 dkloop 0.344 depi 0.089 store 0.205 | kloop 效率 53.0%）
+ 17024 x 512 58.85 2521.5609 1.50e-15 PASS
+--- [X 不迁（旧行为）]
+hbm=17 Xnode=1 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=4028MB
+[trsm prof] load 0.568 kloop 0.795 epi 0.235 dkloop 0.597 depi 0.211 store 0.576 | kloop 效率 51.4%）
+ 512 x 19968 3.82 1369.4235 3.33e-16 PASS
+hbm=17 Xnode=1 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3768MB
+[trsm prof] load 2.099 kloop 19.050 epi 4.414 dkloop 1.998 depi 0.585 store 2.218 | kloop 效率 63.9%）
+ 2432 x 17024 33.65 2992.5367 7.77e-16 PASS
+hbm=17 Xnode=1 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2929MB
+[trsm prof] load 0.710 pack 3.001 wait 0.902 kloop 29.692 epi 6.750 dkloop 0.310 depi 0.081 store 0.177 | kloop 效率 65.7%）
+ 17024 x 512 47.75 3107.4253 1.50e-15 PASS
+--- [v18 默认 第二轮]
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3949MB
+[trsm prof] load 0.409 kloop 0.807 epi 0.248 dkloop 0.518 depi 0.186 store 0.418 | kloop 效率 54.0%）
+ 512 x 19968 3.44 1523.5425 3.33e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3447MB
+[trsm prof] load 1.755 kloop 18.701 epi 4.570 dkloop 2.183 depi 0.561 store 1.700 | kloop 效率 64.4%）
+ 2432 x 17024 32.86 3064.5188 7.77e-16 PASS
+hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2851MB
+[trsm prof] load 0.670 pack 2.928 wait 1.071 kloop 29.664 epi 6.751 dkloop 0.421 depi 0.089 store 0.165 | kloop 效率 65.5%）
+ 17024 x 512 47.93 3095.6453 1.50e-15 PASS
+--- run.sh 口径（--preferred）
+hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=3282MB
+ 512 x 19968 3.38 1548.3381 3.33e-16 PASS
+hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2030MB
+ 2432 x 17024 32.70 3079.3211 7.77e-16 PASS
+hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=-1 hbmfree=3MB
+ 17024 x 512 47.70 3110.8155 1.50e-15 PASS
+=== kbench HZ 原型
+probe/kbench.c:102:45: error: macro "HZ_G8" passed 8 arguments, but takes just 5
+probe/kbench.c:81:9: error: expected ‘:’ or ‘)’ before ‘HZ_G8’
+probe/kbench.c:102:45: error: macro "HZ_G8" passed 8 arguments, but takes just 5
+probe/kbench.c:102:45: error: macro "HZ_E" passed 4 arguments, but takes just 1
+probe/kbench.c:102:45: error: macro "HZ_O" passed 4 arguments, but takes just 1
+probe/kbench.c:103:45: error: macro "HZ_G8" passed 8 arguments, but takes just 5
+probe/kbench.c:81:9: error: expected ‘:’ or ‘)’ before ‘HZ_G8’
+probe/kbench.c:103:45: error: macro "HZ_G8" passed 8 arguments, but takes just 5
+probe/kbench.c:103:45: error: macro "HZ_E" passed 4 arguments, but takes just 1
+probe/kbench.c:103:45: error: macro "HZ_O" passed 4 arguments, but takes just 1
+2h. kloop_epi_sub(宿主回写)+dump  :      746 周期 → 额外 234
+SIG11 at pc=0x40b360 insn=a5e0a024
+=== 泛化正确性
+ALL PASS: 0 failures
+=== DONE
+Thu Sep 10 21:54:39 CST 2026

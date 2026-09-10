@@ -2,10 +2,147 @@
 // 编译：gcc -O3 -march=armv9-a+sme+sme-f64f64+sve2 -fopenmp kbench.c -o kbench -lm
 // 运行：taskset -c 40 ./kbench [kc] [nc] [mb]
 #include "../trsm.c"
+#include <math.h>
 #include <signal.h>
 #include <ucontext.h>
 
 static double to_cycles(uint64_t dt) { return (double)dt / (double)cyc_hz() * 1.55e9; }
+
+// ---------------------------------------------------------------- HZ 原型内核（16×16，半 ZA 交替）
+#define HZ_KS(a0, a1, b0, b1, n0, n1, m0, m1, T0, T1, T2, T3)                      \
+    "ld1d " n0 ".d, p0/z, [%[xa]]\n\t"                                            \
+    "fmopa " T0 ".d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                          \
+    "ld1d " n1 ".d, p0/z, [%[xa], #1, mul vl]\n\t"                                \
+    "fmopa " T1 ".d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                          \
+    "ld1d " m0 ".d, p0/z, [%[xb]]\n\t"                                            \
+    "fmopa " T2 ".d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                          \
+    "ld1d " m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                \
+    "fmopa " T3 ".d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                          \
+    "add %[xa], %[xa], #128\n\t"                                                  \
+    "add %[xb], %[xb], %[bs]\n\t"
+#define HZ_FM(a0, a1, b0, b1, T0, T1, T2, T3)                                     \
+    "fmopa " T0 ".d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                          \
+    "fmopa " T1 ".d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                          \
+    "fmopa " T2 ".d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                          \
+    "fmopa " T3 ".d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"
+#define HZ_E(T0, T1, T2, T3) HZ_KS("z0", "z1", "z4", "z5", "z8", "z9", "z12", "z13", T0, T1, T2, T3)
+#define HZ_O(T0, T1, T2, T3) HZ_KS("z8", "z9", "z12", "z13", "z0", "z1", "z4", "z5", T0, T1, T2, T3)
+// 转存另一半的一行：D0/D1 为该半的 tile 号立即数。编码要求内存偏移立即数 == 向量选择立即数，
+// 因此地址为 xd + D*64：变体 B（tile 0-3）xd 指向行槽起点；变体 A（tile 4-7）xd 指向行槽起点 - 256。
+#define HZ_STR(D0, D1)                                                            \
+    "str za[w12, " D0 "], [%[xd], #" D0 ", mul vl]\n\t"                           \
+    "str za[w12, " D1 "], [%[xd], #" D1 ", mul vl]\n\t"
+// 回写一行（两个向量）：前半（装载）/后半（减、存、推进）
+#define HZ_EV1                                                                    \
+    "ld1d z16.d, p0/z, [%[xs]]\n\t"                                               \
+    "ld1d z17.d, p0/z, [%[xs], #1, mul vl]\n\t"                                   \
+    "ld1d z18.d, p1/z, [%[xc]]\n\t"                                               \
+    "ld1d z19.d, p2/z, [%[xc], #1, mul vl]\n\t"
+#define HZ_EV2                                                                    \
+    "fsub z18.d, z18.d, z16.d\n\t"                                                \
+    "fsub z19.d, z19.d, z17.d\n\t"                                                \
+    "st1d z18.d, p1, [%[xc]]\n\t"                                                 \
+    "st1d z19.d, p2, [%[xc], #1, mul vl]\n\t"                                     \
+    "add %[xs], %[xs], #256\n\t"                                                  \
+    "add %[xc], %[xc], %[cs]\n\t"
+// 一组 = 4 步（E O E O）：托管 4 条 str（另一半一行 4 个 tile）+ 一行回写；每两组推进 w12（ZA 行）
+#define HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3)                                  \
+    HZ_E(T0, T1, T2, T3) HZ_STR(D0, D1)                                           \
+    HZ_O(T0, T1, T2, T3) HZ_EV1                                                   \
+    HZ_E(T0, T1, T2, T3) HZ_STR(D2, D3) "add w12, w12, #8\n\t" "add %[xd], %[xd], #256\n\t" \
+    HZ_O(T0, T1, T2, T3) HZ_EV2
+// 无转存的组（另一半的 32 条 str 在前 8 组已写完）
+#define HZ_GROUP_NS(T0, T1, T2, T3)                                               \
+    HZ_E(T0, T1, T2, T3)                                                          \
+    HZ_O(T0, T1, T2, T3) HZ_EV1                                                   \
+    HZ_E(T0, T1, T2, T3)                                                          \
+    HZ_O(T0, T1, T2, T3) HZ_EV2
+#define HZ_G4(T0, T1, T2, T3, D0, D1, D2, D3)                                     \
+    HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3) HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3) \
+    HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3) HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3)
+#define HZ_G8(T0, T1, T2, T3, D0, D1, D2, D3) HZ_G4(T0, T1, T2, T3, D0, D1, D2, D3) HZ_G4(T0, T1, T2, T3, D0, D1, D2, D3)
+#define HZ_G4NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3)
+#define HZ_G8NS(T0, T1, T2, T3) HZ_G4NS(T0, T1, T2, T3) HZ_G4NS(T0, T1, T2, T3)
+// 变体：TILES = 本半的 4 个 tile；D0..D3 = 另一半的 4 个 tile 号（字符串）。K ≥ 64（前 64 步托管）。
+// 转存布局：行 r → 4 个向量 (D0,D1,D2,D3) 连续 256 B；回写读同布局（行 0-7 用向量 0,1；行 8-15 用向量 2,3）
+#define DEF_HZ(NAME, T0, T1, T2, T3, D0, D1, D2, D3, XDINIT)                                                                    \
+static void NAME(const double* pa, const double* pb, long bs, long K, double* dump, const double* src,        \
+                 double* c, long cs, long ecols, int do_dump)                                                  \
+{                                                                                                             \
+    const double* xa = pa; const double* xb = pb;                                                             \
+    char* xd = (char*)dump; const char* xs = (const char*)src; char* xc = (char*)c;                            \
+    long k = K - 65;                                                                                          \
+    (void)do_dump;                                                                                            \
+    asm volatile(                                                                                             \
+        "whilelo p1.d, xzr, %[ecols]\n\t"                                                                     \
+        "subs x9, %[ecols], #8\n\t"                                                                           \
+        "csel x9, x9, xzr, gt\n\t"                                                                            \
+        "whilelo p2.d, xzr, x9\n\t"                                                                           \
+        "ptrue p0.d\n\t"                                                                                      \
+        "ld1d z0.d, p0/z, [%[xa]]\n\t"                                                                        \
+        "ld1d z1.d, p0/z, [%[xa], #1, mul vl]\n\t"                                                            \
+        "ld1d z4.d, p0/z, [%[xb]]\n\t"                                                                        \
+        "ld1d z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                                            \
+        "add %[xa], %[xa], #128\n\t"                                                                          \
+        "add %[xb], %[xb], %[bs]\n\t"                                                                         \
+        "mov w12, #0\n\t"                                                                                     \
+        XDINIT \
+        HZ_G8(T0, T1, T2, T3, D0, D1, D2, D3)                                                                          \
+        "sub %[xs], %[xs], #1920\n\t"                                                                         \
+        HZ_G8NS(T0, T1, T2, T3)                                                                          \
+        "cbz %[k], 6f\n\t"                                                                                    \
+        "1:\n\t"                                                                                              \
+        HZ_E(T0, T1, T2, T3)                                                                                           \
+        "subs %[k], %[k], #1\n\t"                                                                             \
+        "b.eq 5f\n\t"                                                                                         \
+        HZ_O(T0, T1, T2, T3)                                                                                           \
+        "subs %[k], %[k], #1\n\t"                                                                             \
+        "b.ne 1b\n\t"                                                                                         \
+        "6:\n\t" HZ_FM("z0", "z1", "z4", "z5", T0, T1, T2, T3)                                                         \
+        "b 7f\n\t"                                                                                            \
+        "5:\n\t" HZ_FM("z8", "z9", "z12", "z13", T0, T1, T2, T3)                                                       \
+        "7:\n\t"                                                                                              \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xd] "+&r"(xd), [xs] "+&r"(xs), [xc] "+&r"(xc)          \
+        : [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols)                                                      \
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);                                                         \
+}
+DEF_HZ(hz_kloop_A, "za0", "za1", "za2", "za3", "4", "5", "6", "7", "sub %[xd], %[xd], #256\n\t")
+DEF_HZ(hz_kloop_B, "za4", "za5", "za6", "za7", "0", "1", "2", "3", "")
+// 注：上面的转存顺序有意为：前 8 组写行 r 的 (D0,D1) 与 (D2,D3)（即每行 4 个向量 256 B），共 8 行 = 2048 B；
+// 后 8 组把 xd 退回起点后再写一遍同样 8 行（重复，仅为保持每组结构一致；正确性由第一遍保证，第二遍写相同数据）。
+// 独立转存一半（收尾用）：布局同上
+static void hz_dump_half0(double* dst)
+{
+    asm volatile(
+        "mov w12, #0\n\t"
+        ".rept 8\n\t"
+        "str za[w12, 0], [%[d]]\n\t str za[w12, 1], [%[d], #1, mul vl]\n\t str za[w12, 2], [%[d], #2, mul vl]\n\t str za[w12, 3], [%[d], #3, mul vl]\n\t"
+        "add %[d], %[d], #256\n\t add w12, w12, #8\n\t"
+        ".endr\n\t"
+        : [d] "+&r"(dst) : : "memory", "x12");
+}
+static void hz_dump_half1(double* dst)
+{
+    asm volatile(
+        "mov w12, #0\n\t"
+        "sub %[d], %[d], #256\n\t"
+        ".rept 8\n\t"
+        "str za[w12, 4], [%[d], #4, mul vl]\n\t str za[w12, 5], [%[d], #5, mul vl]\n\t str za[w12, 6], [%[d], #6, mul vl]\n\t str za[w12, 7], [%[d], #7, mul vl]\n\t"
+        "add %[d], %[d], #256\n\t add w12, w12, #8\n\t"
+        ".endr\n\t"
+        : [d] "+&r"(dst) : : "memory", "x12");
+}
+// 独立回写（收尾用）：C(16×ecols) -= 转存（行 0-7：向量 0,1；行 8-15：向量 2,3）
+static void hz_ev_std(const double* src, double* c, long cs, long ecols)
+{
+    svbool_t p1 = svwhilelt_b64(0L, ecols), p2 = svwhilelt_b64(8L, ecols);
+    for (int r = 0; r < 16; r++) {
+        const double* v = src + (r < 8 ? 4 * r : 4 * (r - 8) + 2) * 8;
+        double* cr = (double*)((char*)c + r * cs);
+        svst1_f64(p1, cr, svsub_f64_x(p1, svld1_f64(p1, cr), svld1_f64(p1, v)));
+        svst1_f64(p2, cr + 8, svsub_f64_x(p2, svld1_f64(p2, cr + 8), svld1_f64(p2, v + 8)));
+    }
+}
 
 // 按 K 分派的托管回写 K 循环（kc=64 用专用变体，<64 退化为独立回写 + 普通 K 循环）
 static inline void kloop_epi_sub_any(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf,
@@ -81,7 +218,7 @@ int main(int argc, char** argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
     struct sigaction sa; memset(&sa, 0, sizeof sa); sa.sa_sigaction = on_sigill; sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGILL, &sa, NULL); sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL); sigaction(SIGSEGV, &sa, NULL); sigaction(SIGBUS, &sa, NULL); sigaction(SIGFPE, &sa, NULL); sigaction(SIGABRT, &sa, NULL);
     long kc = argc > 1 ? atol(argv[1]) : 128;
     long nc = argc > 2 ? atol(argv[2]) : 128;
     long mb = argc > 3 ? atol(argv[3]) : 256;
@@ -104,6 +241,10 @@ int main(int argc, char** argv)
     uint64_t t0;
     const int reps = 2000;
     double r[16];
+    memset(r, 0, sizeof r);
+    int only = argc > 4 ? atoi(argv[4]) : 0;   // 第 4 参数 12：只跑 HZ 原型（其他节在 kc<96 时会崩）
+    fprintf(stderr, "[kb] only=%d\n", only);
+    if (only == 12) goto sec12;
 
     sme_start();
     for (int w = 0; w < 10; w++) { sme_zero_za(); kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pfd); }
@@ -135,16 +276,19 @@ int main(int argc, char** argv)
     double* tb2 = alloc_on(8192, -1); memset(tb2, 0, 8192);   // 注意：系统调用会退出流式模式，必须在 smstart 之前分配
     double* Anext = alloc_on(16 * kc * 8, -1); memset(Anext, 0, 16 * kc * 8);
     sme_start();
+    double rtr = 0, rtr2 = 0, rtr3 = 0;
+    if (kc >= 96 && (kc & 31) == 0) {   // kloop_tr 要求 K ≥ 96 且为 32 的倍数
     t0 = cyc();
     for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_test(Ad, Xp, nc * 8, kc, tb2); }
-    double rtr = to_cycles(cyc() - t0) / reps;
+    rtr = to_cycles(cyc() - t0) / reps;
     // 真正的交错转置 K 循环（源 Ad 当作 16 行 L，行距 kc）：无回写 / 带回写
     t0 = cyc();
     for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_noepi(Ad, Xp, nc * 8, kc, &pfd, Ad, kc * 8, Anext); }
-    double rtr2 = to_cycles(cyc() - t0) / reps;
+    rtr2 = to_cycles(cyc() - t0) / reps;
     t0 = cyc();
     for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_epi(Ad, Xp, nc * 8, kc, &pfd, scratch, C, nc * 8, 32, Ad, kc * 8, Anext); za_dump(scratch); }
-    double rtr3 = to_cycles(cyc() - t0) / reps;
+    rtr3 = to_cycles(cyc() - t0) / reps;
+    }
     sme_stop();
     // 转置正确性：Anext[k*16 + r] 应等于 Ad[r*kc + k]（源当作 16 行 × kc 列，行距 kc），只覆盖前 kc/4 列… 一个 K 循环转置 K/16 块 = kc/4 列
     { int badt = 0; for (long k = 0; k < kc / 4; k++) for (int rr = 0; rr < 16; rr++) if (Anext[k * 16 + rr] != Ad[rr * kc + k]) badt++;
@@ -613,6 +757,146 @@ int main(int argc, char** argv)
             }
             printf("10b. 预取后隔 N 个流式 K 循环再消费：N=0 %.0f | 2 %.0f | 4 %.0f | 8 %.0f | 16 %.0f | 32 %.0f 周期\n", r10b[0], r10b[1], r10b[2], r10b[3], r10b[4], r10b[5]);
         }
+    }
+    // 11. 对角阶段复现（全驻留）：D 条 + cbuf 都在 L2，逐条量 K 循环/转存/落地，与 run_task 阶段 3 相同的结构
+    {
+        long Sd = mb / 16;
+        size_t dsz = diag_strip_off((int)Sd) * 8;
+        double* D = alloc_on(dsz, -1);
+        for (size_t q = 0; q < dsz / 8; q++) D[q] = 1e-3 * (q % 11);
+        double* CB = alloc_on((size_t)mb * nc * 8, -1);
+        for (long q = 0; q < mb * nc; q++) CB[q] = 1.0;
+        long cs = nc * 8, ntile = nc / 32;
+        long steps = 0; for (int sidx = 0; sidx < Sd; sidx++) steps += ntile * 16L * (sidx + 1);
+        double best = 1e30, tk_sum = 0, te_sum = 0;
+        for (int rep = 0; rep < 20; rep++) {
+            sme_start();
+            uint64_t t0 = cyc(); double tk = 0, te = 0;
+            int pend = 0; double* pend_c = NULL; long pend_cols = 0;
+            for (int sidx = 0; sidx < Sd; sidx++) {
+                const double* A = D + diag_strip_off(sidx);
+                long K = 16L * (sidx + 1);
+                for (long t = 0; t < ntile; t++) {
+                    pf_t pf = pfd;
+                    if (sidx + 1 < Sd) pf.p2 = (const char*)(D + diag_strip_off(sidx + 1)) + t * K * 32;
+                    pf.pc = (const char*)(CB + 16L * sidx * nc + 32 * t); pf.pcs = cs;
+                    sme_zero_za();
+                    uint64_t a0 = cyc();
+                    if (pend && K >= 65) kloop_epi_set(A, 128, 128, CB + 32 * t, cs, K, 32, &pf, scratch, pend_c, cs, pend_cols);
+                    else if (pend && K == 64) kloop_epi64_set(A, 128, 128, CB + 32 * t, cs, 32, &pf, scratch, pend_c, cs, pend_cols);
+                    else { if (pend) epi_set_std(scratch, pend_c, cs, pend_cols); kloop_plain(A, 128, 128, CB + 32 * t, cs, K, 32, &pf); }
+                    uint64_t a1 = cyc();
+                    za_dump(scratch);
+                    uint64_t a2 = cyc();
+                    tk += to_cycles(a1 - a0); te += to_cycles(a2 - a1);
+                    pend = 1; pend_c = CB + 16L * sidx * nc + 32 * t; pend_cols = 32;
+                }
+                if (pend) { uint64_t a0 = cyc(); epi_set_std(scratch, pend_c, cs, pend_cols); te += to_cycles(cyc() - a0); pend = 0; }
+            }
+            double tot = to_cycles(cyc() - t0);
+            sme_stop();
+            if (tot < best) { best = tot; tk_sum = tk; te_sum = te; }
+        }
+        printf("11. 对角阶段复现（S=%ld, ntile=%ld，全驻留）: 总 %.0f 周期 = %.2f 周期/步（理想 8.07，%ld 步，效率 %.1f%%）| K 循环 %.0f（%.2f/步）| 转存+落地 %.0f\n",
+               Sd, ntile, best, best / steps, steps, 8.07 * steps / best * 100, tk_sum, tk_sum / steps, te_sum);
+        // 11b. 同样的步数但只跑最长 K 循环（无转存），看短 K 循环的固定开销
+        {
+            sme_start();
+            long K = 16L * Sd; long reps = steps / K;
+            sme_zero_za();
+            uint64_t t0 = cyc();
+            for (long q = 0; q < reps; q++) kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd);
+            double tot = to_cycles(cyc() - t0);
+            sme_stop();
+            printf("11b. 等步数、只跑 K=%ld 的 kloop_plain（无转存）: %.2f 周期/步\n", K, tot / (reps * K));
+            sme_start();
+            K = 16; reps = steps / K;
+            sme_zero_za();
+            t0 = cyc();
+            for (long q = 0; q < reps; q++) kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd);
+            tot = to_cycles(cyc() - t0);
+            sme_stop();
+            printf("11c. 等步数、只跑 K=16 的 kloop_plain（无转存）: %.2f 周期/步（每次调用固定开销 ≈ %.0f 周期）\n", tot / (reps * K), (tot / reps) - 16 * 8.07);
+            sme_start();
+            K = 64; reps = steps / K;
+            t0 = cyc();
+            for (long q = 0; q < reps; q++) { sme_zero_za(); kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd); za_dump(scratch); }
+            tot = to_cycles(cyc() - t0);
+            sme_stop();
+            printf("11d. K=64 kloop_plain + za_dump：%.0f 周期/次（K 循环 516 + 转存 98 = 614 为理想）\n", tot / reps);
+            // 11e. 只 K 循环（不 zero 不转存，ZA 一直累加）
+            sme_start(); t0 = cyc();
+            for (long q = 0; q < reps; q++) kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd);
+            double te = to_cycles(cyc() - t0) / reps; sme_stop();
+            // 11f. zero + K 循环
+            sme_start(); t0 = cyc();
+            for (long q = 0; q < reps; q++) { sme_zero_za(); kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd); }
+            double tf = to_cycles(cyc() - t0) / reps; sme_stop();
+            // 11g. K 循环 + 转存（不 zero）
+            sme_start(); t0 = cyc();
+            for (long q = 0; q < reps; q++) { kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd); za_dump(scratch); }
+            double tg = to_cycles(cyc() - t0) / reps; sme_stop();
+            // 11h. 转存后紧跟 K 循环（zero 放在转存前，看 zero 是否与 str 串行）
+            sme_start(); t0 = cyc();
+            for (long q = 0; q < reps; q++) { za_dump(scratch); sme_zero_za(); kloop_plain(D, 128, 128, CB, cs, K, 32, &pfd); }
+            double th = to_cycles(cyc() - t0) / reps; sme_stop();
+            // 11i. 只 za_dump（无计算）
+            sme_start(); t0 = cyc();
+            for (long q = 0; q < reps; q++) za_dump(scratch);
+            double ti = to_cycles(cyc() - t0) / reps; sme_stop();
+            printf("11e. K=64 只 kloop_plain 连续调用：%.0f 周期/次（理想 516，每次调用爬坡 ≈ %.0f）\n", te, te - 516);
+            printf("11f. zero + kloop：%.0f | 11g. kloop + dump（不 zero）：%.0f | 11h. dump, zero, kloop：%.0f | 11i. 只 dump：%.0f\n", tf, tg, th, ti);
+        }
+    }
+
+sec12:
+    // 12. 半 ZA 交替原型（HZ）：16×16 微块，变体 A 算 za0-3、托管转存 za4-7→sB 与 sA→cbuf 的回写；变体 B 反之
+    {
+        long Kh = 64, ntile16 = nc / 16, cs = nc * 8;
+        double* sA = alloc_on(4096, -1); double* sB = alloc_on(4096, -1);
+        memset(sA, 0, 4096); memset(sB, 0, 4096);
+        double* CB = alloc_on((size_t)16 * nc * 8, -1);
+        double* CR = alloc_on((size_t)16 * nc * 8, -1);
+        for (long q = 0; q < 16 * nc; q++) CB[q] = CR[q] = 1.0 + 1e-3 * (q % 7);
+        fprintf(stderr, "[kb] sec12 start Kh=%ld ntile16=%ld\n", Kh, ntile16);
+        // 参考：CR -= Ad(16×Kh, 128B/k) · Xp(Kh×nc)
+        for (long k = 0; k < Kh; k++)
+            for (int rr = 0; rr < 16; rr++)
+                for (long j = 0; j < nc; j++) CR[rr * nc + j] -= Ad[k * 16 + rr] * Xp[k * nc + j];
+        // 流水：tile t 算半 H(t&1)，转存 H(1-(t&1))（tile t-1）→ s[1-(t&1)]，回写 s[t&1]（tile t-2）→ CB(t-2)
+        sme_start();
+        sme_zero_za();
+        uint64_t t0 = cyc();
+        for (long t = 0; t < ntile16; t++) {
+            double* xc = t >= 2 ? CB + 16 * (t - 2) : CB;            // t<2 时回写目标无所谓：ecols=0 → 谓词全假
+            long ecols = t >= 2 ? 16 : 0;
+            if ((t & 1) == 0) hz_kloop_A(Ad, Xp + 16 * t, cs, Kh, sB, sA, xc, cs, ecols, t >= 1);
+            else              hz_kloop_B(Ad, Xp + 16 * t, cs, Kh, sA, sB, xc, cs, ecols, 1);
+        }
+        double tot = to_cycles(cyc() - t0);
+        fprintf(stderr, "[kb] sec12 first pass done\n");
+        // 收尾：转存最后一个 tile 的半，回写最后两个
+        long tl = ntile16 - 1;
+        if ((tl & 1) == 0) hz_dump_half0(sA); else hz_dump_half1(sB);
+        sme_stop();
+        hz_ev_std((tl & 1) ? sA : sB, CB + 16 * (tl - 1), cs, 16);   // tile tl-1 的半
+        hz_ev_std((tl & 1) ? sB : sA, CB + 16 * tl, cs, 16);         // tile tl 的半
+        double maxe = 0; for (long q = 0; q < 16 * nc; q++) { double e = fabs(CB[q] - CR[q]); if (e > maxe) maxe = e; }
+        // 计时：多次重复整条（8 tile），比较当前 16×32 设计的 4×753
+        double best = 1e30;
+        for (int rep = 0; rep < 200; rep++) {
+            sme_start(); sme_zero_za();
+            uint64_t a0 = cyc();
+            for (long t = 0; t < ntile16; t++) {
+                if ((t & 1) == 0) hz_kloop_A(Ad, Xp + 16 * t, cs, Kh, sB, sA, CB + 16 * (t & 7), cs, 16, 1);
+                else              hz_kloop_B(Ad, Xp + 16 * t, cs, Kh, sA, sB, CB + 16 * (t & 7), cs, 16, 1);
+            }
+            double c1 = to_cycles(cyc() - a0);
+            sme_stop();
+            if (c1 < best) best = c1;
+        }
+        printf("12. HZ 原型 16×16 半 ZA 交替，%ld tile × K=%ld：首轮 %.0f 周期，最好 %.0f 周期 = %.2f 周期/步（理想 4.0；等效 16×32 设计 4×753=3012）| 正确性 maxerr %.2e %s\n",
+               ntile16, Kh, tot, best, best / (ntile16 * Kh), maxe, maxe < 1e-12 ? "ok" : "WRONG");
     }
     printf("5a. 流式 X 拷贝 + L JIT，无预取        : %8.0f 周期/段，效率 %.1f%%\n", r[9], ideal / r[9] * 100);
     printf("5b. 同上 + K 循环内预取 L 与 X         : %8.0f 周期/段，效率 %.1f%%\n", r[10], ideal / r[10] * 100);

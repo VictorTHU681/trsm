@@ -1,0 +1,7 @@
+=== HOST
+cn20486
+Thu Sep 10 22:07:05 CST 2026
+[env] host=cn20486 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+SIG11 at pc=0x40b360 insn=a5e0a024
+=== DONE
+Thu Sep 10 22:07:22 CST 2026

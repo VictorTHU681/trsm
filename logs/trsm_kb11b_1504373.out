@@ -1,0 +1,26 @@
+=== HOST
+cn20492
+Thu Sep 10 21:45:12 CST 2026
+[env] host=cn20492 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- kc nc mb = 64 128 192
+1. kloop_plain A 128B/k          :      538 周期 = 8.41 周期/步
+2h. kloop_epi_sub(宿主回写)+dump  :      753 周期 → 额外 241
+2s. kloop_epi_set(宿主回写)+dump  :      718 周期 → 额外 206
+SIG11 at pc=0x40b360 insn=a5e0a024
+--- kc nc mb = 128 128 192
+1. kloop_plain A 128B/k          :     1049 周期 = 8.20 周期/步
+2h. kloop_epi_sub(宿主回写)+dump  :     1286 周期 → 额外 262
+2s. kloop_epi_set(宿主回写)+dump  :     1249 周期 → 额外 225
+11. 对角阶段复现（S=12, ntile=4，全驻留）: 总 292888 周期 = 58.67 周期/步（理想 8.07，4992 步，效率 13.8%）| K 循环 270971（54.28/步）| 转存+落地 20460
+11b. 等步数、只跑 K=192 的 kloop_plain（无转存）: 10.20 周期/步
+11c. 等步数、只跑 K=16 的 kloop_plain（无转存）: 8.49 周期/步（每次调用固定开销 ≈ 7 周期）
+11d. K=64 kloop_plain + za_dump：736 周期/次（K 循环 516 + 转存 98 = 614 为理想）
+11e. K=64 只 kloop_plain 连续调用：539 周期/次（理想 516，每次调用爬坡 ≈ 23）
+11f. zero + kloop：538 | 11g. kloop + dump（不 zero）：736 | 11h. dump, zero, kloop：734 | 11i. 只 dump：134
+--- kc nc mb = 64 128 256
+1. kloop_plain A 128B/k          :      536 周期 = 8.38 周期/步
+2h. kloop_epi_sub(宿主回写)+dump  :      761 周期 → 额外 249
+2s. kloop_epi_set(宿主回写)+dump  :      732 周期 → 额外 220
+SIG11 at pc=0x40b360 insn=a5e0a024
+=== DONE
+Thu Sep 10 21:45:31 CST 2026

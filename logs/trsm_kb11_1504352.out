@@ -1,0 +1,18 @@
+=== HOST
+cn20487
+Thu Sep 10 21:38:54 CST 2026
+[env] host=cn20487 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- kc nc mb = 64 128 192
+SIG11 at pc=0x40b020 insn=a5e0a024
+--- kc nc mb = 128 128 192
+1. kloop_plain A 128B/k          :     1048 周期 = 8.19 周期/步
+2h. kloop_epi_sub(宿主回写)+dump  :     1280 周期 → 额外 256
+2s. kloop_epi_set(宿主回写)+dump  :     1265 周期 → 额外 241
+11. 对角阶段复现（S=12, ntile=4，全驻留）: 总 68246 周期 = 13.67 周期/步（理想 8.07，4992 步，效率 59.0%）| K 循环 56156（11.25/步）| 转存+落地 10664
+11b. 等步数、只跑 K=192 的 kloop_plain（无转存）: 9.51 周期/步
+11c. 等步数、只跑 K=16 的 kloop_plain（无转存）: 8.42 周期/步（每次调用固定开销 ≈ 6 周期）
+11d. K=64 kloop_plain + za_dump：733 周期/次（K 循环 516 + 转存 98 = 614 为理想）
+--- kc nc mb = 64 128 256
+SIG11 at pc=0x40b020 insn=a5e0a024
+=== DONE
+Thu Sep 10 21:39:14 CST 2026

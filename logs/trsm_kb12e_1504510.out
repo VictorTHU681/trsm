@@ -1,0 +1,10 @@
+=== HOST
+cn20486
+Thu Sep 10 22:10:48 CST 2026
+[env] host=cn20486 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+/tmp/cciBImaV.s:8708: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,2],[x3]'
+/tmp/cciBImaV.s:8709: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,3],[x3,#1,mul vl]'
+/tmp/cciBImaV.s:8765: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,2],[x3]'
+/tmp/cciBImaV.s:8766: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,3],[x3,#1,mul vl]'
+/tmp/cciBImaV.s:8822: Error: operand 2 must have the same immediate value as operand 1 -- `str za[w12,2],[x3]'
+KB_COMPILE_FAIL
