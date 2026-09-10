@@ -94,7 +94,7 @@ static void pin_threads_in_region(int tid, int nt)
 
 static inline void pin_self(int tid)
 {
-    if (g_ncpu > 0 && tid < g_ncpu) {
+    if (g_ncpu > 0 && tid < g_ncpu && sched_getcpu() != g_cpus[tid]) {
         cpu_set_t s;
         CPU_ZERO(&s);
         CPU_SET(g_cpus[tid], &s);
@@ -198,7 +198,7 @@ static void* alloc_on(size_t bytes, int node)
     return p;
 }
 
-static void free_sized(void* p, size_t bytes)
+static void trsm_free_buffer(void* p, size_t bytes)
 {
     if (!p) return;
     size_t sz = (bytes + (2u << 20) - 1) & ~((size_t)(2u << 20) - 1);
@@ -1220,7 +1220,9 @@ typedef struct {
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
     volatile int* flags;    // nrb*npan
-    volatile long next;
+    // Dispatch writes must not invalidate the read-mostly kernel settings.
+    volatile long next __attribute__((aligned(128)));
+    char next_padding[128 - sizeof(long)];
     int prof;
     int swhost;      // X 回写托管进后续 K 循环
     int ant;         // GEMM 阶段 A 条用 ldnt1d
@@ -1262,7 +1264,8 @@ typedef struct {
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
     long n_task, n_kstep;
-} tbuf_t;
+    // Keep counters from sharing a line with the next worker's pointers.
+} __attribute__((aligned(128))) tbuf_t;
 
 // 同步完成一个回写区（可能已被 K 循环推进到行中）
 static void sw_run_region(sw_t* w, tbuf_t* tb)
@@ -1319,17 +1322,17 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
 {
     tbuf_t* t = &g_tb[tid];
     if (t->cbuf_cap < cbuf_d) {
-        free_sized(t->cbuf, t->cbuf_cap * 8);
+        trsm_free_buffer(t->cbuf, t->cbuf_cap * 8);
         t->cbuf = alloc_on(cbuf_d * 8, -1);
         t->cbuf_cap = cbuf_d;
     }
     if (t->astrip_cap < astrip_d) {
-        free_sized(t->astrip, t->astrip_cap * 8);
+        trsm_free_buffer(t->astrip, t->astrip_cap * 8);
         t->astrip = alloc_on(astrip_d * 8, -1);
         t->astrip_cap = astrip_d;
     }
     if (t->xpan_cap < xpan_d) {
-        free_sized(t->xpan, t->xpan_cap * 8);
+        trsm_free_buffer(t->xpan, t->xpan_cap * 8);
         t->xpan = alloc_on(xpan_d * 8, -1);
         t->xpan_cap = xpan_d;
     }
@@ -1553,7 +1556,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
             PROF_T(c, za_dump(scratch), t_epi);
             pend = 1; pend_c = acc + 16L * r * ncp + 32 * t; pend_cols = cols;
-            tb->n_kstep += kk;
+            if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
@@ -1633,7 +1636,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 }
                 PROF_T(c, za_dump(scratch), t_depi);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
-                tb->n_kstep += K;
+                if (c->prof >= 2) tb->n_kstep += K;
             }
             // 条末必须落地：下一条把这些行当 B 操作数
             if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
@@ -1794,7 +1797,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     c.diag_off[c.nrb] = doff;
     if (g_diag_cap < doff) {
-        free_sized(g_diag, g_diag_cap * 8);
+        trsm_free_buffer(g_diag, g_diag_cap * 8);
         g_diag = alloc_on(doff * 8, -1);
         g_diag_cap = doff;
     }
@@ -1813,7 +1816,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         else if (xn == -2) node = g_cpu_node;
         else node = xn;
         if (g_xp_cap < need || g_xp_node != node) {
-            free_sized(g_xp, g_xp_cap * 8);
+            trsm_free_buffer(g_xp, g_xp_cap * 8);
             g_xp = alloc_on(need * 8, node);
             g_xp_cap = need;
             g_xp_node = node;
@@ -1835,7 +1838,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.pp_off[c.nstrip] = off;
         // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本；流水式打包只有一份
         int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", 1);
-        if (c.ppmode == 1 && g_pp[1]) { free_sized(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
+        if (c.ppmode == 1 && g_pp[1]) { trsm_free_buffer(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
         if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
@@ -1848,7 +1851,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (k == 1 && !split) break;
             int node = k == 0 ? node0 : node1;
             if (g_pp_cap[k] < off || g_pp_node[k] != node) {
-                free_sized(g_pp[k], g_pp_cap[k] * 8);
+                trsm_free_buffer(g_pp[k], g_pp_cap[k] * 8);
                 g_pp[k] = alloc_on(off * 8 + 4096, node);
                 g_pp_cap[k] = off;
                 g_pp_node[k] = node;
@@ -1904,7 +1907,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         if (c.ppmode == 1) nitems += c.nstrip;   // 打包任务
         if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
-        if (g_part_cap < part_doubles) { free_sized(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
+        if (g_part_cap < part_doubles) { trsm_free_buffer(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
         long q = 0;
         size_t poff = 0;
         // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块

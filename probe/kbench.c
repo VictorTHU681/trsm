@@ -61,8 +61,14 @@ static double to_cycles(uint64_t dt) { return (double)dt / (double)cyc_hz() * 1.
     HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3) HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3) \
     HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3) HZ_GROUP(T0, T1, T2, T3, D0, D1, D2, D3)
 #define HZ_G8(T0, T1, T2, T3, D0, D1, D2, D3) HZ_G4(T0, T1, T2, T3, D0, D1, D2, D3) HZ_G4(T0, T1, T2, T3, D0, D1, D2, D3)
+// 末组：第 4 步只算不装载（K=64 精确）
+#define HZ_GROUP_LAST(T0, T1, T2, T3)                                             \
+    HZ_E(T0, T1, T2, T3)                                                          \
+    HZ_O(T0, T1, T2, T3) HZ_EV1                                                   \
+    HZ_E(T0, T1, T2, T3)                                                          \
+    HZ_FM("z8", "z9", "z12", "z13", T0, T1, T2, T3) HZ_EV2
 #define HZ_G4NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3)
-#define HZ_G8NS(T0, T1, T2, T3) HZ_G4NS(T0, T1, T2, T3) HZ_G4NS(T0, T1, T2, T3)
+#define HZ_G8NS(T0, T1, T2, T3) HZ_G4NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_NS(T0, T1, T2, T3) HZ_GROUP_LAST(T0, T1, T2, T3)
 // 变体：TILES = 本半的 4 个 tile；D0..D3 = 另一半的 4 个 tile 号（字符串）。K ≥ 64（前 64 步托管）。
 // 转存布局：行 r → 4 个向量 (D0,D1,D2,D3) 连续 256 B；回写读同布局（行 0-7 用向量 0,1；行 8-15 用向量 2,3）
 #define DEF_HZ(NAME, T0, T1, T2, T3, D0, D1, D2, D3, XDINIT)                                                                    \
@@ -71,8 +77,7 @@ static void NAME(const double* pa, const double* pb, long bs, long K, double* du
 {                                                                                                             \
     const double* xa = pa; const double* xb = pb;                                                             \
     char* xd = (char*)dump; const char* xs = (const char*)src; char* xc = (char*)c;                            \
-    long k = K - 65;                                                                                          \
-    (void)do_dump;                                                                                            \
+    (void)do_dump; (void)K;   /* 原型：K 必须为 64 */                                                        \
     asm volatile(                                                                                             \
         "whilelo p1.d, xzr, %[ecols]\n\t"                                                                     \
         "subs x9, %[ecols], #8\n\t"                                                                           \
@@ -89,20 +94,8 @@ static void NAME(const double* pa, const double* pb, long bs, long K, double* du
         XDINIT \
         HZ_G8(T0, T1, T2, T3, D0, D1, D2, D3)                                                                          \
         "sub %[xs], %[xs], #1920\n\t"                                                                         \
-        HZ_G8NS(T0, T1, T2, T3)                                                                          \
-        "cbz %[k], 6f\n\t"                                                                                    \
-        "1:\n\t"                                                                                              \
-        HZ_E(T0, T1, T2, T3)                                                                                           \
-        "subs %[k], %[k], #1\n\t"                                                                             \
-        "b.eq 5f\n\t"                                                                                         \
-        HZ_O(T0, T1, T2, T3)                                                                                           \
-        "subs %[k], %[k], #1\n\t"                                                                             \
-        "b.ne 1b\n\t"                                                                                         \
-        "6:\n\t" HZ_FM("z0", "z1", "z4", "z5", T0, T1, T2, T3)                                                         \
-        "b 7f\n\t"                                                                                            \
-        "5:\n\t" HZ_FM("z8", "z9", "z12", "z13", T0, T1, T2, T3)                                                       \
-        "7:\n\t"                                                                                              \
-        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xd] "+&r"(xd), [xs] "+&r"(xs), [xc] "+&r"(xc)          \
+        HZ_G8NS(T0, T1, T2, T3)                                                                               \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [xd] "+&r"(xd), [xs] "+&r"(xs), [xc] "+&r"(xc)          \
         : [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols)                                                      \
         : "memory", "cc", "x9", "x12", VCLOB, PCLOB);                                                         \
 }
