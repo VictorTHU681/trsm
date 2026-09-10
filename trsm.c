@@ -274,68 +274,148 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
     "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"
 
-// 计算当前步（a/b）并加载下一步（n/m），随后推进指针；每步一条预取
-#define KSTEP(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3)                    \
+// 一步 k：计算当前操作数（a/b）并加载下一步（n/m），随后按步长推进 A/B 指针
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3)                       \
     "ld1d " n0 ".d, p0/z, [%[xa]]\n\t"                                            \
     "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
     "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
     "ld1d " n1 ".d, p0/z, [%[xa], #1, mul vl]\n\t"                                \
     "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
     "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
-    "ld1d " m0 ".d, p1/z, [%[xb]]\n\t"                                            \
+    "ld1d " m0 ".d, p0/z, [%[xb]]\n\t"                                            \
     "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
-    "ld1d " m1 ".d, p2/z, [%[xb], #1, mul vl]\n\t"                                \
+    "ld1d " m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                \
     "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
-    "ld1d " m2 ".d, p3/z, [%[xb], #2, mul vl]\n\t"                                \
+    "ld1d " m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                \
     "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
-    "ld1d " m3 ".d, p4/z, [%[xb], #3, mul vl]\n\t"                                \
+    "ld1d " m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                \
     "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
-    "prfm pldl1keep, [%[xpf]]\n\t"                                                \
-    "add %[xpf], %[xpf], %[pfs]\n\t"                                              \
-    "add %[xa], %[xa], #128\n\t"                                                  \
+    "add %[xa], %[xa], %[as]\n\t"                                                 \
     "add %[xb], %[xb], %[bs]\n\t"
+#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15")
+#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7")
+#define FM_EVEN FMOPA8("z0", "z1", "z4", "z5", "z6", "z7")
+#define FM_ODD  FMOPA8("z8", "z9", "z12", "z13", "z14", "z15")
 
-#define KSTEP_EVEN KSTEP("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15")
-#define KSTEP_ODD  KSTEP("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7")
+// 两级预取游标（每 2 个 k 步发 2 行）：沿内层走 pfc 行后跳 pfj 到下一段，pfn 为内层长度（偶数）
+#define PF2                                                                       \
+    "prfm pldl1keep, [%[xpf]]\n\t"                                                \
+    "prfm pldl1keep, [%[xpf], #64]\n\t"                                           \
+    "add %[xpf], %[xpf], #128\n\t"                                                \
+    "subs %[pfc], %[pfc], #2\n\t"                                                 \
+    "b.gt 8f\n\t"                                                                 \
+    "add %[xpf], %[xpf], %[pfj]\n\t"                                              \
+    "mov %[pfc], %[pfn]\n\t"                                                      \
+    "8:\n\t"
 
-// K 循环：ZA(16×32) += Σ_k A[k](16) ⊗ B[k](32)。pa：打包 A，每 k 128 B；pb：B 第 k 行的 32 列起点，行距 bs 字节；
-// K ≥ 1；cols ∈ [1,32] 为有效列数（B 载入按列谓词零填充）；pf/pfs：预取游标与步长。进入前 ZA 须已清零。
-static inline void kloop_16x32(const double* pa, const double* pb, long bs, long K, long cols,
-                               const void* pf, long pfs)
+// 交错回写：上一微块的暂存向量 j（0..3）→ C 行；谓词 p1..p4 为上一微块的列谓词（B 载入用 p0）
+#define EV_SUB(j, pj, zt, zu)                                                     \
+    "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
+    "ld1d " zu ".d, " pj "/z, [%[xc], #" #j ", mul vl]\n\t"                       \
+    "fsub " zu ".d, " zu ".d, " zt ".d\n\t"                                       \
+    "st1d " zu ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
+#define EV_SET(j, pj, zt, zu)                                                     \
+    "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
+    "st1d " zt ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
+#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
+// 一行回写 = 4 个 k 步（E O E O）各带一个向量
+#define KROW(EV)                                                                  \
+    KS_EVEN EV(0, "p1", "z16", "z17") PF2                                         \
+    KS_ODD  EV(1, "p2", "z18", "z19")                                             \
+    KS_EVEN EV(2, "p3", "z16", "z17") PF2                                         \
+    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
+    EV_ROW_ADV
+
+// 列谓词 p1..p4 ← 上一微块列数 %[ecols]
+#define SET_EPI_PREDS                                                             \
+    "whilelo p1.d, xzr, %[ecols]\n\t"                                             \
+    "subs x9, %[ecols], #8\n\t"                                                   \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p2.d, xzr, x9\n\t"                                                   \
+    "subs x9, x9, #8\n\t"                                                         \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p3.d, xzr, x9\n\t"                                                   \
+    "subs x9, x9, #8\n\t"                                                         \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p4.d, xzr, x9\n\t"
+
+#define KLOOP_INIT                                                                \
+    "ptrue p0.d\n\t"                                                              \
+    "ld1d z0.d, p0/z, [%[xa]]\n\t"                                                \
+    "ld1d z1.d, p0/z, [%[xa], #1, mul vl]\n\t"                                    \
+    "ld1d z4.d, p0/z, [%[xb]]\n\t"                                                \
+    "ld1d z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    "ld1d z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    "ld1d z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], %[as]\n\t"                                                 \
+    "add %[xb], %[xb], %[bs]\n\t"
+// 余下 k 步（%[k] = 还需"算+载"的步数，可为 0）+ 最后一步只算
+#define KLOOP_REST                                                                \
+    "cbz %[k], 6f\n\t"                                                            \
+    "1:\n\t"                                                                      \
+    KS_EVEN PF2                                                                   \
+    "subs %[k], %[k], #1\n\t"                                                     \
+    "b.eq 5f\n\t"                                                                 \
+    KS_ODD                                                                        \
+    "subs %[k], %[k], #1\n\t"                                                     \
+    "b.ne 1b\n\t"                                                                 \
+    "6:\n\t" FM_EVEN                                                              \
+    "b 7f\n\t"                                                                    \
+    "5:\n\t" FM_ODD                                                               \
+    "7:\n\t"
+
+// 预取任务：从 p 起，每 pfn 行（64 B）后跳 pfj 字节；每个 k 步 1 行
+typedef struct { const char* p; long pfn, pfj; } pf_t;
+
+// K 循环：ZA(16×32) += Σ_k A[k](16) ⊗ B[k](32)。pa：A（每 k 两个相邻向量，步长 as 字节）；
+// pb：B 第 k 行 32 列起点，行距 bs；K ≥ 1；cols ∈ [1,32]；进入前 ZA 须已清零。
+static inline void kloop_plain(const double* pa, long as, const double* pb, long bs, long K, long cols, const pf_t* pf)
 {
     const double* xa = pa;
     const double* xb = pb;
-    const char* xpf = (const char*)pf;
-    long k = K;
+    const char* xpf = pf->p;
+    long k = K - 1, pfc = pf->pfn;
+    (void)cols;   // B 来自零填充的连续缓冲，无需列谓词
     asm volatile(
-        SET_COL_PREDS
-        "ld1d z0.d, p0/z, [%[xa]]\n\t"
-        "ld1d z1.d, p0/z, [%[xa], #1, mul vl]\n\t"
-        "ld1d z4.d, p1/z, [%[xb]]\n\t"
-        "ld1d z5.d, p2/z, [%[xb], #1, mul vl]\n\t"
-        "ld1d z6.d, p3/z, [%[xb], #2, mul vl]\n\t"
-        "ld1d z7.d, p4/z, [%[xb], #3, mul vl]\n\t"
-        "add %[xa], %[xa], #128\n\t"
-        "add %[xb], %[xb], %[bs]\n\t"
-        "subs %[k], %[k], #1\n\t"
-        "b.eq 3f\n\t"
-        "1:\n\t"
-        KSTEP_EVEN
-        "subs %[k], %[k], #1\n\t"
-        "b.eq 2f\n\t"
-        KSTEP_ODD
-        "subs %[k], %[k], #1\n\t"
-        "b.ne 1b\n\t"
-        "3:\n\t"
-        FMOPA8("z0", "z1", "z4", "z5", "z6", "z7")
-        "b 4f\n\t"
-        "2:\n\t"
-        FMOPA8("z8", "z9", "z12", "z13", "z14", "z15")
-        "4:\n\t"
-        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf)
-        : [bs] "r"(bs), [cols] "r"(cols), [pfs] "r"(pfs)
+        KLOOP_INIT
+        KLOOP_REST
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc)
+        : [as] "r"(as), [bs] "r"(bs), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj)
         : "memory", "cc", "x9", VCLOB, PCLOB);
 }
+
+// 同上，且在前 64 步里把暂存（上一微块的 ZA 转存）回写到 xc（行距 cs，列数 ecols）：SUB 为 C -= 暂存，SET 为 C = 暂存。
+// 要求 K ≥ 65。
+#define DEF_KLOOP_EPI(NAME, EV)                                                                                   \
+static inline void NAME(const double* pa, long as, const double* pb, long bs, long K, long cols, const pf_t* pf,    \
+                        const double* scratch, double* c, long cs, long ecols)                                    \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    long k = K - 65, pfc = pf->pfn;                                                                                \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROW(EV)                                                                                         \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #8\n\t"                                                                                         \
+        "3:\n\t" KROW(EV)                                                                                         \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KLOOP_REST                                                                                                \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xs] "+&r"(xs), [xc] "+&r"(xc) \
+        : [as] "r"(as), [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
+        : "memory", "cc", "x9", "x10", VCLOB, PCLOB);                                                             \
+}
+DEF_KLOOP_EPI(kloop_epi_sub, EV_SUB)
+DEF_KLOOP_EPI(kloop_epi_set, EV_SET)
 
 // ZA 按自然顺序转存到 4 KB 暂存：ZA 向量 n = r*8 + t（tile t 的第 r 行）位于 scratch + n*64。
 // 于是块内第 R 行的 32 个值连续：R<8 在 scratch + R*512，R≥8 在 scratch + (R-8)*512 + 256。
@@ -366,7 +446,7 @@ static inline void za_dump(double* scratch)
         : [b] "+&r"(b) : : "memory", "x12");
 }
 
-// 回写：C 块 16×32 子块 -= 暂存（xs 指向暂存行，xc 指向 C 行，cs = C 行距字节）
+// 独立回写（无宿主 K 循环时用）：C 块 16×32 子块 -= / = 暂存
 #define EPI_SUB_ROW                                                               \
     "ld1d z0.d, p0/z, [%[xs]]\n\t"                                                \
     "ld1d z1.d, p0/z, [%[xs], #1, mul vl]\n\t"                                    \
@@ -386,23 +466,6 @@ static inline void za_dump(double* scratch)
     "st1d z7.d, p4, [%[xc], #3, mul vl]\n\t"                                      \
     "add %[xs], %[xs], #512\n\t"                                                  \
     "add %[xc], %[xc], %[cs]\n\t"
-#define EPI_SUB_8ROWS EPI_SUB_ROW EPI_SUB_ROW EPI_SUB_ROW EPI_SUB_ROW EPI_SUB_ROW EPI_SUB_ROW EPI_SUB_ROW EPI_SUB_ROW
-
-static inline void epi_sub(const double* scratch, double* c, long cs, long cols)
-{
-    const char* xs = (const char*)scratch;
-    char* xc = (char*)c;
-    asm volatile(
-        SET_COL_PREDS
-        EPI_SUB_8ROWS
-        "sub %[xs], %[xs], #3840\n\t"   // 4096 - 256：回到 scratch + 256（tile 4-7 的行）
-        EPI_SUB_8ROWS
-        : [xs] "+&r"(xs), [xc] "+&r"(xc)
-        : [cs] "r"(cs), [cols] "r"(cols)
-        : "memory", "cc", "x9", VCLOB, PCLOB);
-}
-
-// 回写：C 块 16×32 子块 = 暂存（对角求解结果）
 #define EPI_SET_ROW                                                               \
     "ld1d z0.d, p0/z, [%[xs]]\n\t"                                                \
     "ld1d z1.d, p0/z, [%[xs], #1, mul vl]\n\t"                                    \
@@ -414,31 +477,138 @@ static inline void epi_sub(const double* scratch, double* c, long cs, long cols)
     "st1d z3.d, p4, [%[xc], #3, mul vl]\n\t"                                      \
     "add %[xs], %[xs], #512\n\t"                                                  \
     "add %[xc], %[xc], %[cs]\n\t"
-#define EPI_SET_8ROWS EPI_SET_ROW EPI_SET_ROW EPI_SET_ROW EPI_SET_ROW EPI_SET_ROW EPI_SET_ROW EPI_SET_ROW EPI_SET_ROW
+#define ROWS8(R) R R R R R R R R
+#define DEF_EPI_STD(NAME, ROW)                                                    \
+static inline void NAME(const double* scratch, double* c, long cs, long cols)     \
+{                                                                                 \
+    const char* xs = (const char*)scratch;                                        \
+    char* xc = (char*)c;                                                          \
+    asm volatile(                                                                 \
+        SET_COL_PREDS                                                             \
+        ROWS8(ROW)                                                                \
+        "sub %[xs], %[xs], #3840\n\t"                                             \
+        ROWS8(ROW)                                                                \
+        : [xs] "+&r"(xs), [xc] "+&r"(xc)                                          \
+        : [cs] "r"(cs), [cols] "r"(cols)                                          \
+        : "memory", "cc", "x9", VCLOB, PCLOB);                                    \
+}
+DEF_EPI_STD(epi_sub_std, EPI_SUB_ROW)
+DEF_EPI_STD(epi_set_std, EPI_SET_ROW)
 
-static inline void epi_set(const double* scratch, double* c, long cs, long cols)
+// ---------------------------------------------------------------- 用 FMOPA 转置打包 A（JIT）
+// 16 行 × kk 列（kk % 8 == 0，16 行全部有效）→ dst：每 k 占 512 B，前 128 B 为 [行 0-7 | 行 8-15] 的第 k 列。
+// 原理：za0 += L 行 r ⊗ e_r（e_r 单位向量）→ za0[k][r] = L[r][k]，tile 行 k 即所需 A 向量；
+// str za 按自然顺序落地：tile0 行 k → 向量 8k，tile1 行 k → 向量 8k+1（相邻 128 B）。
+static const double g_unit[64] __attribute__((aligned(64))) = {
+    1, 0, 0, 0, 0, 0, 0, 0,  0, 1, 0, 0, 0, 0, 0, 0,  0, 0, 1, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 0, 0, 0,  0, 0, 0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0, 0, 1,
+};
+#define PZ_ROWS(xr, z0, z1, z2, z3, z4, z5, z6, z7)                               \
+    "ld1d " z0 ".d, p0/z, [%[" xr "]]\n\t"                                        \
+    "add x9, %[" xr "], %[lda8]\n\t"                                              \
+    "ld1d " z1 ".d, p0/z, [x9]\n\t"                                               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "ld1d " z2 ".d, p0/z, [x9]\n\t"                                               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "ld1d " z3 ".d, p0/z, [x9]\n\t"                                               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "ld1d " z4 ".d, p0/z, [x9]\n\t"                                               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "ld1d " z5 ".d, p0/z, [x9]\n\t"                                               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "ld1d " z6 ".d, p0/z, [x9]\n\t"                                               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "ld1d " z7 ".d, p0/z, [x9]\n\t"
+#define PZ_MOPA(T, z0, z1, z2, z3, z4, z5, z6, z7)                                \
+    "fmopa " T ".d, p0/m, p0/m, " z0 ".d, z16.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z1 ".d, z17.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z2 ".d, z18.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z3 ".d, z19.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z4 ".d, z20.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z5 ".d, z21.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z6 ".d, z22.d\n\t"                              \
+    "fmopa " T ".d, p0/m, p0/m, " z7 ".d, z23.d\n\t"
+// 存 tile 对 (T0,T1) 的 8 行：向量 8k+t0, 8k+t1；w12 取 0/16/32/48 各覆盖 2 个 k
+#define PZ_STORE4(G, t0, t1)                                                      \
+    "mov w12, #" #G "\n\t"                                                        \
+    "str za[w12, " #t0 "], [%[xd]]\n\t"                                           \
+    "str za[w12, " #t1 "], [%[xd], #" #t1 ", mul vl]\n\t"                         \
+    "str za[w12, 8], [%[xd], #8, mul vl]\n\t"                                     \
+    "str za[w12, 9], [%[xd], #9, mul vl]\n\t"
+static void pack_strip_za(const double* L, long lda, long row0, long k0, long kk, double* dst)
 {
-    const char* xs = (const char*)scratch;
-    char* xc = (char*)c;
+    const char* xl0 = (const char*)(L + row0 * lda + k0);
+    const char* xl8 = xl0 + 8 * lda * 8;
+    char* xd = (char*)dst;
+    long n = kk / 8, lda8 = lda * 8;
     asm volatile(
-        SET_COL_PREDS
-        EPI_SET_8ROWS
-        "sub %[xs], %[xs], #3840\n\t"
-        EPI_SET_8ROWS
-        : [xs] "+&r"(xs), [xc] "+&r"(xc)
-        : [cs] "r"(cs), [cols] "r"(cols)
-        : "memory", "cc", "x9", VCLOB, PCLOB);
+        "ptrue p0.d\n\t"
+        "ld1d z16.d, p0/z, [%[u]]\n\t"
+        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
+        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
+        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
+        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
+        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
+        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
+        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
+        "1:\n\t"
+        "zero {za0.d, za1.d}\n\t"
+        PZ_ROWS("xl0", "z0", "z1", "z2", "z3", "z4", "z5", "z6", "z7")
+        PZ_ROWS("xl8", "z8", "z9", "z10", "z11", "z12", "z13", "z14", "z15")
+        PZ_MOPA("za0", "z0", "z1", "z2", "z3", "z4", "z5", "z6", "z7")
+        PZ_MOPA("za1", "z8", "z9", "z10", "z11", "z12", "z13", "z14", "z15")
+        // k=0,1 → 向量 0,1,8,9；k=2,3 → 16,17,24,25 …（w12 = 0,16,32,48；xd 每组 +1024）
+        "mov w12, #0\n\t"
+        "str za[w12, 0], [%[xd]]\n\t"
+        "str za[w12, 1], [%[xd], #1, mul vl]\n\t"
+        "str za[w12, 8], [%[xd], #8, mul vl]\n\t"
+        "str za[w12, 9], [%[xd], #9, mul vl]\n\t"
+        "mov w12, #16\n\t"
+        "add %[xd], %[xd], #1024\n\t"
+        "str za[w12, 0], [%[xd]]\n\t"
+        "str za[w12, 1], [%[xd], #1, mul vl]\n\t"
+        "str za[w12, 8], [%[xd], #8, mul vl]\n\t"
+        "str za[w12, 9], [%[xd], #9, mul vl]\n\t"
+        "mov w12, #32\n\t"
+        "add %[xd], %[xd], #1024\n\t"
+        "str za[w12, 0], [%[xd]]\n\t"
+        "str za[w12, 1], [%[xd], #1, mul vl]\n\t"
+        "str za[w12, 8], [%[xd], #8, mul vl]\n\t"
+        "str za[w12, 9], [%[xd], #9, mul vl]\n\t"
+        "mov w12, #48\n\t"
+        "add %[xd], %[xd], #1024\n\t"
+        "str za[w12, 0], [%[xd]]\n\t"
+        "str za[w12, 1], [%[xd], #1, mul vl]\n\t"
+        "str za[w12, 8], [%[xd], #8, mul vl]\n\t"
+        "str za[w12, 9], [%[xd], #9, mul vl]\n\t"
+        "add %[xd], %[xd], #1024\n\t"
+        "add %[xl0], %[xl0], #64\n\t"
+        "add %[xl8], %[xl8], #64\n\t"
+        "subs %[n], %[n], #1\n\t"
+        "b.ne 1b\n\t"
+        : [xl0] "+&r"(xl0), [xl8] "+&r"(xl8), [xd] "+&r"(xd), [n] "+&r"(n)
+        : [lda8] "r"(lda8), [u] "r"(g_unit)
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
 }
 
-// 预取 rows 行、每行 bytes 字节（行距 stride 字节）
-static inline void prefetch_rows(const void* p, long rows, long stride, long bytes)
+// 把 X 面板（kk 行 × nci 列，行距 ldb）拷到连续缓冲 dst（行距 nc，越界列补零）
+static void copy_panel(const double* X, long ldb, long kk, long nci, long nc, double* dst)
 {
-    const char* q = (const char*)p;
-    for (long r = 0; r < rows; r++) {
-        for (long b = 0; b < bytes; b += 64) asm volatile("prfm pldl1keep, [%0]" ::"r"(q + b));
-        q += stride;
+    const svbool_t pg = svptrue_b64();
+    for (long k = 0; k < kk; k++) {
+        const double* s = X + k * ldb;
+        double* d = dst + k * nc;
+        long j = 0;
+        for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+        if (j < nci) {
+            svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+            svst1_f64(pj, d + j, svld1_f64(pj, s + j));
+            j += 8;
+        }
+        for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
     }
 }
+
 
 // ---------------------------------------------------------------- 打包 A（L 的 16 行 × kk 列 → k 主序）
 // dst[k*16 + r] = L[(row0+r)*lda + k0 + k]，row0+r ≥ m 的行补零。
@@ -568,9 +738,11 @@ typedef struct {
 
 typedef struct {
     double* cbuf;    // mb*nc
-    double* astrip;  // 16*kc
-    double* scratch; // 4 KB (+余量)
-    size_t cbuf_cap, astrip_cap;
+    double* astrip;  // JIT 打包 A：kc*64（每 k 512 B 布局）
+    double* xpan;    // X 面板拷贝：kc*nc
+    double* scratch; // 4 KB ZA 转存
+    double* scratch2;// 预取哑地址
+    size_t cbuf_cap, astrip_cap, xpan_cap;
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
     long n_task, n_kstep;
@@ -593,7 +765,7 @@ static int* g_flags = NULL;
 static size_t g_flags_cap = 0;
 static int g_first_call = 1;
 
-static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d)
+static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
 {
     tbuf_t* t = &g_tb[tid];
     if (t->cbuf_cap < cbuf_d) {
@@ -606,7 +778,13 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d)
         t->astrip = alloc_on(astrip_d * 8, -1);
         t->astrip_cap = astrip_d;
     }
-    if (!t->scratch) t->scratch = alloc_on(8192, -1);
+    if (t->xpan_cap < xpan_d) {
+        free_sized(t->xpan, t->xpan_cap * 8);
+        t->xpan = alloc_on(xpan_d * 8, -1);
+        t->xpan_cap = xpan_d;
+    }
+    if (!t->scratch) { t->scratch = alloc_on(8192, -1); memset(t->scratch, 0, 8192); }
+    if (!t->scratch2) { t->scratch2 = alloc_on(4096, -1); memset(t->scratch2, 0, 4096); }
 }
 
 // ---------------------------------------------------------------- 任务执行
@@ -627,9 +805,10 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
     double* cb = tb->cbuf;
     double* scratch = tb->scratch;
     const long ldb = c->ldb, lda = c->lda;
-    const long bs = ldb * 8;      // X 行距字节
-    const long cs = nc * 8;       // C 块行距字节
+    const long cs = nc * 8;       // C 块 / X 面板缓冲行距字节
     double* Bblk = c->B + i0 * ldb + c0;
+    const pf_t pf_dummy = { (const char*)tb->scratch2, 2, -128 };
+    const int pf_on = c->pf;
     uint64_t tt0 = c->prof >= 2 ? cyc() : 0;
 
     // 1. C 块 ← B 子块（越界列/行补零）
@@ -645,11 +824,11 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                 if (j < nci) {
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
-                    j = nci;
+                    j += 8;
                 }
-                for (; j < nc; j++) d[j] = 0.0;
+                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             } else {
-                for (long j = 0; j < nc; j++) d[j] = 0.0;
+                for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
         }
         if (c->prof >= 2) tb->t_load += cyc() - t0;
@@ -658,50 +837,80 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
     // 2. GEMM 段：C 块 -= L[i0.., k0..k0+kk) · X[k0..k0+kk, c0..]
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!c->jit && c->pp[1]) cpy = (int)((i + p) & 1);
-    const int pf_on = c->pf;
+    int pend = 0;            // 有待回写的上一微块（暂存中）
+    double* pend_c = NULL;
+    long pend_cols = 0;
+    const long xlines = ((nci * 8 + 63) / 64 + 1) & ~1L;   // X 面板每行预取的 cache 行数（偶数）
     for (long k0 = 0; k0 < i0; k0 += kc) {
         long kk = i0 - k0; if (kk > kc) kk = kc;
         PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        const double* Xk = c->B + k0 * ldb + c0;
-        // 下一段 X 面板的预取交给各行条分摊（每条 kk/S 行）
-        long pf_rows_per_strip = (kk + S - 1) / S;
-        long k0n = k0 + kc;
+        PROF_T(c, copy_panel(c->B + k0 * ldb + c0, ldb, kk, nci, nc, tb->xpan), t_pf);
+        const double* Xk = tb->xpan;
+        const long k0n = k0 + kc;
+        long rows_per_tile = kk / xlines; if (rows_per_tile < 1) rows_per_tile = 1;
+        long xrow_next = 0;   // 下一段 X 面板已安排预取的行数
         for (int r = 0; r < S; r++) {
             const double* A;
-            const void* pfA; long pfs;
+            long as;
+            const long row0 = i0 + 16 * r;
             if (c->jit) {
-                PROF_T(c, pack_strip(c->L, lda, c->m, i0 + 16 * r, k0, kk, tb->astrip), t_pack);
-                A = tb->astrip;
-                // 预取下一条的 L 行（同段），最后一条预取下一段第 0 条
-                long nr = (r + 1 < S) ? i0 + 16 * (r + 1) : i0;
-                long nk = (r + 1 < S) ? k0 : k0n;
-                if (pf_on && nk < i0) {
-                    long rows = c->m - nr; if (rows > 16) rows = 16;
-                    PROF_T(c, prefetch_rows(c->L + nr * lda + nk, rows, lda * 8, kc * 8), t_pf);
+                long rows = c->m - row0; if (rows > 16) rows = 16;
+                if (rows == 16 && (kk & 7) == 0) {
+                    PROF_T(c, pack_strip_za(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
+                    as = 512;
+                } else {
+                    PROF_T(c, pack_strip(c->L, lda, c->m, row0, k0, kk, tb->astrip), t_pack);
+                    as = 128;
                 }
-                pfA = tb->astrip; pfs = 0;   // 占位：JIT 时 K 循环内不需要 A 预取
+                A = tb->astrip;
             } else {
                 A = c->pp[cpy] + c->pp_off[i0 / 16 + r] + (size_t)k0 * 16;
-                // 下一条的打包数据（连续）：K 循环内每步预取 32 B 推进
-                const double* An = (r + 1 < S) ? c->pp[cpy] + c->pp_off[i0 / 16 + r + 1] + (size_t)k0 * 16
-                                               : c->pp[cpy] + c->pp_off[i0 / 16] + (size_t)k0n * 16;
-                pfA = pf_on ? An : A; pfs = pf_on ? 32 : 0;
-            }
-            if (pf_on && k0n < i0) {
-                long pr0 = r * pf_rows_per_strip;
-                long prn = pf_rows_per_strip;
-                if (pr0 + prn > kk) prn = kk - pr0;
-                if (prn > 0) PROF_T(c, prefetch_rows(c->B + (k0n + pr0) * ldb + c0, prn, bs, nci * 8), t_pf);
+                as = 128;
             }
             for (long t = 0; t < ntile; t++) {
+                pf_t pf = pf_dummy;
+                if (pf_on && t < 2) {
+                    // 下一条的 A（同段的下一条，或下一段的第 0 条）
+                    long nr = (r + 1 < S) ? row0 + 16 : i0;
+                    long nk = (r + 1 < S) ? k0 : k0n;
+                    if (nk < i0) {
+                        if (c->jit) {
+                            long nrows = c->m - nr;
+                            if (nrows > 8 * t) {
+                                pf.p = (const char*)(c->L + (nr + 8 * t) * lda + nk);
+                                pf.pfn = ((kk * 8 + 63) / 64 + 1) & ~1L;
+                                pf.pfj = lda * 8 - pf.pfn * 64;
+                            }
+                        } else {
+                            long g = (r + 1 < S) ? i0 / 16 + r + 1 : i0 / 16;
+                            const double* An = c->pp[cpy] + c->pp_off[g] + (size_t)nk * 16;
+                            pf.p = (const char*)An + (size_t)t * kk * 64;
+                            pf.pfn = 1L << 40;
+                            pf.pfj = 0;
+                        }
+                    }
+                } else if (pf_on && k0n < i0 && xrow_next < kk) {
+                    // 下一段 X 面板：本微块负责 rows_per_tile 行
+                    pf.p = (const char*)(c->B + (k0n + xrow_next) * ldb + c0);
+                    pf.pfn = xlines;
+                    pf.pfj = ldb * 8 - xlines * 64;
+                    xrow_next += rows_per_tile;
+                }
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 sme_zero_za();
-                PROF_T(c, kloop_16x32(A, Xk + 32 * t, bs, kk, cols, pfA, pfs), t_kloop);
-                PROF_T(c, (za_dump(scratch), epi_sub(scratch, cb + 16L * r * nc + 32 * t, cs, cols)), t_epi);
+                if (pend && kk >= 65) {
+                    PROF_T(c, kloop_epi_sub(A, as, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                } else {
+                    if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
+                    PROF_T(c, kloop_plain(A, as, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                }
+                PROF_T(c, za_dump(scratch), t_epi);
+                pend = 1; pend_c = cb + 16L * r * nc + 32 * t; pend_cols = cols;
                 tb->n_kstep += kk;
             }
         }
     }
+    if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     // 3. 对角求解：X[s] = Linv_ss C[s] - Σ (Linv_ss L_ss') X[s']，A = 对角打包条带，B = C 块行 0..16(s+1)
     {
@@ -709,14 +918,23 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
         for (int s = 0; s < S; s++) {
             const double* A = D + diag_strip_off(s);
             long K = 16L * (s + 1);
-            const double* An = (s + 1 < S) ? D + diag_strip_off(s + 1) : A;
+            pf_t pf = pf_dummy;
+            if (pf_on && s + 1 < S) { pf.p = (const char*)(D + diag_strip_off(s + 1)); pf.pfn = 1L << 40; pf.pfj = 0; }
             for (long t = 0; t < ntile; t++) {
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 sme_zero_za();
-                PROF_T(c, kloop_16x32(A, cb + 32 * t, cs, K, cols, An, pf_on ? 64 : 0), t_dkloop);
-                PROF_T(c, (za_dump(scratch), epi_set(scratch, cb + 16L * s * nc + 32 * t, cs, cols)), t_depi);
+                if (pend && K >= 65) {
+                    PROF_T(c, kloop_epi_set(A, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                } else {
+                    if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
+                    PROF_T(c, kloop_plain(A, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                }
+                PROF_T(c, za_dump(scratch), t_depi);
+                pend = 1; pend_c = cb + 16L * s * nc + 32 * t; pend_cols = cols;
                 tb->n_kstep += K;
             }
+            // 条末必须落地：下一条把这些行当 B 操作数
+            if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
         }
     }
 
@@ -740,6 +958,7 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
 }
+
 
 // ---------------------------------------------------------------- 主流程
 static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
@@ -865,7 +1084,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         int tid = omp_get_thread_num();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)mb * nc, (size_t)16 * kc);
+        ensure_tbuf(tid, (size_t)mb * nc, (size_t)64 * kc, (size_t)kc * nc);
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
@@ -923,7 +1142,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             }
             double f = 1e3 / hz / nth;   // 每线程平均 ms
             double ideal_ms = (double)nks * 8.0 / 1.55e9 * 1e3 / nth;   // 每 k 步 8 周期 @1.55 GHz
-            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f pf %.3f wait %.3f kloop %.3f epi %.3f dkloop %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms | k 步 %ld（理想 %.3f ms，kloop 效率 %.1f%%）\n",
+            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f xcopy %.3f wait %.3f kloop %.3f epi %.3f dkloop %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms | k 步 %ld（理想 %.3f ms，kloop 效率 %.1f%%）\n",
                     sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sepi * f, sdkl * f, sdepi * f, sst * f, stask * f,
                     (tail_max - tail_min) / hz * 1e3, nks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
         }
