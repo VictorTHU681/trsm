@@ -620,6 +620,9 @@ DEF_KLOOP_EPI64(kloop_epi64_set, EV_SET)
 #undef LDA_CUR
 #define LDA_CUR LDA_NT_INSN
 DEF_KLOOP_EPI64(kloop_epi64_sub, EV_SUB)
+// 对角内核的 ldnt1d 版本：面板驻留模式下对角条每个面板只用一遍，不该挤占 L2 里的面板缓冲
+DEF_KLOOP_EPI(kloop_epi_set_nt, EV_SET)
+DEF_KLOOP_EPI64(kloop_epi64_set_nt, EV_SET)
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
 DEF_KLOOP_EPI64(kloop_epi64_sub_t, EV_SUB)
@@ -1230,6 +1233,7 @@ typedef struct {
     int prof;
     int swhost;      // X 回写托管进后续 K 循环
     int ant;         // GEMM 阶段 A 条用 ldnt1d
+    int dnt;         // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开）
     int reserve;     // 对角阶段开始时预占下一任务（精确预取其 C 块）
     int xpnt;        // Xp 拷贝用 stnt1d
     int owner;       // 面板驻留模式（小 m）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程的面板缓冲，不写 Xp、无跨线程依赖
@@ -1637,12 +1641,15 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 sw_advance(tb);
                 sme_zero_za();
                 if (pend && K >= 65) {
-                    PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    if (c->dnt) PROF_T(c, kloop_epi_set_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    else PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else if (pend && K == 64) {
-                    PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    if (c->dnt) PROF_T(c, kloop_epi64_set_nt(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    else PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    if (c->dnt) PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    else PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
@@ -1786,6 +1793,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             c.swhost = 0;
             if (!getenv("TRSM_ANT")) c.ant = 1;   // 面板缓冲要常驻 L2，A 条用 ldnt1d 流过（实测 ld1d 会把面板挤出去）
         }
+        c.dnt = env_int("TRSM_DNT", c.owner);
     }
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
