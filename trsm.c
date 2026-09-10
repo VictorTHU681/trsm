@@ -1233,6 +1233,7 @@ typedef struct {
     int reserve;     // 对角阶段开始时预占下一任务（精确预取其 C 块）
     int xpnt;        // Xp 拷贝用 stnt1d
     int owner;       // 面板驻留模式（小 m）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程的面板缓冲，不写 Xp、无跨线程依赖
+    long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int pf;                 // 软件预取开关
     int ntstore;            // 结果回写用非临时存储
     double* xp;             // X 的面板主序副本：面板 (chunk c, panel p) 在 xp + (c*npan + p)*kc*nc，行距 nc
@@ -1781,7 +1782,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (c.jit || c.ppmode != 0) owner = 0;
         if (panel_bytes > ((size_t)env_int("TRSM_OWNER_MB", 4) << 20)) owner = 0;
         c.owner = owner;
-        if (c.owner) c.swhost = 0;
+        if (c.owner) {
+            c.swhost = 0;
+            if (!getenv("TRSM_ANT")) c.ant = 1;   // 面板缓冲要常驻 L2，A 条用 ldnt1d 流过（实测 ld1d 会把面板挤出去）
+        }
     }
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
@@ -1952,6 +1956,21 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     t->ch0 = 0; t->ch1 = (i * mb) / kc;
                     t->part_off = 0;
                 }
+            // 线程区间：按任务代价（GEMM k 步 + 对角 + 每任务固定的装载/回写开销）均分连续区间
+            double c0 = env_int("TRSM_OWNER_C0", 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
+            double total = 0;
+            for (long i = 0; i < c.nrb; i++) total += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+            total *= c.npan;
+            c.owner_bound = malloc(sizeof(long) * (nth + 1));
+            double cum = 0;
+            int t = 1;
+            c.owner_bound[0] = 0;
+            for (long qq = 0; qq < q && t < nth; qq++) {
+                long i = qq % c.nrb;
+                cum += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+                while (t < nth && cum >= total * t / nth) c.owner_bound[t++] = qq + 1;
+            }
+            while (t <= nth) c.owner_bound[t++] = q;
         } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
@@ -2036,13 +2055,47 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
         if (c.owner) {
-            // 线程 tid 独占面板 p = tid, tid+nth, ...；每个面板按行块顺序做完。下一任务确定，直接作为预取目标传入
-            for (long p = tid; p < c.npan; p += nth)
-                for (long i = 0; i < c.nrb; i++) {
-                    long q = p * c.nrb + i;
-                    long qn = (i + 1 < c.nrb) ? q + 1 : ((p + nth < c.npan) ? (p + nth) * c.nrb : -1);
-                    run_task(&c, &g_tb[tid], &c.tasks[q], qn >= 0 ? &c.tasks[qn] : NULL, tid);
+            // 线程 tid 的连续区间 [a, b)（面板主序）。区间两端可能各含一个不完整面板：
+            // 尾部不完整面板（行块 0..ib，被下一线程接着算）放到调度最前，头部不完整面板（行块 ia..，依赖上一线程算出的前几块）放到最后，
+            // 这样跨线程依赖在到达时早已满足。完整面板按行块顺序做完，B 操作数来自本线程面板缓冲。
+            long a = c.owner_bound[tid], b = c.owner_bound[tid + 1];
+            long nrb = c.nrb;
+            long cnt = b - a;
+            long* sched = cnt > 0 ? malloc(sizeof(long) * cnt) : NULL;
+            long k = 0, khead = -1;   // khead：头部不完整面板在 sched 中的起点（其前几个行块由上一线程算出）
+            long pa = a / nrb, ia = a % nrb;
+            if (cnt > 0) {
+                long pb = (b - 1) / nrb, ib = (b - 1) % nrb;
+                if (pa == pb) {
+                    if (ia != 0) khead = 0;
+                    for (long qq = a; qq < b; qq++) sched[k++] = qq;
+                } else {
+                    long pfull0 = ia == 0 ? pa : pa + 1;          // 完整面板起点
+                    long pfull1 = ib == nrb - 1 ? pb : pb - 1;    // 完整面板终点（含）
+                    if (ib != nrb - 1) for (long i = 0; i <= ib; i++) sched[k++] = pb * nrb + i;
+                    for (long p = pfull0; p <= pfull1; p++) for (long i = 0; i < nrb; i++) sched[k++] = p * nrb + i;
+                    if (ia != 0) { khead = k; for (long i = ia; i < nrb; i++) sched[k++] = pa * nrb + i; }
                 }
+            }
+            for (long s = 0; s < k; s++) {
+                if (s == khead) {
+                    // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
+                    long pc0 = pa * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
+                    for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
+                    double* buf = g_tb[tid].cbuf;
+                    const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
+                    for (long gr = 0; gr < ia * mb; gr++) {
+                        double* d = buf + (size_t)gr * c.ncp;
+                        const double* sp = B + (size_t)gr * ldb + pc0;
+                        long j = 0;
+                        for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
+                        if (j < pnci) { svbool_t pj = svwhilelt_b64(j, pnci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
+                        for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                    }
+                }
+                run_task(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
+            }
+            free(sched);
         } else {
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
@@ -2094,7 +2147,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
     }
     free(ditem_i); free(ditem_s);
-    free(c.S_of); free(c.diag_off); free(c.pp_off);
+    free(c.S_of); free(c.diag_off); free(c.pp_off); free(c.owner_bound);
 }
 #endif // TRSM_NO_SME_ASM
 
