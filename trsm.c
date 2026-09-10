@@ -110,6 +110,7 @@ static inline void pin_self(int tid)
 #define SYS_get_mempolicy 236
 #endif
 #define MPOL_BIND_ 2
+#define MPOL_PREFERRED_ 1
 #define MPOL_MF_MOVE_ 2
 #define MPOL_F_NODE_ 1
 #define MPOL_F_ADDR_ 2
@@ -188,9 +189,10 @@ static void* alloc_on(size_t bytes, int node)
     void* p = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) return NULL;
     if (node >= 0) {
+        // 首选节点（放不下自动回落其他节点）：HBM 只有 4 GB，严格 BIND 在分配失败时会让进程被杀
         unsigned long mask[16] = {0};
         mask[node / 64] |= 1UL << (node % 64);
-        syscall(SYS_mbind, p, sz, MPOL_BIND_, mask, (unsigned long)(sizeof(mask) * 8), 0);
+        syscall(SYS_mbind, p, sz, MPOL_PREFERRED_, mask, (unsigned long)(sizeof(mask) * 8), 0);
     }
     madvise(p, sz, MADV_HUGEPAGE);
     return p;

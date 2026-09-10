@@ -1,0 +1,29 @@
+=== HOST
+cn20489
+Thu Sep 10 15:18:33 CST 2026
+=== 泛化正确性（含流水式打包路径：TRSM_JIT_MB=0 强制大 L 模式）
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+--- [case3 pp=1 默认(LA=2)]
+--- [case3 pp=1 LA=1]
+--- [case3 pp=1 LA=4]
+--- [case3 pp=1 kc=256]
+--- [case3 pp=1 mb192 kc96]
+--- [case3 pp=1 xp=hbm]
+--- [case3 pp=1 pp-node=ddr]
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=0 pp=1 tasks=268(items 1552) nth=38 hbm=17 Xnode=17 | setup 0.086 ms, parallel 57.957 ms
+[trsm prof]  每线程平均 ms：prep 1.070 | load 0.896 pack 3.179 xcopy 0.000 wait 2.324 kloop 40.885 epi 4.988 dkloop 0.452 depi 0.102 store 0.626 | task 合计 51.734 | 尾部不均衡 3.112 ms | k 步 145044480（理想 19.700 ms，kloop 效率 47.7%）
+ 17024 x   512        58.21    2549.1862     7.22e-16     PASS
+--- [case3 pp=0 (JIT 对照)]
+[trsm prof] m=17024 n=512 mb=256 nc=128 kc=128 jit=1 pp=0 tasks=268(items 488) nth=38 hbm=17 Xnode=17 | setup 0.027 ms, parallel 75.423 ms
+[trsm prof]  每线程平均 ms：prep 1.068 | load 0.765 pack 0.055 xcopy 0.000 wait 2.228 kloop 61.813 epi 3.809 dkloop 0.500 depi 0.093 store 0.570 | task 合计 71.528 | 尾部不均衡 5.239 ms | k 步 145044480（理想 19.700 ms，kloop 效率 31.6%）
+ 17024 x   512        75.60    1962.8209     7.22e-16     PASS
+=== case1/2 回归
+[trsm prof]  每线程平均 ms：prep 0.124 | load 0.485 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.625 epi 0.081 dkloop 0.702 depi 0.133 store 0.551 | task 合计 2.624 | 尾部不均衡 0.377 ms | k 步 5271552（理想 0.716 ms，kloop 效率 53.9%）
+   512 x 19968         3.31    1583.2029     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.463 | load 2.178 pack 0.000 xcopy 0.000 wait 0.001 kloop 23.369 epi 3.008 dkloop 2.824 depi 0.575 store 2.607 | task 合计 35.536 | 尾部不均衡 0.751 ms | k 步 98977536（理想 13.443 ms，kloop 效率 51.3%）
+  2432 x 17024        36.67    2745.5792     5.55e-16     PASS
+=== DONE
+Thu Sep 10 15:18:59 CST 2026
