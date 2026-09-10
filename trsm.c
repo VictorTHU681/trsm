@@ -1459,17 +1459,6 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
     const char* dpf = (const char*)(c->diagc[dcpy] + c->diag_off[i]);
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
-    // 下一任务的 B 子块（行距 ldb 的行段）预取游标状态：常规模式在对角阶段（预占后 tkn 才确定）起用；面板驻留模式下一任务已知，GEMM 阶段就开始走
-    long nb_rows = 0, nb_done = 0, nb_lines = 0;
-    const double* nb_base = NULL;
-    const long nb_ldb8 = ldb * 8;
-    if (c->owner && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
-        long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
-        nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
-        long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
-        nb_lines = (nnci * 8 + 63) / 64;
-        nb_base = c->B + ni0 * ldb + nc0;
-    }
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     for (long q = 0; q < nstrips; q++) {
@@ -1522,26 +1511,6 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         long pfq = q + (host_now ? 2 : 1);
         for (long t = 0; t < ntile; t++) {
             pf_t pf = pf_dummy;
-            if (c->owner) {
-                // 面板驻留模式：B 面板在本线程 L2 里，不用预取。游标 2（连续）→ 下一条 A（预打包连续）；最后一条后 → 对角条；
-                // 游标 1（跨行）→ 下一任务的 B 子块行（把装载阶段的冷读提前到 GEMM 阶段）
-                if (pf_on && pfq < nstrips) {
-                    long pr0 = i0 + 16 * (pfq % S);
-                    long pk0 = (chfirst + pfq / S) * kc;
-                    const double* An = c->pp[cpy] + c->pp_off[pr0 / 16] + (size_t)pk0 * 16;
-                    pf.p2 = (const char*)An + (size_t)t * (kk / 2) * 64;
-                } else if (pf_on && dpf < dend) {
-                    pf.p2 = dpf;
-                    dpf += (kk / 2) * 64;
-                }
-                if (pf_on && nb_base && nb_done < nb_rows) {
-                    long rows_this = (kk / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
-                    pf.p = (const char*)(nb_base + nb_done * ldb);
-                    pf.pfn = nb_lines;
-                    pf.pfj = nb_ldb8 - nb_lines * 64;
-                    nb_done += rows_this;
-                }
-            } else {
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
             if (pf_on && pfq < nstrips) {
                 long pr0 = i0 + 16 * (pfq % S);
@@ -1577,7 +1546,6 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
                 pf.p2 = dpf;
                 dpf += (kk / 2) * 64;
-            }
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
