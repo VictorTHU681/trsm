@@ -1745,8 +1745,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.ant = env_int("TRSM_ANT", m <= 1024 ? 0 : 1);   // 小 m：同一行块的 A 条在连续任务间可复用，留在 L2
     c.reserve = env_int("TRSM_RESERVE", 1);
     c.xpnt = env_int("TRSM_XPNT", 0);
+    int nth_hint = omp_get_max_threads(); if (nth_hint < 1) nth_hint = 1;
+    // 小 m、宽 X（面板数 ≥ 2×线程数）→ 面板驻留模式（TRSM_OWNER=-1 自动）：默认块 mb64/nc96（面板缓冲 ≤ 512×96×8 = 393 KB 常驻 L2）
+    int owner_auto = env_int("TRSM_OWNER", -1);
+    int small_wide = m <= 1024 && n >= 2L * nth_hint * 96;
+    if (owner_auto < 0) owner_auto = small_wide;
     // 默认 mb192/nc128/kc64：L2 足迹 cbuf 192K + 2×(A 段 96K + B 段 64K) = 512 KB；kc=64 时回写由 kloop_epi64 全程托管
-    int mb = env_int("TRSM_MB", 192), nc = env_int("TRSM_NC", 128), kc = env_int("TRSM_KC", 64);
+    int mb = env_int("TRSM_MB", owner_auto ? 64 : 192), nc = env_int("TRSM_NC", owner_auto ? 96 : 128), kc = env_int("TRSM_KC", 64);
     if (mb < 32) mb = 32;
     mb = (mb + 31) & ~31;
     if (nc < 32) nc = 32;
@@ -1787,9 +1792,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 面板驻留模式（TRSM_OWNER，-1 自动）：小 m 时线程独占列面板，整列面板 (nrb*mb 行 × ncp) 驻留在线程缓冲里，
     // 后续行块的 B 操作数就是本线程刚算出的 X 行（L2 热），省掉 Xp 往返与跨线程依赖；只在预打包路径下可用。
     {
-        int owner = env_int("TRSM_OWNER", -1);
+        int owner = owner_auto;
         size_t panel_bytes = (size_t)c.nrb * mb * c.ncp * 8;
-        if (owner < 0) owner = 0;   // 实验阶段：默认关，按用例显式开启后再决定自动策略
         if (c.jit || c.ppmode != 0) owner = 0;
         if (panel_bytes > ((size_t)env_int("TRSM_OWNER_MB", 4) << 20)) owner = 0;
         c.owner = owner;
