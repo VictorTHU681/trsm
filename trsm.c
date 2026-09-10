@@ -2143,9 +2143,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
        for(long i=0;i<m;i++){double x=i+1;g_qweights[i]=x*sqrt(sqrt(x));g_qprefix[i+1]=g_qprefix[i]+g_qweights[i];}
        g_qweight_cap=m;
       }
-      size_t need=(size_t)m*ldb;
-      if(g_qout_cap<need) {trsm_free_buffer(g_qout,g_qout_cap*8);g_qout=alloc_on(need*8,g_hbm_node);g_qout_cap=need;}
-      c.qout=g_qout;c.qeta=calloc((m+15)/16,sizeof(double));c.qmax=calloc(1024*16,sizeof(double));
+      c.qeta=calloc((m+15)/16,sizeof(double));c.qmax=calloc(1024*16,sizeof(double));
     }
     c.lchunk = env_int("TRSM_LCHUNK", 1) && mb % kc == 0;
     c.direct = !c.q32 && env_int("TRSM_DIRECT", m <= 1024);
@@ -2167,6 +2165,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     if (g_ncpu > 0 && g_ncpu < nth) nth = g_ncpu;
     detect_nodes();
+    // Allocate after NUMA discovery so a first-call quantized solve can use HBM.
+    if(c.q32) {
+      size_t need=(size_t)m*ldb;
+      if(g_qout_cap<need) {trsm_free_buffer(g_qout,g_qout_cap*8);g_qout=alloc_on(need*8,g_hbm_node);g_qout_cap=need;}
+      c.qout=g_qout;
+    }
 
     // 决定 GEMM 部分的 L 打包方式：L 下三角 ≤ 阈值时预打包（两份），否则 JIT
     size_t tri_bytes = (size_t)m * (m + 1) / 2 * 8;
@@ -2480,14 +2484,23 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if(c.q32) {
         double eta=0,xmax=0;
         for(long g=0;g<(m+15)/16;g++)if(c.qeta[g]>eta)eta=c.qeta[g];
-        for(int t=0;t<1024;t++)if(c.qmax[t*16]>xmax)xmax=c.qmax[t*16];
+        for(int t=0;t<nth;t++)if(c.qmax[t*16]>xmax)xmax=c.qmax[t*16];
         double bound=g_qweights[m-1]*eta*xmax;
         int pass=isfinite(bound)&&bound<=2e-13;
         if(c.prof)fprintf(stderr,"[qguard] coefficient_bound=%.4e xmax=%.6g decision=%s\n",bound,xmax,pass?"accept":"retry-fp64");
         free(c.qeta);free(c.qmax);
         if(pass) {
 #pragma omp parallel for num_threads(nth) schedule(static)
-            for(long r=0;r<m;r++)memcpy(B+r*ldb,c.qout+r*ldb,(size_t)n*8);
+            for(long r=0;r<m;r++) {
+                const double* src=c.qout+r*ldb;double* dst=B+r*ldb;
+                svbool_t pg=svptrue_b64();
+                // Align complete streaming stores; predicates preserve row padding.
+                long pre=(long)(((64-((uintptr_t)dst&63))&63)>>3);if(pre>n)pre=n;
+                long j=0;
+                if(pre){svbool_t pp=svwhilelt_b64(0L,pre);svstnt1_f64(pp,dst,svld1_f64(pp,src));j=pre;}
+                for(;j+8<=n;j+=8)svstnt1_f64(pg,dst+j,svld1_f64(pg,src+j));
+                if(j<n){svbool_t pp=svwhilelt_b64(j,n);svstnt1_f64(pp,dst+j,svld1_f64(pp,src+j));}
+            }
         } else trsm_sme(m,n,L,lda,B,ldb,0);
     }
 }
