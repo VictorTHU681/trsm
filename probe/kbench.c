@@ -364,6 +364,7 @@ int main(int argc, char** argv)
                         long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
                         if (rr >= xstart) { long slot = (rr - xstart) * ntile + t; if (slot < slots_needed) pf.p2 = (const char*)Xkn + slot * (kc / 2) * 64; }
                     }
+                    if (variant != 0) { pf.pc = (const char*)(C + 16 * rr * nc + 32 * t); pf.pcs = nc * 8; }   // C 行触碰（变体 0 除外）
                     sme_zero_za();
                     long kb0 = t * (kc / 4);
                     if (host_now) {

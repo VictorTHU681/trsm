@@ -306,10 +306,15 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
 #ifndef TRSM_PF_LOAD
 #define TRSM_PF_LOAD 0
 #endif
+#ifndef TRSM_PF_HINT
+#define TRSM_PF_HINT pldl1keep
+#endif
+#define TRSM_STR_(x) #x
+#define TRSM_STR(x) TRSM_STR_(x)
 #if TRSM_PF_LOAD
 #define PF_INSN(x) "ld1d z11.d, p0/z, [" x "]\n\t"
 #else
-#define PF_INSN(x) "prfm pldl1keep, [" x "]\n\t"
+#define PF_INSN(x) "prfm " TRSM_STR(TRSM_PF_HINT) ", [" x "]\n\t"
 #endif
 #define PFL                                                                       \
     PF_INSN("%[xpf]")                                                             \
@@ -342,10 +347,11 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     "st1d " zt ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
 #define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
 // 一行回写 = 4 个 k 步（E O E O）各带一个向量
+// 回写阶段不发预取：hosted epilogue 的 C 行 load/store 会让同期发出的预取大半丢失（kbench 第 9/10 节）
 #define KROW(EV)                                                                  \
-    KS_EVEN EV(0, "p1", "z16", "z17") PFL                                         \
+    KS_EVEN EV(0, "p1", "z16", "z17")                                             \
     KS_ODD  EV(1, "p2", "z18", "z19")                                             \
-    KS_EVEN EV(2, "p3", "z16", "z17") PFX                                         \
+    KS_EVEN EV(2, "p3", "z16", "z17")                                             \
     KS_ODD  EV(3, "p4", "z18", "z19")                                             \
     EV_ROW_ADV
 
@@ -376,10 +382,10 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
 #define KLOOP_REST                                                                \
     "cbz %[k], 6f\n\t"                                                            \
     "1:\n\t"                                                                      \
-    KS_EVEN PFL                                                                   \
+    KS_EVEN PFL PFX                                                               \
     "subs %[k], %[k], #1\n\t"                                                     \
     "b.eq 5f\n\t"                                                                 \
-    KS_ODD PFX PFC                                                                \
+    KS_ODD PFL PFX PFC                                                            \
     "subs %[k], %[k], #1\n\t"                                                     \
     "b.ne 1b\n\t"                                                                 \
     "6:\n\t" FM_EVEN                                                              \
@@ -502,14 +508,16 @@ static const uint64_t g_tbl_idx[4][8];   // tbl2 索引向量（定义见打包�
 #define RA_ON EV_ROW_ADV
 #define RA_OFF
 // 16 步（一个 8×8 块）；E 为回写向量钩子（每 4 步一行），RA 为行推进
-#define TB16(E, RA, LASTODD, PC)                                                  \
-    KS_EVEN_T E(0, "p1") TH0 PFL KS_ODD_T E(1, "p2") TH1 PC KS_EVEN_T E(2, "p3") TH2 PFX KS_ODD_T E(3, "p4") TH3 RA \
-    KS_EVEN_T E(0, "p1") TH4 PFL KS_ODD_T E(1, "p2") TH5 KS_EVEN_T E(2, "p3") TH6 PFX KS_ODD_T E(3, "p4") TH7 RA \
-    KS_EVEN_T E(0, "p1") TH8 PFL KS_ODD_T E(1, "p2") TH9 PC KS_EVEN_T E(2, "p3") TH10 PFX KS_ODD_T E(3, "p4") TH11 RA \
-    KS_EVEN_T E(0, "p1") TH12 PFL KS_ODD_T E(1, "p2") TH13 KS_EVEN_T E(2, "p3") TH14 PFX LASTODD E(3, "p4") TH15 RA
+#define TB16(E, RA, LASTODD, PC, PF)                                              \
+    KS_EVEN_T E(0, "p1") TH0 PF KS_ODD_T E(1, "p2") TH1 PF PC KS_EVEN_T E(2, "p3") TH2 PF KS_ODD_T E(3, "p4") TH3 PF RA \
+    KS_EVEN_T E(0, "p1") TH4 PF KS_ODD_T E(1, "p2") TH5 PF KS_EVEN_T E(2, "p3") TH6 PF KS_ODD_T E(3, "p4") TH7 PF RA \
+    KS_EVEN_T E(0, "p1") TH8 PF KS_ODD_T E(1, "p2") TH9 PF PC KS_EVEN_T E(2, "p3") TH10 PF KS_ODD_T E(3, "p4") TH11 PF RA \
+    KS_EVEN_T E(0, "p1") TH12 PF KS_ODD_T E(1, "p2") TH13 PF KS_EVEN_T E(2, "p3") TH14 PF LASTODD E(3, "p4") TH15 PF RA
 #define PC_NONE
-#define TB_PAIR(E, RA, PC) TB16(E, RA, KS_ODD_T, PC) TFIX_H0 TB16(E, RA, KS_ODD_T, PC) TFIX_H1
-#define TB_PAIR_LAST(E, RA, PC) TB16(E, RA, KS_ODD_T, PC) TFIX_H0 TB16(E, RA, FM_ODD, PC) TFIX_H1
+#define PF_NONE
+#define PF_BOTH PFL PFX
+#define TB_PAIR(E, RA, PC, PF) TB16(E, RA, KS_ODD_T, PC, PF) TFIX_H0 TB16(E, RA, KS_ODD_T, PC, PF) TFIX_H1
+#define TB_PAIR_LAST(E, RA, PC, PF) TB16(E, RA, KS_ODD_T, PC, PF) TFIX_H0 TB16(E, RA, FM_ODD, PC, PF) TFIX_H1
 // KLOOP_INIT 用 %[ase]；转置版在 asm 内以 x11 别名给出
 #define KLOOP_INIT_T                                                              \
     "ptrue p0.d\n\t"                                                              \
@@ -549,17 +557,17 @@ static void kloop_tr_epi(const double* pa, const double* pb, long bs, long K, co
         "ld1d z30.d, p0/z, [%[idx], #2, mul vl]\n\t"
         "ld1d z31.d, p0/z, [%[idx], #3, mul vl]\n\t"
         KLOOP_INIT_T
-        TB_PAIR(EVX_SUB, RA_ON, PC_NONE)
+        TB_PAIR(EVX_SUB, RA_ON, PC_NONE, PF_NONE)
         "sub %[xs], %[xs], #3840\n\t"
-        TB_PAIR(EVX_SUB, RA_ON, PC_NONE)
+        TB_PAIR(EVX_SUB, RA_ON, PC_NONE, PF_NONE)
         "subs %[pairs], %[pairs], #1\n\t"
         "b.eq 6f\n\t"
         "5:\n\t"
-        TB_PAIR(EVX_NONE, RA_OFF, PFC)
+        TB_PAIR(EVX_NONE, RA_OFF, PFC, PF_BOTH)
         "subs %[pairs], %[pairs], #1\n\t"
         "b.ne 5b\n\t"
         "6:\n\t"
-        TB_PAIR_LAST(EVX_NONE, RA_OFF, PFC)
+        TB_PAIR_LAST(EVX_NONE, RA_OFF, PFC, PF_BOTH)
         : [xa] "+&r"(xa), [xb] "+&r"(xb), [pairs] "+&r"(pairs), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2),
           [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc), [xl] "+&r"(xl), [xd] "+&r"(xd)
         : [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols),
@@ -591,11 +599,11 @@ static void kloop_tr_noepi(const double* pa, const double* pb, long bs, long K, 
         "subs %[pairs], %[pairs], #1\n\t"
         "b.eq 6f\n\t"
         "5:\n\t"
-        TB_PAIR(EVX_NONE, RA_OFF, PFC)
+        TB_PAIR(EVX_NONE, RA_OFF, PFC, PF_BOTH)
         "subs %[pairs], %[pairs], #1\n\t"
         "b.ne 5b\n\t"
         "6:\n\t"
-        TB_PAIR_LAST(EVX_NONE, RA_OFF, PFC)
+        TB_PAIR_LAST(EVX_NONE, RA_OFF, PFC, PF_BOTH)
         : [xa] "+&r"(xa), [xb] "+&r"(xb), [pairs] "+&r"(pairs), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2),
           [xpc] "+&r"(xpc), [xl] "+&r"(xl), [xd] "+&r"(xd)
         : [bs] "r"(bs), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [lda8] "r"(lda8), [idx] "r"(g_tbl_idx)
