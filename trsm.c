@@ -1264,6 +1264,8 @@ typedef struct {
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
     long n_task, n_kstep;
+    uint64_t t_dump, t_ddump;
+    long n_dkstep;
     // Keep counters from sharing a line with the next worker's pointers.
 } __attribute__((aligned(128))) tbuf_t;
 
@@ -1554,7 +1556,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 if (c->ant) PROF_T(c, kloop_plain_nt(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
                 else PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
-            PROF_T(c, za_dump(scratch), t_epi);
+            PROF_T(c, za_dump(scratch), t_dump);
             pend = 1; pend_c = acc + 16L * r * ncp + 32 * t; pend_cols = cols;
             if (c->prof >= 2) tb->n_kstep += kk;
         }
@@ -1634,9 +1636,9 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
                     PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
-                PROF_T(c, za_dump(scratch), t_depi);
+                PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
-                if (c->prof >= 2) tb->n_kstep += K;
+                if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
             // 条末必须落地：下一条把这些行当 B 操作数
             if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
@@ -1889,6 +1891,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         int splitf = env_int("TRSM_SPLITF", 12);
         int maxseg = env_int("TRSM_MAXSEG", 8);
+        // Narrow RHS panels leave too few long tasks at the end of the solve.
+        // Split only the last two row blocks more finely to shorten that tail.
+        int tailrows = env_int("TRSM_TAIL_ROWS", 2);
+        int tailseg = env_int("TRSM_TAIL_SEG", 6);
         long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
         double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
         long nitems = 0;
@@ -1898,6 +1904,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             int nseg = 1;
             if (splitf > 0 && nch >= minch) {
                 nseg = (int)(cost[i] / target + 0.5);
+                if (c.npan < nth && i >= c.nrb - tailrows && nseg < tailseg) nseg = tailseg;
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;
                 if (nseg < 1) nseg = 1;
@@ -1926,6 +1933,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             int nseg = 1;
             if (splitf > 0 && nch >= minch) {
                 nseg = (int)(cost[i] / target + 0.5);
+                if (c.npan < nth && i >= c.nrb - tailrows && nseg < tailseg) nseg = tailseg;
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;
                 if (nseg < 1) nseg = 1;
@@ -1970,7 +1978,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
             tb->t_dkloop = tb->t_depi = tb->t_store = tb->t_task = 0;
-            tb->n_task = tb->n_kstep = 0;
+            tb->n_task = tb->n_kstep = tb->n_dkstep = 0;
+            tb->t_dump = tb->t_ddump = 0;
             tb->n_swflush = tb->n_swq = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
@@ -2022,22 +2031,26 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
         if (c.prof >= 2) {
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
-            long nks = 0, ntk = 0, nswf = 0, nswq = 0;
+            long nks = 0, ndks = 0, ntk = 0, nswf = 0, nswq = 0;
+            double sdump = 0, sddump = 0;
             uint64_t tail_min = ~0ull, tail_max = 0;
             for (int t = 0; t < nth; t++) {
                 tbuf_t* tb = &g_tb[t];
                 sload += tb->t_load; spack += tb->t_pack; spf += tb->t_pf; swait += tb->t_wait; skl += tb->t_kloop;
+                sdump += tb->t_dump; sddump += tb->t_ddump; ndks += tb->n_dkstep;
                 sepi += tb->t_epi; sdkl += tb->t_dkloop; sdepi += tb->t_depi; sst += tb->t_store; stask += tb->t_task;
                 nswf += tb->n_swflush; nswq += tb->n_swq;
                 sprep += g_prep_cyc[t]; nks += tb->n_kstep; ntk += tb->n_task;
                 if (g_tail_cyc[t] < tail_min) tail_min = g_tail_cyc[t];
                 if (g_tail_cyc[t] > tail_max) tail_max = g_tail_cyc[t];
             }
+            double tail_idle = 0;
+            for (int t = 0; t < nth; t++) tail_idle += tail_max - g_tail_cyc[t];
             double f = 1e3 / hz / nth;   // 每线程平均 ms
             double ideal_ms = (double)nks * 8.0 / 1.55e9 * 1e3 / nth;   // 每 k 步 8 周期 @1.55 GHz
-            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f xcopy %.3f wait %.3f kloop %.3f epi %.3f dkloop %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms | k 步 %ld（理想 %.3f ms，kloop 效率 %.1f%%）\n",
-                    sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sepi * f, sdkl * f, sdepi * f, sst * f, stask * f,
-                    (tail_max - tail_min) / hz * 1e3, nks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
+            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f xcopy %.3f wait %.3f kloop %.3f dump %.3f epi %.3f dkloop %.3f ddump %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms（平均空闲 %.3f ms）| k 步 %ld（对角 %ld）（理想 %.3f ms，kloop 效率 %.1f%%）\n",
+                    sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sdump * f, sepi * f, sdkl * f, sddump * f, sdepi * f, sst * f, stask * f,
+                    (tail_max - tail_min) / hz * 1e3, tail_idle * f, nks, ndks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
             fprintf(stderr, "[trsm prof]  托管回写：排队 %ld 行，同步收尾 %ld 行（%.1f%%）\n", nswq, nswf, nswq ? 100.0 * nswf / nswq : 0.0);
         }
     }
