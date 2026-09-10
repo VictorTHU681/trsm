@@ -1565,15 +1565,16 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             cost[i] = (double)S * (i * mb) + 8.0 * S * (S + 1);   // 每列块的 k 步数 / ntile
             total += cost[i] * c.npan;
         }
-        int splitf = env_int("TRSM_SPLITF", 6);
-        int maxseg = env_int("TRSM_MAXSEG", 4);
+        int splitf = env_int("TRSM_SPLITF", 12);
+        int maxseg = env_int("TRSM_MAXSEG", 8);
+        long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
         double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
         long nitems = 0;
         size_t part_doubles = 0;
         for (long i = 0; i < c.nrb; i++) {
             long nch = (i * mb) / kc;
             int nseg = 1;
-            if (splitf > 0 && nch >= 2) {
+            if (splitf > 0 && nch >= minch) {
                 nseg = (int)(cost[i] / target + 0.5);
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;
@@ -1589,7 +1590,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         for (long i = 0; i < c.nrb; i++) {
             long nch = (i * mb) / kc;
             int nseg = 1;
-            if (splitf > 0 && nch >= 2) {
+            if (splitf > 0 && nch >= minch) {
                 nseg = (int)(cost[i] / target + 0.5);
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;

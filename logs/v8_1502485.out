@@ -1,0 +1,54 @@
+=== HOST
+cn20486
+Thu Sep 10 14:54:44 CST 2026
+=== 泛化正确性
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+ALL PASS: 0 failures
+--- [mb256 kc128]
+[trsm prof]  每线程平均 ms：prep 0.117 | load 0.479 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.623 epi 0.100 dkloop 0.710 depi 0.141 store 0.569 | task 合计 2.670 | 尾部不均衡 0.459 ms | k 步 5271552（理想 0.716 ms，kloop 效率 53.7%）
+   512 x 19968         3.37    1553.8799     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.495 | load 2.166 pack 0.000 xcopy 0.000 wait 0.001 kloop 23.332 epi 2.988 dkloop 2.830 depi 0.557 store 2.571 | task 合计 35.445 | 尾部不均衡 0.895 ms | k 步 98977536（理想 13.443 ms，kloop 效率 51.4%）
+  2432 x 17024        36.72    2742.4409     5.55e-16     PASS
+[trsm prof]  每线程平均 ms：prep 1.068 | load 0.520 pack 0.037 xcopy 0.000 wait 2.565 kloop 61.745 epi 3.908 dkloop 0.523 depi 0.108 store 0.542 | task 合计 71.611 | 尾部不均衡 9.611 ms | k 步 145044480（理想 19.700 ms，kloop 效率 31.6%）
+ 17024 x   512        78.11    1899.6066     1.28e-15     PASS
+--- [mb192 kc96 splitf12 xp=hbm]
+[trsm prof]  每线程平均 ms：prep 0.109 | load 0.465 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.805 epi 0.161 dkloop 0.475 depi 0.128 store 0.885 | task 合计 2.992 | 尾部不均衡 0.238 ms | k 步 5271552（理想 0.716 ms，kloop 效率 56.0%）
+   512 x 19968         3.52    1485.5428     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.447 | load 2.205 pack 0.000 xcopy 0.000 wait 0.002 kloop 22.012 epi 3.492 dkloop 1.845 depi 0.468 store 2.993 | task 合计 34.308 | 尾部不均衡 0.800 ms | k 步 98977536（理想 13.443 ms，kloop 效率 56.4%）
+  2432 x 17024        35.64    2825.0812     7.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.793 | load 0.648 pack 0.041 xcopy 0.000 wait 1.588 kloop 69.170 epi 5.049 dkloop 0.339 depi 0.085 store 0.536 | task 合计 79.146 | 尾部不均衡 5.061 ms | k 步 145044480（理想 19.700 ms，kloop 效率 28.3%）
+ 17024 x   512        83.13    1785.0290     1.17e-15     PASS
+--- [mb192 kc96 splitf12 xp=ddr]
+[trsm prof]  每线程平均 ms：prep 0.076 | load 0.456 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.818 epi 0.164 dkloop 0.463 depi 0.128 store 0.891 | task 合计 2.993 | 尾部不均衡 0.213 ms | k 步 5271552（理想 0.716 ms，kloop 效率 55.9%）
+   512 x 19968         3.46    1514.2544     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.488 | load 2.075 pack 0.000 xcopy 0.000 wait 0.002 kloop 22.110 epi 3.572 dkloop 1.920 depi 0.477 store 2.927 | task 合计 34.386 | 尾部不均衡 0.699 ms | k 步 98977536（理想 13.443 ms，kloop 效率 55.9%）
+  2432 x 17024        35.50    2836.1238     7.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.794 | load 0.643 pack 0.042 xcopy 0.000 wait 1.718 kloop 68.043 epi 5.095 dkloop 0.338 depi 0.086 store 0.538 | task 合计 78.177 | 尾部不均衡 4.779 ms | k 步 145044480（理想 19.700 ms，kloop 效率 28.8%）
+ 17024 x   512        82.18    1805.6355     1.17e-15     PASS
+--- [mb256 kc128 splitf12 xp=hbm]
+[trsm prof]  每线程平均 ms：prep 0.100 | load 0.975 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.784 epi 0.121 dkloop 0.592 depi 0.133 store 0.669 | task 合计 3.324 | 尾部不均衡 0.315 ms | k 步 5271552（理想 0.716 ms，kloop 效率 52.0%）
+   512 x 19968         3.87    1352.6978     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.465 | load 2.224 pack 0.000 xcopy 0.000 wait 0.001 kloop 23.264 epi 2.980 dkloop 2.842 depi 0.564 store 2.571 | task 合计 35.439 | 尾部不均衡 0.912 ms | k 步 98977536（理想 13.443 ms，kloop 效率 51.5%）
+  2432 x 17024        36.59    2751.8542     5.55e-16     PASS
+[trsm prof]  每线程平均 ms：prep 1.069 | load 0.787 pack 0.058 xcopy 0.000 wait 2.317 kloop 63.977 epi 3.870 dkloop 0.513 depi 0.096 store 0.575 | task 合计 73.835 | 尾部不均衡 5.477 ms | k 步 145044480（理想 19.700 ms，kloop 效率 30.5%）
+ 17024 x   512        78.20    1897.5333     7.22e-16     PASS
+--- [mb192 kc96 pf=0]
+[trsm prof]  每线程平均 ms：prep 0.074 | load 0.427 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.979 epi 0.122 dkloop 0.419 depi 0.097 store 0.815 | task 合计 2.905 | 尾部不均衡 0.220 ms | k 步 5271552（理想 0.716 ms，kloop 效率 51.2%）
+   512 x 19968         3.40    1538.1267     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.465 | load 2.207 pack 0.000 xcopy 0.000 wait 0.002 kloop 27.212 epi 2.962 dkloop 1.793 depi 0.351 store 3.177 | task 合计 38.338 | 尾部不均衡 0.528 ms | k 步 98977536（理想 13.443 ms，kloop 效率 46.3%）
+  2432 x 17024        39.47    2550.8061     7.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.795 | load 0.365 pack 0.028 xcopy 0.000 wait 1.064 kloop 61.960 epi 4.156 dkloop 0.371 depi 0.066 store 0.484 | task 合计 69.372 | 尾部不均衡 12.154 ms | k 步 145044480（理想 19.700 ms，kloop 效率 31.6%）
+ 17024 x   512        76.23    1946.4826     1.44e-15     PASS
+--- [mb192 kc96 nt=0]
+[trsm prof]  每线程平均 ms：prep 0.089 | load 0.465 pack 0.000 xcopy 0.000 wait 0.000 kloop 0.805 epi 0.161 dkloop 0.438 depi 0.126 store 0.933 | task 合计 2.999 | 尾部不均衡 0.234 ms | k 步 5271552（理想 0.716 ms，kloop 效率 57.6%）
+   512 x 19968         3.53    1483.7700     2.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.438 | load 2.144 pack 0.000 xcopy 0.000 wait 0.002 kloop 21.873 epi 3.566 dkloop 1.932 depi 0.477 store 2.938 | task 合计 34.239 | 尾部不均衡 0.660 ms | k 步 98977536（理想 13.443 ms，kloop 效率 56.5%）
+  2432 x 17024        35.42    2842.4041     7.22e-16     PASS
+[trsm prof]  每线程平均 ms：prep 0.794 | load 0.405 pack 0.029 xcopy 0.000 wait 1.645 kloop 64.414 epi 5.024 dkloop 0.388 depi 0.094 store 0.530 | task 合计 74.197 | 尾部不均衡 13.543 ms | k 步 145044480（理想 19.700 ms，kloop 效率 30.4%）
+ 17024 x   512        81.92    1811.2516     1.44e-15     PASS
+=== DONE
+Thu Sep 10 14:55:12 CST 2026
