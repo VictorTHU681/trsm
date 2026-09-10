@@ -645,6 +645,160 @@ DEF_KLOOP_PLAIN(kloop_plain_direct_t)
     "fmls " zu ".d, p0/m, " zt ".d, z20.d\n\t"                                       \
     "st1d " zu ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
 
+
+// Full-panel kernels use immediate A/C/Xp strides to reduce GPR operands.
+// Dispatch requires NC=128, KC=64 and n divisible by 128; every GEMM chunk is full.
+#define DEF_FIXED_EPI64(NAME, EV)                                                                                 \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols)                                    \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    long pfc = pf->pfn;                                                                                           \
+    sw_t* sw = pf->sw ? pf->sw : &g_sw_none;                                                                      \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        SW_LOAD                                                                                                   \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #7\n\t"                                                                                         \
+        "3:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KS_EVEN EV(0, "p1", "z16", "z17") HPF1                                                                    \
+        KS_ODD  EV(1, "p2", "z18", "z19") HPF2                                                                    \
+        KS_EVEN EV(2, "p3", "z16", "z17") HPF1                                                                    \
+        FM_ODD  EV(3, "p4", "z18", "z19")                                                                         \
+        SW_SAVE                                                                                                   \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [sw] "r"(sw) \
+        : "memory", "cc", "x9", "x10", SWCLOB, VCLOB, PCLOB);                                                     \
+}
+#define DEF_FIXED_PLAIN(NAME)                                                                                     \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf) \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    long k = 63, pfc = pf->pfn;                                                                                 \
+    sw_t* sw = pf->sw ? pf->sw : &g_sw_none;                                                                      \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        SW_LOAD                                                                                                   \
+        KLOOP_INIT                                                                                                \
+        KLOOP_REST                                                                                                \
+        SW_SAVE                                                                                                   \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [sw] "r"(sw) \
+        : "memory", "cc", "x9", SWCLOB, VCLOB, PCLOB);                                                            \
+}
+#undef KS
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
+    LDA_I n0 ".d, p0/z, [%[xa]]\n\t"                                              \
+    K_MOP "za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
+    K_MOP "za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
+    LDA_I n1 ".d, p0/z, [%[xa], #1, mul vl]\n\t"                                  \
+    K_MOP "za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
+    K_MOP "za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
+    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
+    K_MOP "za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
+    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
+    K_MOP "za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
+    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
+    K_MOP "za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
+    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
+    K_MOP "za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
+    "add %[xb], %[xb], #1024\n\t"
+#undef KLOOP_INIT
+#define KLOOP_INIT                                                                \
+    "ptrue p0.d\n\t"                                                              \
+    LDA_I "z0.d, p0/z, [%[xa]]\n\t"                                                \
+    LDA_I "z1.d, p0/z, [%[xa], #1, mul vl]\n\t"                                    \
+    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
+    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], #128\n\t"                                                \
+    "add %[xb], %[xb], #1024\n\t"
+#undef KS_EVEN
+#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "#128")
+#undef KS_ODD
+#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "#128")
+#undef EV_ROW_ADV
+#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], #1024\n\t"
+#undef SET_EPI_PREDS
+#define SET_EPI_PREDS "ptrue p1.d\n\t ptrue p2.d\n\t ptrue p3.d\n\t ptrue p4.d\n\t"
+#undef LDA_CUR
+#define LDA_CUR LDA_NT_INSN
+DEF_FIXED_PLAIN(kloop_fixed_plain)
+DEF_FIXED_EPI64(kloop_fixed_epi, EV_SUB)
+#undef K_MOP
+#define K_MOP "fmops "
+DEF_FIXED_PLAIN(kloop_fixed_direct)
+#undef K_MOP
+#define K_MOP "fmopa "
+#undef LDA_CUR
+#define LDA_CUR "ld1d "
+#undef KS
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
+    LDA_I n0 ".d, p0/z, [%[xa]]\n\t"                                              \
+    K_MOP "za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
+    K_MOP "za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
+    LDA_I n1 ".d, p0/z, [%[xa], #1, mul vl]\n\t"                                  \
+    K_MOP "za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
+    K_MOP "za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
+    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
+    K_MOP "za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
+    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
+    K_MOP "za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
+    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
+    K_MOP "za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
+    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
+    K_MOP "za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
+    "add %[xb], %[xb], %[bs]\n\t"
+#undef KLOOP_INIT
+#define KLOOP_INIT                                                                \
+    "ptrue p0.d\n\t"                                                              \
+    LDA_I "z0.d, p0/z, [%[xa]]\n\t"                                                \
+    LDA_I "z1.d, p0/z, [%[xa], #1, mul vl]\n\t"                                    \
+    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
+    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], %[ase]\n\t"                                                \
+    "add %[xb], %[xb], %[bs]\n\t"
+#undef KS_EVEN
+#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "%[aso]")
+#undef KS_ODD
+#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "%[ase]")
+#undef EV_ROW_ADV
+#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
+#undef SET_EPI_PREDS
+#define SET_EPI_PREDS                                                             \
+    "whilelo p1.d, xzr, %[ecols]\n\t"                                             \
+    "subs x9, %[ecols], #8\n\t"                                                   \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p2.d, xzr, x9\n\t"                                                   \
+    "subs x9, x9, #8\n\t"                                                         \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p3.d, xzr, x9\n\t"                                                   \
+    "subs x9, x9, #8\n\t"                                                         \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p4.d, xzr, x9\n\t"
 #undef KS
 #define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
     "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
@@ -696,6 +850,111 @@ DEF_KLOOP_PLAIN(kloop_plain_direct_t)
 DEF_KLOOP_PLAIN(kloop_q32_plain)
 DEF_KLOOP_EPI64(kloop_q32_epi, EV_SUB_Q)
 DEF_KLOOP_EPI(kloop_q32_epi_any, EV_SUB_Q)
+#undef KS
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
+    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
+    "sunpklo " n0 ".d, z28.s\n\t" \
+    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
+    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
+    "sunpkhi " n1 ".d, z28.s\n\t" \
+    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
+    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
+    "scvtf " n0 ".d, p0/m, " n0 ".d\n\t" \
+    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
+    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
+    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
+    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
+    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
+    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
+    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
+    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
+    "scvtf " n1 ".d, p0/m, " n1 ".d\n\t" \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
+    "add %[xb], %[xb], #1024\n\t"
+#undef KLOOP_INIT
+#define KLOOP_INIT                                                                \
+    "movz x9, #0x20, lsl #16\n\t" \
+    "movk x9, #0x3df0, lsl #48\n\t" \
+    "dup z20.d, x9\n\t ptrue p5.s\n\t" \
+    "ptrue p0.d\n\t"                                                              \
+    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
+    "sunpklo z0.d, z28.s\n\t" \
+    "sunpkhi z1.d, z28.s\n\t" \
+    "scvtf z0.d, p0/m, z0.d\n\t" \
+    "scvtf z1.d, p0/m, z1.d\n\t" \
+    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
+    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], #64\n\t"                                                \
+    "add %[xb], %[xb], #1024\n\t"
+#undef KS_EVEN
+#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "#64")
+#undef KS_ODD
+#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "#64")
+#undef EV_ROW_ADV
+#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], #1024\n\t"
+#undef SET_EPI_PREDS
+#define SET_EPI_PREDS "ptrue p1.d\n\t ptrue p2.d\n\t ptrue p3.d\n\t ptrue p4.d\n\t"
+DEF_FIXED_PLAIN(kloop_fixed_qplain)
+DEF_FIXED_EPI64(kloop_fixed_qepi, EV_SUB_Q)
+#undef KS
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
+    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
+    "sunpklo " n0 ".d, z28.s\n\t" \
+    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
+    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
+    "sunpkhi " n1 ".d, z28.s\n\t" \
+    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
+    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
+    "scvtf " n0 ".d, p0/m, " n0 ".d\n\t" \
+    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
+    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
+    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
+    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
+    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
+    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
+    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
+    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
+    "scvtf " n1 ".d, p0/m, " n1 ".d\n\t" \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
+    "add %[xb], %[xb], %[bs]\n\t"
+#undef KLOOP_INIT
+#define KLOOP_INIT                                                                \
+    "movz x9, #0x20, lsl #16\n\t" \
+    "movk x9, #0x3df0, lsl #48\n\t" \
+    "dup z20.d, x9\n\t ptrue p5.s\n\t" \
+    "ptrue p0.d\n\t"                                                              \
+    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
+    "sunpklo z0.d, z28.s\n\t" \
+    "sunpkhi z1.d, z28.s\n\t" \
+    "scvtf z0.d, p0/m, z0.d\n\t" \
+    "scvtf z1.d, p0/m, z1.d\n\t" \
+    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
+    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
+    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
+    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
+    "add %[xa], %[xa], %[ase]\n\t"                                                \
+    "add %[xb], %[xb], %[bs]\n\t"
+#undef KS_EVEN
+#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "%[aso]")
+#undef KS_ODD
+#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "%[ase]")
+#undef EV_ROW_ADV
+#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
+#undef SET_EPI_PREDS
+#define SET_EPI_PREDS                                                             \
+    "whilelo p1.d, xzr, %[ecols]\n\t"                                             \
+    "subs x9, %[ecols], #8\n\t"                                                   \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p2.d, xzr, x9\n\t"                                                   \
+    "subs x9, x9, #8\n\t"                                                         \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p3.d, xzr, x9\n\t"                                                   \
+    "subs x9, x9, #8\n\t"                                                         \
+    "csel x9, x9, xzr, gt\n\t"                                                    \
+    "whilelo p4.d, xzr, x9\n\t"
+
 #undef KROWP
 #define KROWP(EV)                                                                 \
     KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
@@ -2125,7 +2384,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
     const long c0 = p * nc;
-    long nci = c->n - c0; if (nci > nc) nci = nc;
+    // The specialization admission check guarantees a complete 128-column panel.
+    long nci=128;
     const int S = c->S_of[i];
     const long ntile = (nci + 31) / 32;
     double* cb = tb->cbuf;
@@ -2286,12 +2546,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 PROF_T(c,za_load_direct(acc+16L*r*ncp+32*t,cs,cols),t_load);
             } else sme_zero_za();
             if((mode==3)) {
-                if(pend && kk==64) PROF_T(c,kloop_q32_epi(A,64,64,Xk+32*t,cs,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
+                if(pend && kk==64) PROF_T(c,kloop_fixed_qepi(A,64,64,Xk+32*t,cs,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
                 else if(pend && kk>=65) PROF_T(c,kloop_q32_epi_any(A,64,64,Xk+32*t,cs,kk,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
-                else {if(pend)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);PROF_T(c,kloop_q32_plain(A,64,64,Xk+32*t,cs,kk,cols,&pf),t_kloop);}
+                else {if(pend)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);PROF_T(c,kloop_fixed_qplain(A,64,64,Xk+32*t,cs,kk,cols,&pf),t_kloop);}
             } else if((mode==1)) {
-                if(c->ant)PROF_T(c,kloop_plain_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
-                else PROF_T(c,kloop_plain_direct_t(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
+                if(c->ant)PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
+                else PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
             } else if (host_now) {
                 int epi = pend && kk >= 96;
                 if (pend && !epi) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); }
@@ -2306,12 +2566,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 if (c->ant) PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 else PROF_T(c, kloop_epi_sub_t(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else if (pend && kk == 64) {
-                if (c->ant) PROF_T(c, kloop_epi64_sub(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
-                else PROF_T(c, kloop_epi64_sub_t(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                if (c->ant) PROF_T(c, kloop_fixed_epi(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                else PROF_T(c, kloop_fixed_epi(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else {
                 if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
-                if (c->ant) PROF_T(c, kloop_plain_nt(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
-                else PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                if (c->ant) PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                else PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
             if((mode==1)) {
                 PROF_T(c,za_store_direct(acc+16L*r*ncp+32*t,cs,cols),t_dump);
@@ -2564,7 +2824,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // Admit a specialization only when every baked-in setting matches this call.
     // Modes 1/2 use FP64; mode 3 preserves the existing guarded Q32 path.
     c.special=0;
-    if(env_int("TRSM_SPECIAL",1) && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
+    if(env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
       if(mb==192 && !c.q32 && c.direct && !c.ppmode && !c.swhost)c.special=1;
       if(mb==256 && !c.q32 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
       if(mb==192 && c.q32 && !c.direct && c.ppmode==1 && c.swhost)c.special=3;
