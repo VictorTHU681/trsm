@@ -1232,6 +1232,7 @@ typedef struct {
     int ant;         // GEMM 阶段 A 条用 ldnt1d
     int reserve;     // 对角阶段开始时预占下一任务（精确预取其 C 块）
     int xpnt;        // Xp 拷贝用 stnt1d
+    int owner;       // 面板驻留模式（小 m）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程的面板缓冲，不写 Xp、无跨线程依赖
     int pf;                 // 软件预取开关
     int ntstore;            // 结果回写用非临时存储
     double* xp;             // X 的面板主序副本：面板 (chunk c, panel p) 在 xp + (c*npan + p)*kc*nc，行距 nc
@@ -1388,6 +1389,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     double* scratch = tb->scratch;
     const long ldb = c->ldb, lda = c->lda;
     const long cs = ncp * 8;      // C 块 / X 面板缓冲行距字节（含 64 B 填充，17 个 cache 行）
+    if (c->owner) cb = tb->cbuf + (size_t)i0 * ncp;   // 面板缓冲：全局行 gr 在 cbuf + gr*ncp，本行块的 C 块就是其中 [i0, i0+mb) 行
     double* Bblk = c->B + i0 * ldb + c0;
     const pf_t pf_dummy = { (const char*)tb->scratch2, 1, -64, (const char*)tb->scratch2, (const char*)tb->scratch2, 0, &tb->sw };
     const int pf_on = c->pf;
@@ -1457,8 +1459,9 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
         if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
-        const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
+        // 本段 B 面板（连续，行距 ncp）与下一段面板（预取目标）：面板驻留模式直接取本线程面板缓冲的第 ch 段
+        const double* Xk = c->owner ? tb->cbuf + (size_t)ch * kc * ncp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
+        const double* Xkn = c->owner ? tb->cbuf + (size_t)(ch + 1) * kc * ncp : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;
         (void)xlines;
         // 本条 A
         const double* A;
@@ -1598,7 +1601,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     }
 
     // 3. 对角求解：X[s] = Linv_ss C[s] - Σ (Linv_ss L_ss') X[s']，A = 对角打包条带，B = C 块行 0..16(s+1)
-    if (c->reserve) {   // 此时预占下一任务：提前量只有对角阶段 + 回写，不会明显加深依赖流水
+    if (c->reserve && !c->owner) {   // 此时预占下一任务：提前量只有对角阶段 + 回写，不会明显加深依赖流水（面板驻留模式下一任务已确定）
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
     }
@@ -1657,7 +1660,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         sw_flush(tb);
         // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb) for (long r = 0; r < mbi; r++) {
+        if (!last_rb && !c->owner) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
@@ -1666,7 +1669,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         }
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
-        const int can_sw = c->swhost && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
+        const int can_sw = c->swhost && !c->owner && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
         if (can_sw) {
             for (long r0 = 0; r0 < mbi; r0 += kc) {
                 long rows = mbi - r0; if (rows > kc) rows = kc;
@@ -1769,6 +1772,18 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.jit = (bigL && c.ppmode == 0) ? 1 : 0;
     if (env_int("TRSM_JIT", -1) >= 0) { c.jit = env_int("TRSM_JIT", -1); if (c.jit) c.ppmode = 0; }
 
+    // 面板驻留模式（TRSM_OWNER，-1 自动）：小 m 时线程独占列面板，整列面板 (nrb*mb 行 × ncp) 驻留在线程缓冲里，
+    // 后续行块的 B 操作数就是本线程刚算出的 X 行（L2 热），省掉 Xp 往返与跨线程依赖；只在预打包路径下可用。
+    {
+        int owner = env_int("TRSM_OWNER", -1);
+        size_t panel_bytes = (size_t)c.nrb * mb * c.ncp * 8;
+        if (owner < 0) owner = 0;   // 实验阶段：默认关，按用例显式开启后再决定自动策略
+        if (c.jit || c.ppmode != 0) owner = 0;
+        if (panel_bytes > ((size_t)env_int("TRSM_OWNER_MB", 4) << 20)) owner = 0;
+        c.owner = owner;
+        if (c.owner) c.swhost = 0;
+    }
+
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
     // TRSM_HBM_MARGIN_MB：保留余量（默认 256）
     const size_t hbm_margin = (size_t)env_int("TRSM_HBM_MARGIN_MB", 256) << 20;
@@ -1810,7 +1825,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.diag = g_diag;
 
     // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定
-    {
+    if (!c.owner) {
         c.xp_chunks = (m + kc - 1) / kc;
         size_t need = (size_t)c.xp_chunks * c.npan * kc * c.ncp;
         int xn = env_int("TRSM_XPNODE", -9);
@@ -1893,7 +1908,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             cost[i] = (double)S * (i * mb) + 8.0 * S * (S + 1);   // 每列块的 k 步数 / ntile
             total += cost[i] * c.npan;
         }
-        int splitf = env_int("TRSM_SPLITF", 12);
+        int splitf = c.owner ? 0 : env_int("TRSM_SPLITF", 12);   // 面板驻留模式不分裂 K
         int maxseg = env_int("TRSM_MAXSEG", 8);
         // Narrow RHS panels leave too few long tasks at the end of the solve.
         // Split only the last two row blocks more finely to shorten that tail.
@@ -1928,6 +1943,16 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
             for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
         }
+        if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i
+            for (long p = 0; p < c.npan; p++)
+                for (long i = 0; i < c.nrb; i++) {
+                    task_t* t = &g_tasks[q++];
+                    t->kind = 0; t->g = 0;
+                    t->i = (int)i; t->p = (int)p; t->seg = 0; t->nseg = 1;
+                    t->ch0 = 0; t->ch1 = (i * mb) / kc;
+                    t->part_off = 0;
+                }
+        } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
                 long gend = (long)(i + LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
@@ -1977,7 +2002,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         int tid = omp_get_thread_num();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)mb * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
+        ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
@@ -2010,12 +2035,22 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 阶段 2：任务
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
+        if (c.owner) {
+            // 线程 tid 独占面板 p = tid, tid+nth, ...；每个面板按行块顺序做完。下一任务确定，直接作为预取目标传入
+            for (long p = tid; p < c.npan; p += nth)
+                for (long i = 0; i < c.nrb; i++) {
+                    long q = p * c.nrb + i;
+                    long qn = (i + 1 < c.nrb) ? q + 1 : ((p + nth < c.npan) ? (p + nth) * c.nrb : -1);
+                    run_task(&c, &g_tb[tid], &c.tasks[q], qn >= 0 ? &c.tasks[qn] : NULL, tid);
+                }
+        } else {
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
             long tg = t + nth;
             long tn = run_task(&c, &g_tb[tid], &c.tasks[t], tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
             t = tn >= 0 ? tn : __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
+        }
         }
         sme_stop();
         {   // 遗留的托管回写收尾
