@@ -1,0 +1,72 @@
+=== HOST
+cn20486
+Thu Sep 10 11:23:41 CST 2026
+Cpus_allowed_list:	37,75,113,151,189,227,265,303,341,379,417,455,493,531,569,607
+Mems_allowed_list:	0-31
+gcc: gcc (gcc for openEuler 3.0.3) 12.3.1
+=== node1 distance: 20 10 20 20 30 30 30 30 40 40 40 40 40 40 40 40 71 61 71 71 81 81 81 81 91 91 91 91 91 91 91 91
+=== HBM node17:
+Node 17 MemTotal:        4194304 kB
+Node 17 MemFree:         4184548 kB
+=== cpufreq: 1549394 kHz
+kblas resolved: 	libkblas.so.1 => /work_ssd/software/HPCKit/26.1.RC1/kml/gcc/lib/matrix/kblas/multi/libkblas.so.1 (0x000040003e350000)
+
+########## 峰值 + DDR 带宽（numactl -N 1）
+threads=38 distinct_cpus=38 cpu0=38 cpuN=75 SME_F64F64=1
+== 单核 FMOPA.D 8-tile      :   198.36 GFLOPS (1.550 fmopa/ns → 1.550 GHz)
+== 单核 16x32 内核形态(L1)  :   198.39 GFLOPS
+== 38 核 FMOPA.D 聚合        :   7537.3 GFLOPS = 7.537 TFLOPS
+== 38 核 16x32 内核形态聚合  :   7537.9 GFLOPS = 7.538 TFLOPS
+== 带宽：38 线程，每线程 32 MB ==
+  read   (ld1d)               159.1 GB/s
+  write  (st1d)               142.3 GB/s
+  rw     (ld1d+st1d 原地)     130.3 GB/s (读+写计两次)
+  copy   (ld1d src, st1d dst) 139.3 GB/s (读+写计两次)
+== 带宽：1 线程，32 MB ==
+  read   (ld1d)                18.3 GB/s
+  write  (st1d)                50.7 GB/s
+  rw     (ld1d+st1d 原地)      24.4 GB/s (读+写计两次)
+  copy   (ld1d src, st1d dst)  26.5 GB/s (读+写计两次)
+
+########## HBM 带宽（numactl -N 1 -m 17）
+threads=38 distinct_cpus=38 cpu0=38 cpuN=75 SME_F64F64=1
+== 单核 FMOPA.D 8-tile      :   198.36 GFLOPS (1.550 fmopa/ns → 1.550 GHz)
+== 单核 16x32 内核形态(L1)  :   198.39 GFLOPS
+== 38 核 FMOPA.D 聚合        :   7537.5 GFLOPS = 7.538 TFLOPS
+== 38 核 16x32 内核形态聚合  :   7538.2 GFLOPS = 7.538 TFLOPS
+== 带宽：38 线程，每线程 32 MB ==
+  read   (ld1d)               303.2 GB/s
+  write  (st1d)               317.8 GB/s
+  rw     (ld1d+st1d 原地)     445.4 GB/s (读+写计两次)
+  copy   (ld1d src, st1d dst) 311.3 GB/s (读+写计两次)
+== 带宽：1 线程，32 MB ==
+  read   (ld1d)                17.2 GB/s
+  write  (st1d)                43.7 GB/s
+  rw     (ld1d+st1d 原地)      25.3 GB/s (读+写计两次)
+  copy   (ld1d src, st1d dst)  25.9 GB/s (读+写计两次)
+
+########## KML dtrsm 基线：判题口径 numactl -N 1（DDR）
+--- 512 19968 3
+   512 x 19968       158.88      32.9454     5.00e-16     PASS
+--- 2432 17024 2
+  2432 x 17024      1307.68      76.9992     6.11e-16     PASS
+--- 17024 512 2
+ 17024 x   512     10064.64      14.7433     1.05e-15     PASS
+
+########## KML dtrsm 基线：--preferred=17（HBM）
+--- 512 19968 3
+   512 x 19968       161.65      32.3825     5.00e-16     PASS
+--- 2432 17024 2
+  2432 x 17024      1301.90      77.3415     6.11e-16     PASS
+--- 17024 512 2
+ 17024 x   512     10294.64      14.4139     1.05e-15     PASS
+
+########## KML dtrsm + PROC_BIND（看绑核是否影响库）
+--- 512 19968 3
+   512 x 19968         3.86    1356.6870     5.00e-16     PASS
+--- 2432 17024 2
+  2432 x 17024        38.83    2592.8833     6.11e-16     PASS
+--- 17024 512 2
+ 17024 x   512       572.76     259.0733     1.05e-15     PASS
+=== DONE
+Thu Sep 10 11:25:23 CST 2026
