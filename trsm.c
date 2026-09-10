@@ -275,7 +275,7 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"
 
 // 一步 k：计算当前操作数（a/b）并加载下一步（n/m），随后按步长推进 A/B 指针
-#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3)                       \
+#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
     "ld1d " n0 ".d, p0/z, [%[xa]]\n\t"                                            \
     "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
     "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
@@ -290,10 +290,11 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
     "ld1d " m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                \
     "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
-    "add %[xa], %[xa], %[as]\n\t"                                                 \
+    "add %[xa], %[xa], " ADV "\n\t"                                               \
     "add %[xb], %[xb], %[bs]\n\t"
-#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15")
-#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7")
+// A 步长：偶数步→奇数步推进 ase，奇数步→偶数步推进 aso（稠密布局二者相等；ld2 布局 128/384）
+#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "%[aso]")
+#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "%[ase]")
 #define FM_EVEN FMOPA8("z0", "z1", "z4", "z5", "z6", "z7")
 #define FM_ODD  FMOPA8("z8", "z9", "z12", "z13", "z14", "z15")
 
@@ -347,7 +348,7 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     "ld1d z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
     "ld1d z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
     "ld1d z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
-    "add %[xa], %[xa], %[as]\n\t"                                                 \
+    "add %[xa], %[xa], %[ase]\n\t"                                                \
     "add %[xb], %[xb], %[bs]\n\t"
 // 余下 k 步（%[k] = 还需"算+载"的步数，可为 0）+ 最后一步只算
 #define KLOOP_REST                                                                \
@@ -369,7 +370,7 @@ typedef struct { const char* p; long pfn, pfj; } pf_t;
 
 // K 循环：ZA(16×32) += Σ_k A[k](16) ⊗ B[k](32)。pa：A（每 k 两个相邻向量，步长 as 字节）；
 // pb：B 第 k 行 32 列起点，行距 bs；K ≥ 1；cols ∈ [1,32]；进入前 ZA 须已清零。
-static inline void kloop_plain(const double* pa, long as, const double* pb, long bs, long K, long cols, const pf_t* pf)
+static inline void kloop_plain(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf)
 {
     const double* xa = pa;
     const double* xb = pb;
@@ -380,14 +381,14 @@ static inline void kloop_plain(const double* pa, long as, const double* pb, long
         KLOOP_INIT
         KLOOP_REST
         : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc)
-        : [as] "r"(as), [bs] "r"(bs), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj)
+        : [ase] "r"(ase), [aso] "r"(aso), [bs] "r"(bs), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj)
         : "memory", "cc", "x9", VCLOB, PCLOB);
 }
 
 // 同上，且在前 64 步里把暂存（上一微块的 ZA 转存）回写到 xc（行距 cs，列数 ecols）：SUB 为 C -= 暂存，SET 为 C = 暂存。
 // 要求 K ≥ 65。
 #define DEF_KLOOP_EPI(NAME, EV)                                                                                   \
-static inline void NAME(const double* pa, long as, const double* pb, long bs, long K, long cols, const pf_t* pf,    \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf, \
                         const double* scratch, double* c, long cs, long ecols)                                    \
 {                                                                                                                 \
     const double* xa = pa;                                                                                        \
@@ -411,7 +412,7 @@ static inline void NAME(const double* pa, long as, const double* pb, long bs, lo
         "b.ne 3b\n\t"                                                                                             \
         KLOOP_REST                                                                                                \
         : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xs] "+&r"(xs), [xc] "+&r"(xc) \
-        : [as] "r"(as), [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
+        : [ase] "r"(ase), [aso] "r"(aso), [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
         : "memory", "cc", "x9", "x10", VCLOB, PCLOB);                                                             \
 }
 DEF_KLOOP_EPI(kloop_epi_sub, EV_SUB)
@@ -591,6 +592,128 @@ static void pack_strip_za(const double* L, long lda, long row0, long k0, long kk
         : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
 }
 
+// 变体 A：ld4d 解交织 + 8 tile → 稠密 128 B/k 布局。32 个 k 一组：行 r 的 ld4d 得 z_q[j] = L[r][k0+4j+q]，
+// fmopa za(2q + [r≥8]) += z_q ⊗ e_{r%8} → tile 行 j = k0+4j+q；str za 自然布局向量 n = 8j + 2q (+1) → 地址 128·(k-k0) (+64)。
+// 要求 kk % 32 == 0，16 行全部有效。
+#define P4_R(zA, zB, zC, zD, T0, T1, T2, T3, E)                                   \
+    "ld4d {" zA ".d, " zB ".d, " zC ".d, " zD ".d}, p0/z, [x9]\n\t"               \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "fmopa " T0 ".d, p0/m, p0/m, " zA ".d, " E ".d\n\t"                           \
+    "fmopa " T1 ".d, p0/m, p0/m, " zB ".d, " E ".d\n\t"                           \
+    "fmopa " T2 ".d, p0/m, p0/m, " zC ".d, " E ".d\n\t"                           \
+    "fmopa " T3 ".d, p0/m, p0/m, " zD ".d, " E ".d\n\t"
+#define P4_EVEN(E) P4_R("z0", "z1", "z2", "z3", "za0", "za2", "za4", "za6", E)
+#define P4_ODD(E)  P4_R("z4", "z5", "z6", "z7", "za0", "za2", "za4", "za6", E)
+#define P4_EVEN_H(E) P4_R("z0", "z1", "z2", "z3", "za1", "za3", "za5", "za7", E)
+#define P4_ODD_H(E)  P4_R("z4", "z5", "z6", "z7", "za1", "za3", "za5", "za7", E)
+static void pack_strip_ld4(const double* L, long lda, long row0, long k0, long kk, double* dst)
+{
+    const char* xl = (const char*)(L + row0 * lda + k0);
+    char* xd = (char*)dst;
+    long n = kk / 32, lda8 = lda * 8;
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "ld1d z16.d, p0/z, [%[u]]\n\t"
+        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
+        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
+        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
+        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
+        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
+        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
+        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
+        "1:\n\t"
+        "zero {za}\n\t"
+        "mov x9, %[xl]\n\t"
+        P4_EVEN("z16") P4_ODD("z17") P4_EVEN("z18") P4_ODD("z19")
+        P4_EVEN("z20") P4_ODD("z21") P4_EVEN("z22") P4_ODD("z23")
+        P4_EVEN_H("z16") P4_ODD_H("z17") P4_EVEN_H("z18") P4_ODD_H("z19")
+        P4_EVEN_H("z20") P4_ODD_H("z21") P4_EVEN_H("z22") P4_ODD_H("z23")
+        ZA_DUMP_GROUP(0) ZA_DUMP_GROUP(16) ZA_DUMP_GROUP(32) ZA_DUMP_GROUP(48)
+        "add %[xl], %[xl], #256\n\t"
+        "subs %[n], %[n], #1\n\t"
+        "b.ne 1b\n\t"
+        : [xl] "+&r"(xl), [b] "+&r"(xd), [n] "+&r"(n)
+        : [lda8] "r"(lda8), [u] "r"(g_unit)
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
+}
+
+// 变体 B：ld2d + 4 tile，两组交替（za0-3 / za4-7），使 str za 与下一组的 fmopa 有机会重叠。
+// 16 个 k 一组：z_q[j] = L[r][k0+2j+q]，tile (2q + [r≥8]) (+4 奇数组)。布局：k 偶 → 256(k-k0)，k 奇 → 256(k-k0)-128，
+// 即 K 循环步长交替 128 / 384。要求 kk % 32 == 0。
+#define P2_R(zA, zB, T0, T1, E)                                                   \
+    "ld2d {" zA ".d, " zB ".d}, p0/z, [x9]\n\t"                                   \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "fmopa " T0 ".d, p0/m, p0/m, " zA ".d, " E ".d\n\t"                           \
+    "fmopa " T1 ".d, p0/m, p0/m, " zB ".d, " E ".d\n\t"
+#define P2_GROUP(T0, T1, T2, T3)                                                  \
+    "mov x9, %[xl]\n\t"                                                           \
+    P2_R("z0", "z1", T0, T2, "z16") P2_R("z2", "z3", T0, T2, "z17")               \
+    P2_R("z4", "z5", T0, T2, "z18") P2_R("z6", "z7", T0, T2, "z19")               \
+    P2_R("z0", "z1", T0, T2, "z20") P2_R("z2", "z3", T0, T2, "z21")               \
+    P2_R("z4", "z5", T0, T2, "z22") P2_R("z6", "z7", T0, T2, "z23")               \
+    P2_R("z0", "z1", T1, T3, "z16") P2_R("z2", "z3", T1, T3, "z17")               \
+    P2_R("z4", "z5", T1, T3, "z18") P2_R("z6", "z7", T1, T3, "z19")               \
+    P2_R("z0", "z1", T1, T3, "z20") P2_R("z2", "z3", T1, T3, "z21")               \
+    P2_R("z4", "z5", T1, T3, "z22") P2_R("z6", "z7", T1, T3, "z23")               \
+    "add %[xl], %[xl], #128\n\t"
+// 存一组 4 个 tile 的两行（向量 G+t 与 G+8+t，t 为该组的 4 个 tile 号），w12 = 0/16/32/48，每组后基址 +1024
+#define P2_ST_A(G)                                                                \
+    "mov w12, #" #G "\n\t"                                                        \
+    "str za[w12, 0], [%[xa]]\n\t"                                                 \
+    "str za[w12, 1], [%[xa], #1, mul vl]\n\t"                                     \
+    "str za[w12, 2], [%[xa], #2, mul vl]\n\t"                                     \
+    "str za[w12, 3], [%[xa], #3, mul vl]\n\t"                                     \
+    "str za[w12, 8], [%[xa], #8, mul vl]\n\t"                                     \
+    "str za[w12, 9], [%[xa], #9, mul vl]\n\t"                                     \
+    "str za[w12, 10], [%[xa], #10, mul vl]\n\t"                                   \
+    "str za[w12, 11], [%[xa], #11, mul vl]\n\t"                                   \
+    "add %[xa], %[xa], #1024\n\t"
+#define P2_ST_B(G)                                                                \
+    "mov w12, #" #G "\n\t"                                                        \
+    "str za[w12, 4], [%[xb], #4, mul vl]\n\t"                                     \
+    "str za[w12, 5], [%[xb], #5, mul vl]\n\t"                                     \
+    "str za[w12, 6], [%[xb], #6, mul vl]\n\t"                                     \
+    "str za[w12, 7], [%[xb], #7, mul vl]\n\t"                                     \
+    "str za[w12, 12], [%[xb], #12, mul vl]\n\t"                                   \
+    "str za[w12, 13], [%[xb], #13, mul vl]\n\t"                                   \
+    "str za[w12, 14], [%[xb], #14, mul vl]\n\t"                                   \
+    "str za[w12, 15], [%[xb], #15, mul vl]\n\t"                                   \
+    "add %[xb], %[xb], #1024\n\t"
+#define P2_STORE_A P2_ST_A(0) P2_ST_A(16) P2_ST_A(32) P2_ST_A(48)
+#define P2_STORE_B P2_ST_B(0) P2_ST_B(16) P2_ST_B(32) P2_ST_B(48)
+static void pack_strip_ld2(const double* L, long lda, long row0, long k0, long kk, double* dst)
+{
+    const char* xl = (const char*)(L + row0 * lda + k0);
+    char* xa = (char*)dst;             // 偶数组基址：向量 8j+t (t=0..3) → dst + 512j + 64t
+    char* xb = (char*)dst + 4096 - 256; // 奇数组基址：向量 8j+4+t → dst + 4096 + 512j + 64t
+    long n = kk / 32, lda8 = lda * 8;
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "ld1d z16.d, p0/z, [%[u]]\n\t"
+        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
+        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
+        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
+        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
+        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
+        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
+        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
+        "zero {za}\n\t"
+        "1:\n\t"
+        P2_GROUP("za0", "za1", "za2", "za3")
+        P2_STORE_A
+        "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+        P2_GROUP("za4", "za5", "za6", "za7")
+        P2_STORE_B
+        "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+        "add %[xa], %[xa], #4096\n\t"   // 每轮 32 k = 8192 B，两组各占 4096，store 已各推进 4096
+        "add %[xb], %[xb], #4096\n\t"
+        "subs %[n], %[n], #1\n\t"
+        "b.ne 1b\n\t"
+        : [xl] "+&r"(xl), [xa] "+&r"(xa), [xb] "+&r"(xb), [n] "+&r"(n)
+        : [lda8] "r"(lda8), [u] "r"(g_unit)
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
+}
+
 // 把 X 面板（kk 行 × nci 列，行距 ldb）拷到连续缓冲 dst（行距 nc，越界列补零）
 static void copy_panel(const double* X, long ldb, long kk, long nci, long nc, double* dst)
 {
@@ -734,7 +857,20 @@ typedef struct {
     volatile long next;
     int prof;
     int pf;                 // 软件预取开关
+    int packmode;           // JIT 打包方式：0 SVE zip/tbl2，1 ld4d+8tile（稠密），2 ld2d+4tile 交替，3 单 tile 对 512B/k
+    // 任务表（含 K 分裂段）
+    const struct task_s* tasks;
+    long ntask_items;
+    double* part;           // 分裂任务的部分和缓冲池
+    volatile int* seg_cnt;  // 每个 (i,p) 的已完成段数
 } ctx_t;
+
+typedef struct task_s {
+    int i, p;
+    int seg, nseg;      // 段号 / 段数（nseg=1 为普通任务）
+    long ch0, ch1;      // 本段负责的 K 段区间 [ch0, ch1)（以 kc 为单位）
+    size_t part_off;    // 本 (i,p) 的部分和缓冲起点（double 下标），段 s 在 part_off + s*mb*nc
+} task_t;
 
 typedef struct {
     double* cbuf;    // mb*nc
@@ -763,6 +899,11 @@ static size_t g_pp_cap[2] = {0, 0};
 static int g_pp_node[2] = {-3, -3};
 static int* g_flags = NULL;
 static size_t g_flags_cap = 0;
+static int* g_seg_cnt = NULL;
+static task_t* g_tasks = NULL;
+static size_t g_tasks_cap = 0;
+static double* g_part = NULL;
+static size_t g_part_cap = 0;
 static int g_first_call = 1;
 
 static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
@@ -793,9 +934,10 @@ static inline void wait_flag(const ctx_t* c, long idx)
     while (__atomic_load_n(&c->flags[idx], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
 }
 
-static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
+static void run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, int tid)
 {
     const long mb = c->mb, nc = c->nc, kc = c->kc;
+    const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
     const long c0 = p * nc;
@@ -811,8 +953,17 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
     const int pf_on = c->pf;
     uint64_t tt0 = c->prof >= 2 ? cyc() : 0;
 
-    // 1. C 块 ← B 子块（越界列/行补零）
-    {
+    // 分裂段：部分和写到专用缓冲（从 0 开始累加），普通任务直接用 C 块
+    const int split = tk->nseg > 1;
+    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * nc : cb;
+
+    // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
+    if (split) {
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        const svbool_t pg = svptrue_b64();
+        for (long q = 0; q < 16L * S * nc; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
+        if (c->prof >= 2) tb->t_load += cyc() - t0;
+    } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long r = 0; r < 16L * S; r++) {
@@ -841,7 +992,8 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
     double* pend_c = NULL;
     long pend_cols = 0;
     const long xlines = ((nci * 8 + 63) / 64 + 1) & ~1L;   // X 面板每行预取的 cache 行数（偶数）
-    for (long k0 = 0; k0 < i0; k0 += kc) {
+    const long kend = split ? tk->ch1 * kc : i0;
+    for (long k0 = split ? tk->ch0 * kc : 0; k0 < kend; k0 += kc) {
         long kk = i0 - k0; if (kk > kc) kk = kc;
         PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
         PROF_T(c, copy_panel(c->B + k0 * ldb + c0, ldb, kk, nci, nc, tb->xpan), t_pf);
@@ -851,21 +1003,24 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
         long xrow_next = 0;   // 下一段 X 面板已安排预取的行数
         for (int r = 0; r < S; r++) {
             const double* A;
-            long as;
+            long ase = 128, aso = 128;
             const long row0 = i0 + 16 * r;
             if (c->jit) {
                 long rows = c->m - row0; if (rows > 16) rows = 16;
-                if (rows == 16 && (kk & 7) == 0) {
+                if (rows == 16 && (kk & 31) == 0 && c->packmode == 1) {
+                    PROF_T(c, pack_strip_ld4(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
+                } else if (rows == 16 && (kk & 31) == 0 && c->packmode == 2) {
+                    PROF_T(c, pack_strip_ld2(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
+                    ase = 128; aso = 384;
+                } else if (rows == 16 && (kk & 7) == 0 && c->packmode == 3) {
                     PROF_T(c, pack_strip_za(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
-                    as = 512;
+                    ase = aso = 512;
                 } else {
                     PROF_T(c, pack_strip(c->L, lda, c->m, row0, k0, kk, tb->astrip), t_pack);
-                    as = 128;
                 }
                 A = tb->astrip;
             } else {
                 A = c->pp[cpy] + c->pp_off[i0 / 16 + r] + (size_t)k0 * 16;
-                as = 128;
             }
             for (long t = 0; t < ntile; t++) {
                 pf_t pf = pf_dummy;
@@ -873,7 +1028,7 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                     // 下一条的 A（同段的下一条，或下一段的第 0 条）
                     long nr = (r + 1 < S) ? row0 + 16 : i0;
                     long nk = (r + 1 < S) ? k0 : k0n;
-                    if (nk < i0) {
+                    if (nk < kend) {
                         if (c->jit) {
                             long nrows = c->m - nr;
                             if (nrows > 8 * t) {
@@ -889,7 +1044,7 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                             pf.pfj = 0;
                         }
                     }
-                } else if (pf_on && k0n < i0 && xrow_next < kk) {
+                } else if (pf_on && k0n < kend && xrow_next < kk) {
                     // 下一段 X 面板：本微块负责 rows_per_tile 行
                     pf.p = (const char*)(c->B + (k0n + xrow_next) * ldb + c0);
                     pf.pfn = xlines;
@@ -899,18 +1054,48 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 sme_zero_za();
                 if (pend && kk >= 65) {
-                    PROF_T(c, kloop_epi_sub(A, as, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                    PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 } else {
                     if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
-                    PROF_T(c, kloop_plain(A, as, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                    PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
                 }
                 PROF_T(c, za_dump(scratch), t_epi);
-                pend = 1; pend_c = cb + 16L * r * nc + 32 * t; pend_cols = cols;
+                pend = 1; pend_c = acc + 16L * r * nc + 32 * t; pend_cols = cols;
                 tb->n_kstep += kk;
             }
         }
     }
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
+
+    if (split) {
+        // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
+        int done = __atomic_add_fetch(&c->seg_cnt[i * c->npan + p], 1, __ATOMIC_ACQ_REL);
+        if (done < tk->nseg) { if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; } return; }
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        const svbool_t pg = svptrue_b64();
+        for (long r = 0; r < 16L * S; r++) {
+            double* d = cb + r * nc;
+            if (r < mbi) {
+                const double* s = Bblk + r * ldb;
+                long j = 0;
+                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (j < nci) {
+                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                    svst1_f64(pj, d + j, svld1_f64(pj, s + j));
+                    j += 8;
+                }
+                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+            } else {
+                for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+            }
+        }
+        for (int sg = 0; sg < tk->nseg; sg++) {
+            const double* P = c->part + tk->part_off + (size_t)sg * mb * nc;
+            for (long q = 0; q < 16L * S * nc; q += 8)
+                svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
+        }
+        if (c->prof >= 2) tb->t_load += cyc() - t0;
+    }
 
     // 3. 对角求解：X[s] = Linv_ss C[s] - Σ (Linv_ss L_ss') X[s']，A = 对角打包条带，B = C 块行 0..16(s+1)
     {
@@ -924,10 +1109,10 @@ static void run_task(const ctx_t* c, tbuf_t* tb, long i, long p, int tid)
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 sme_zero_za();
                 if (pend && K >= 65) {
-                    PROF_T(c, kloop_epi_set(A, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain(A, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_depi);
                 pend = 1; pend_c = cb + 16L * s * nc + 32 * t; pend_cols = cols;
@@ -968,15 +1153,16 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.m = m; c.n = n; c.lda = lda; c.ldb = ldb; c.L = L; c.B = B;
     c.prof = env_int("TRSM_PROFILE", 0);
     c.pf = env_int("TRSM_PF", 1);
+    c.packmode = env_int("TRSM_PACK", 1);
     int mb = env_int("TRSM_MB", 256), nc = env_int("TRSM_NC", 128), kc = env_int("TRSM_KC", 128);
-    if (mb < 16) mb = 16;
-    mb = (mb + 15) & ~15;
+    if (mb < 32) mb = 32;
+    mb = (mb + 31) & ~31;
     if (nc < 32) nc = 32;
     nc = (nc + 31) & ~31;
-    if (kc < 16) kc = 16;
-    kc = (kc + 15) & ~15;
+    if (kc < 32) kc = 32;
+    kc = (kc + 31) & ~31;               // ld4d/ld2d 打包按 32 个 k 一组
     if (kc > mb) kc = mb;
-    while (mb % kc) kc -= 16;           // 要求 kc | mb，使每个 K 段落在单个行块内
+    while (mb % kc) kc -= 32;           // 要求 kc | mb，使每个 K 段落在单个行块内
     c.mb = mb; c.nc = nc; c.kc = kc;
     c.nrb = (m + mb - 1) / mb;
     c.npan = (n + nc - 1) / nc;
@@ -1060,13 +1246,74 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 
     size_t nflags = (size_t)c.ntask;
     if (g_flags_cap < nflags) {
-        free(g_flags);
+        free(g_flags); free(g_seg_cnt);
         g_flags = calloc(nflags, sizeof(int));
+        g_seg_cnt = calloc(nflags, sizeof(int));
         g_flags_cap = nflags;
     }
     memset(g_flags, 0, nflags * sizeof(int));
+    memset(g_seg_cnt, 0, nflags * sizeof(int));
     c.flags = g_flags;
+    c.seg_cnt = g_seg_cnt;
     c.next = 0;
+
+    // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
+    // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)
+    {
+        long ntile_full = (nc + 31) / 32;
+        double total = 0;
+        double* cost = malloc(sizeof(double) * c.nrb);
+        for (long i = 0; i < c.nrb; i++) {
+            long S = c.S_of[i];
+            cost[i] = (double)S * (i * mb) + 8.0 * S * (S + 1);   // 每列块的 k 步数 / ntile
+            total += cost[i] * c.npan;
+        }
+        int splitf = env_int("TRSM_SPLITF", 6);
+        int maxseg = env_int("TRSM_MAXSEG", 4);
+        double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
+        long nitems = 0;
+        size_t part_doubles = 0;
+        for (long i = 0; i < c.nrb; i++) {
+            long nch = (i * mb) / kc;
+            int nseg = 1;
+            if (splitf > 0 && nch >= 2) {
+                nseg = (int)(cost[i] / target + 0.5);
+                if (nseg > maxseg) nseg = maxseg;
+                if (nseg > nch) nseg = (int)nch;
+                if (nseg < 1) nseg = 1;
+            }
+            nitems += (long)nseg * c.npan;
+            if (nseg > 1) part_doubles += (size_t)nseg * c.npan * mb * nc;
+        }
+        if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
+        if (g_part_cap < part_doubles) { free_sized(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
+        long q = 0;
+        size_t poff = 0;
+        for (long i = 0; i < c.nrb; i++) {
+            long nch = (i * mb) / kc;
+            int nseg = 1;
+            if (splitf > 0 && nch >= 2) {
+                nseg = (int)(cost[i] / target + 0.5);
+                if (nseg > maxseg) nseg = maxseg;
+                if (nseg > nch) nseg = (int)nch;
+                if (nseg < 1) nseg = 1;
+            }
+            for (long p = 0; p < c.npan; p++) {
+                for (int s = 0; s < nseg; s++) {
+                    task_t* t = &g_tasks[q++];
+                    t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
+                    t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
+                    t->part_off = poff;
+                }
+                if (nseg > 1) poff += (size_t)nseg * mb * nc;
+            }
+        }
+        c.tasks = g_tasks;
+        c.ntask_items = nitems;
+        c.part = g_part;
+        free(cost);
+        (void)ntile_full;
+    }
 
     // 预处理工作项：对角子块 (i, s) 与预打包条 g
     long ndiag_items = 0;
@@ -1116,8 +1363,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         sme_start();
         for (;;) {
             long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
-            if (t >= c.ntask) break;
-            run_task(&c, &g_tb[tid], t / c.npan, t % c.npan, tid);
+            if (t >= c.ntask_items) break;
+            run_task(&c, &g_tb[tid], &c.tasks[t], tid);
         }
         sme_stop();
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
@@ -1125,8 +1372,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (c.prof) {
         uint64_t t2 = cyc();
         double hz = (double)cyc_hz();
-        fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d tasks=%ld nth=%d hbm=%d Xnode=%d | setup %.3f ms, parallel %.3f ms\n",
-                m, n, mb, nc, kc, c.jit, c.ntask, nth, g_hbm_node, page_node_of(B),
+        fprintf(stderr, "[trsm prof] m=%ld n=%ld mb=%d nc=%d kc=%d jit=%d tasks=%ld(items %ld) nth=%d hbm=%d Xnode=%d | setup %.3f ms, parallel %.3f ms\n",
+                m, n, mb, nc, kc, c.jit, c.ntask, c.ntask_items, nth, g_hbm_node, page_node_of(B),
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
         if (c.prof >= 2) {
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
