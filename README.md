@@ -3,13 +3,13 @@
 手写 SME/SVE 的 `l_trsm(m, n, L, lda, B, ldb)`：解 L·X = B（L 行主序下三角，B/X 行主序，原地），
 支持任意合法 m/n/lda/ldb，无 SME 时回退通用实现。只改 `trsm.c`。
 
-## 成绩（判题口径 `OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test m n 1`，cn2048x，v15，两轮）
+## 成绩（判题口径 `OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test m n 1`，cn2048x，v19，两轮）
 
 | 用例 | 时间 | GFLOPS | 占 FP64 峰值 7.54 TFLOPS | 占带宽下限 | vs KML 26.1 dtrsm（绑核 / 判题口径） |
 |---|---|---|---|---|---|
-| 512 × 19968 | 3.1–3.3 ms | 1575–1700 | 21–23% | 55% | 1.2× / 50× |
-| 2432 × 17024 | 33.8 ms | 2980 | 40% | 78% | 1.15× / 39× |
-| 17024 × 512 | 47.4 ms | 3125 | 41% | 74% | 12× / 200× |
+| 512 × 19968 | 3.07 ms | 1705 | 23% | 55% | 1.26× / 52× |
+| 2432 × 17024 | 31.9 ms | 3150 | 42% | 83% | 1.2× / 41× |
+| 17024 × 512 | 46.5 ms | 3188 | 42% | 75% | 12× / 210× |
 
 三用例数值误差 ≤ 1.5e-15（阈值 1e-12）；随机形状泛化测试（probe/gen_test.c，含非对齐/奇数 lda/ldb）全部通过。
 
@@ -26,7 +26,7 @@ gcc -O3 -march=armv9-a+sme+sme-f64f64+sve2 bench_trsm.c trsm.c -o trsm_test -lm 
 OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 2432 17024 1
 ```
 
-调参环境变量（默认已按三用例选好）：`TRSM_MB/NC/KC`（块大小，默认 192/128/64）、`TRSM_ANT`（GEMM A 条 ldnt1d）、
+调参环境变量（默认已按三用例选好）：`TRSM_MB/NC/KC`（块大小，默认 192/128/64）、`TRSM_ANT`（GEMM A 条 ldnt1d）、`TRSM_XNODE/XPNODE/LNODE0`（HBM 放置）、
 `TRSM_SWHOST`（X 回写托管）、`TRSM_RESERVE`（对角阶段预占下一任务）、`TRSM_SPLITF`（K 分裂）、`TRSM_PROFILE=2`（分相计时）。
 
 ## 结构
