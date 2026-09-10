@@ -464,7 +464,7 @@ int main(int argc, char** argv)
         double r9[12];
         for (int variant = 0; variant < 12; variant++) {
             // 0 无预取；1 A 走线器；2 A+X 走线器；3 X 走线器；4 A 驻留（固定条）+X 流；5 全驻留；6 A 走线器 + X 驻留；7 A 走线器提前 1 条；8 A+X 走线器 + 起点预热
-            // 9 无预取 + C 微块固定（cbuf 足迹 4 KB）；10 A 走线器 + C 固定；11 A+X 走线器 + C 固定
+            // 9 无预取 + C 微块固定（cbuf 足迹 4 KB）；10 A 走线器 + C 固定；11 A+X 走线器 + C 固定；变体 1-3,6-11 均带 C 行 pldl2keep 触碰
             int cfix = variant >= 9;
             sme_start();
             if (variant == 8) {   // 预热：首段面板 + 前 2 条 A（真实装载，阻塞式）
@@ -488,6 +488,7 @@ int main(int argc, char** argv)
                             long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
                             if (rr >= xstart) { long slot = (rr - xstart) * ntile + t; if (slot < slots_needed) pf.p2 = (const char*)Xkn + slot * (kc / 2) * 64; }
                         }
+                        if (variant != 0 && variant != 5 && variant != 4) { pf.pc = (const char*)(cfix ? C : C + 16 * rr * nc + 32 * t); pf.pcs = nc * 8; }   // C 行 pldl2keep 触碰
                         sme_zero_za();
                         if (pend) kloop_epi_sub(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
                         else kloop_plain(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf);

@@ -1650,13 +1650,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理 + barrier
         // 阶段 2：任务
         sme_start();
-        {
+        for (;;) {
             long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
-            while (t < c.ntask_items) {
-                long tn = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);   // 预取下一任务号，便于在对角阶段预取其 B 子块
-                run_task(&c, &g_tb[tid], &c.tasks[t], tn < c.ntask_items ? &c.tasks[tn] : NULL, tid);
-                t = tn;
-            }
+            if (t >= c.ntask_items) break;
+            // 下一任务只做启发式猜测（t + nth）用于预取其 B 子块，不提前占用任务号（占用会打乱依赖流水，case3 wait 暴涨）
+            long tg = t + nth;
+            run_task(&c, &g_tb[tid], &c.tasks[t], tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
         }
         sme_stop();
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
