@@ -91,7 +91,7 @@ int main(int argc, char** argv)
     for (long i = 0; i < kc * nc; i++) Xp[i] = 1e-3 * (i % 13);
     for (long i = 0; i < mb * nc; i++) C[i] = 1.0;
     memset(scratch, 0, 8192);
-    pf_t pfd = { (const char*)dummy, 1, -64, (const char*)dummy };
+    pf_t pfd = { (const char*)dummy, 1, -64, (const char*)dummy, (const char*)dummy, 0 };
     uint64_t t0;
     const int reps = 2000;
     double r[16];
@@ -122,10 +122,10 @@ int main(int argc, char** argv)
     double rtr = to_cycles(cyc() - t0) / reps;
     // 真正的交错转置 K 循环（源 Ad 当作 16 行 L，行距 kc）：无回写 / 带回写
     t0 = cyc();
-    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_noepi(Ad, 128, 128, Xp, nc * 8, kc, &pfd, Ad, kc * 8, Anext); }
+    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_noepi(Ad, Xp, nc * 8, kc, &pfd, Ad, kc * 8, Anext); }
     double rtr2 = to_cycles(cyc() - t0) / reps;
     t0 = cyc();
-    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_epi(Ad, 128, 128, Xp, nc * 8, kc, &pfd, scratch, C, nc * 8, 32, Ad, kc * 8, Anext); za_dump(scratch); }
+    for (int w = 0; w < reps; w++) { sme_zero_za(); kloop_tr_epi(Ad, Xp, nc * 8, kc, &pfd, scratch, C, nc * 8, 32, Ad, kc * 8, Anext); za_dump(scratch); }
     double rtr3 = to_cycles(cyc() - t0) / reps;
     sme_stop();
     // 转置正确性：Anext[k*16 + r] 应等于 Ad[r*kc + k]（源当作 16 行 × kc 列，行距 kc），只覆盖前 kc/4 列… 一个 K 循环转置 K/16 块 = kc/4 列
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
                 sme_start();
                 if (v == 1) {   // K 循环走线器 pldl1keep（8 行/微块，kc/8 个微块）
                     for (long q = 0; q < kc / 8; q++) {
-                        pf_t pf = { (const char*)(Xk + q * 8 * ldb), xlines, ldb * 8 - xlines * 64, (const char*)dummy };
+                        pf_t pf = { (const char*)(Xk + q * 8 * ldb), xlines, ldb * 8 - xlines * 64, (const char*)dummy, (const char*)dummy, 0 };
                         sme_zero_za(); kloop_plain(A, 128, 128, Xp, nc * 8, kc, 32, &pf);
                     }
                 } else if (v == 2) {   // 突发 prfm pldl1keep
@@ -299,7 +299,7 @@ int main(int argc, char** argv)
                 } else if (v == 4) {   // 真实装载触碰（每行 16 条 ld1d 到哑寄存器）
                     for (long k = 0; k < kc; k++) for (long j = 0; j < nc; j += 8) asm volatile("ld1d z31.d, p0/z, [%0]" ::"r"(Xk + k * ldb + j) : "v31");
                 } else if (v == 5) {   // K 循环走线器，但每步 2 行连续（把面板当成连续 128 KB：pfn 极大，pfj 0）—— 检验连续目标
-                    pf_t pf = { (const char*)Xpan, 1L << 40, 0, (const char*)dummy };
+                    pf_t pf = { (const char*)Xpan, 1L << 40, 0, (const char*)dummy, (const char*)dummy, 0 };
                     for (long q = 0; q < kc / 8; q++) { sme_zero_za(); kloop_plain(A, 128, 128, Xp, nc * 8, kc, 32, &pf); pf.p += 128 * 64; }
                 }
                 uint64_t tc0 = cyc();
@@ -311,6 +311,288 @@ int main(int argc, char** argv)
         }
         printf("6. copy_panel %ld KB：冷 %.0f | 走线器 pldl1keep 后 %.0f | 突发 l1keep 后 %.0f | 突发 l2keep 后 %.0f | ld1d 触碰后 %.0f | (连续源热) %.0f 周期\n",
                kc * nc * 8 / 1024, rc[0], rc[1], rc[2], rc[3], rc[4], rc[5]);
+    }
+    // 7. 复现 run_task 的 GEMM 段循环（Xp 连续面板 + JIT 交错转置 + 双走线器），单线程流式
+    {
+        long chunks_total = m / kc;             // Xp：chunks × 1 面板（nc 列），连续
+        double* Xpp = alloc_on((size_t)chunks_total * kc * nc * 8, -1);
+        memset(Xpp, 0, (size_t)chunks_total * kc * nc * 8);
+        double* Ab0 = alloc_on(16 * kc * 8, -1), *Ab1 = alloc_on(16 * kc * 8, -1);
+        memset(Ab0, 0, 16 * kc * 8); memset(Ab1, 0, 16 * kc * 8);
+        double* Abf[2] = { Ab0, Ab1 };
+        long row_base = 8192;
+        int nch = 40;
+        double r7[8];
+        for (int variant = 0; variant < 8; variant++) {
+            // 0：无预取；1：L 走线器（2 条前）；2：L + X 走线器；3：L 行驻留（源固定 16 行）+ 无预取；4：全部驻留（L 固定 + Xp 固定面板）；5: L 走线器 + X 面板固定；6: X 面板固定 + L 流式无走线器；7: L 走线器 + 任务起点触碰第 1、2 条
+            sme_start();
+            t0 = cyc();
+            long nstrips = nch * S;
+            int hosted = 0;
+            for (long q = 0; q < nstrips; q++) {
+                long ch = q / S; int rr = (int)(q % S);
+                long k0 = ch * kc;
+                long row0 = row_base + 16 * rr;
+                if (variant == 3 || variant == 4) row0 = row_base;                       // L 源固定为同一条
+                const double* Xk = Xpp + (size_t)((variant == 4 || variant == 5 || variant == 6) ? 0 : ch) * kc * nc;
+                const double* Xkn = Xpp + (size_t)((variant == 4 || variant == 5 || variant == 6) ? 0 : ch + 1) * kc * nc;
+                double* Acur = Abf[q & 1];
+                if (variant == 7 && q == 0) {   // 触碰第 1、2 条的 L 行（真实装载）
+                    for (long qq = 1; qq <= 2; qq++) {
+                        long tr0 = row_base + 16 * (qq % S), tk0 = (qq / S) * kc;
+                        for (int rr2 = 0; rr2 < 16; rr2++) for (long b = 0; b < kc * 8; b += 64)
+                            asm volatile("ld1d z11.d, p0/z, [%0]" ::"r"((const char*)(Lbig + (tr0 + rr2) * lda + tk0) + b) : "v11");
+                    }
+                }
+                if (!hosted) pack_strip_ld4(Lbig, lda, row0, k0, kc, Acur);
+                long qn = q + 1; long nrow0 = row_base + 16 * (qn % S); long nk0 = (qn / S) * kc;
+                if (variant == 3 || variant == 4) nrow0 = row_base;
+                int host_now = (qn < nstrips);
+                hosted = host_now;
+                long pfq = q + 2;
+                int pend = 0; double* pc = C;
+                for (long t = 0; t < ntile; t++) {
+                    pf_t pf = pfd;
+                    if ((variant == 1 || variant == 2 || variant == 5 || variant == 7) && pfq < nstrips) {
+                        long pr0 = row_base + 16 * (pfq % S), pk0 = (pfq / S) * kc;
+                        long lines_per_row = kc * 8 / 64, rows_per_tile = (kc / 2) / lines_per_row;
+                        long rr0 = t * rows_per_tile;
+                        if (rr0 < 16) { pf.p = (const char*)(Lbig + (pr0 + rr0) * lda + pk0); pf.pfn = lines_per_row; pf.pfj = lda * 8 - lines_per_row * 64; }
+                    }
+                    if (variant == 2) {
+                        long slots_needed = (kc * nc * 8 + kc * 32 - 1) / (kc * 32), strips_needed = (slots_needed + ntile - 1) / ntile;
+                        long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
+                        if (rr >= xstart) { long slot = (rr - xstart) * ntile + t; if (slot < slots_needed) pf.p2 = (const char*)Xkn + slot * (kc / 2) * 64; }
+                    }
+                    sme_zero_za();
+                    long kb0 = t * (kc / 4);
+                    if (host_now) {
+                        if (pend) kloop_tr_epi(Acur, Xk + 32 * t, nc * 8, kc, &pf, scratch, pc, nc * 8, 32, Lbig + nrow0 * lda + nk0 + kb0, lda * 8, Abf[(q + 1) & 1] + kb0 * 16);
+                        else kloop_tr_noepi(Acur, Xk + 32 * t, nc * 8, kc, &pf, Lbig + nrow0 * lda + nk0 + kb0, lda * 8, Abf[(q + 1) & 1] + kb0 * 16);
+                    } else if (pend) kloop_epi_sub(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
+                    else kloop_plain(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf);
+                    za_dump(scratch);
+                    pend = 1; pc = C + 16 * rr * nc + 32 * t;
+                }
+                epi_sub_std(scratch, pc, nc * 8, 32);
+            }
+            r7[variant] = to_cycles(cyc() - t0) / nch;
+            sme_stop();
+        }
+        double id = ideal;
+        printf("7. run_task 复现（每段周期，理想 %.0f，TR_LOOKAHEAD=%d）：无预取 %.0f (%.0f%%) | L 走线器 %.0f (%.0f%%) | L+X 走线器 %.0f (%.0f%%) | L 驻留 %.0f (%.0f%%) | 全驻留 %.0f (%.0f%%) | L走线器+X驻留 %.0f (%.0f%%) | X驻留+L流式无走线器 %.0f (%.0f%%) | L走线器+起点触碰 %.0f (%.0f%%)\n",
+               id, TR_LOOKAHEAD, r7[0], id / r7[0] * 100, r7[1], id / r7[1] * 100, r7[2], id / r7[2] * 100, r7[3], id / r7[3] * 100, r7[4], id / r7[4] * 100, r7[5], id / r7[5] * 100, r7[6], id / r7[6] * 100, r7[7], id / r7[7] * 100);
+    }
+    // 8. L 条带（16 行 × kc，行距 lda）的预取有效性：走线器/突发 后 pack_strip_ld4 计时；大数组 Lbig vs 小数组 Lsm（16 MB，确保大页）
+    {
+        FILE* f = fopen("/proc/self/smaps_rollup", "r"); char line[256];
+        if (f) { while (fgets(line, sizeof line, f)) if (strstr(line, "AnonHugePages")) printf("   %s", line); fclose(f); }
+        long lda_s = 2048 + 64;                      // 小数组：行距 16.9 KB
+        double* Lsm = alloc_on((size_t)1024 * lda_s * 8, -1);
+        memset(Lsm, 0, (size_t)1024 * lda_s * 8);
+        double r8[8];
+        const int nrep = 30;
+        for (int v = 0; v < 8; v++) {
+            double acc = 0;
+            for (int rep = 0; rep < nrep; rep++) {
+                int big = v < 4;
+                const double* Lx = big ? Lbig : Lsm;
+                long ldx = big ? lda : lda_s;
+                long row0 = big ? 1024 + rep * 48 + (v % 4) * 3000 : (rep * 32 + (v % 4) * 256) % 900;
+                long k0 = big ? 4096 + (v % 4) * kc : 0;
+                sme_start();
+                int mode = v % 4;   // 0 冷；1 走线器（4 个 K 循环各 4 行）；2 突发 l1keep；3 热（先打包一遍）
+                if (mode == 1) {
+                    for (int t = 0; t < 4; t++) {
+                        pf_t pf = { (const char*)(Lx + (row0 + 4 * t) * ldx + k0), kc * 8 / 64, ldx * 8 - kc * 8, (const char*)dummy, (const char*)dummy, 0 };
+                        sme_zero_za(); kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pf);
+                    }
+                } else if (mode == 2) {
+                    for (int rr = 0; rr < 16; rr++) for (long b = 0; b < kc * 8; b += 64) asm volatile("prfm pldl1keep, [%0]" ::"r"((const char*)(Lx + (row0 + rr) * ldx + k0) + b));
+                } else if (mode == 3) {
+                    pack_strip_ld4(Lx, ldx, row0, k0, kc, A);
+                }
+                uint64_t tp = cyc();
+                pack_strip_ld4(Lx, ldx, row0, k0, kc, A);
+                acc += to_cycles(cyc() - tp);
+                sme_stop();
+            }
+            r8[v] = acc / nrep;
+        }
+        printf("8. pack_strip_ld4 16×%ld：Lbig(行距 %ld KB) 冷 %.0f | 走线器后 %.0f | 突发后 %.0f | 热 %.0f || Lsm(行距 %ld KB) 冷 %.0f | 走线器后 %.0f | 突发后 %.0f | 热 %.0f\n",
+               kc, lda * 8 / 1024, r8[0], r8[1], r8[2], r8[3], lda_s * 8 / 1024, r8[4], r8[5], r8[6], r8[7]);
+        // 8b. 预取 K 循环同时带并发冷 B 流（B 面板从冷区取）时的有效性；以及用 kloop_tr 本身（转置源冷）做宿主
+        {
+            double r8b[5];
+            for (int v = 0; v < 5; v++) {
+                double acc = 0;
+                for (int rep = 0; rep < nrep; rep++) {
+                    long row0 = 1024 + rep * 48 + 400 * v, k0 = 4096;
+                    long chb = 300 + rep * 4 + 40 * v;                    // 冷 B 面板
+                    const double* Bcold = Xbig + (size_t)chb * kc * ldb;
+                    long rowT = 9000 + rep * 48 + 400 * v;                // 冷转置源
+                    sme_start();
+                    for (int t = 0; t < 4; t++) {
+                        pf_t pf = pfd;
+                        if (v != 3) { pf.p = (const char*)(Lbig + (row0 + 4 * t) * lda + k0); pf.pfn = kc * 8 / 64; pf.pfj = lda * 8 - kc * 8; }
+                        sme_zero_za();
+                        if (v == 0) kloop_plain(Ad, 128, 128, Bcold, ldb * 8, kc, 32, &pf);                  // 预取 + 冷 B 流
+                        else if (v == 1) kloop_tr_noepi(Ad, Xp, nc * 8, kc, &pf, Lbig + (rowT + 0) * lda + k0 + t * (kc / 4), lda * 8, A);   // 预取 + 冷转置源
+                        else if (v == 2) kloop_tr_noepi(Ad, Bcold, ldb * 8, kc, &pf, Lbig + (rowT + 0) * lda + k0 + t * (kc / 4), lda * 8, A); // 预取 + 冷 B + 冷转置
+                        else if (v == 3) kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pf);                  // 无预取（对照，冷）
+                        else kloop_tr_noepi(Ad, Xp, nc * 8, kc, &pf, Ad, kc * 8, A);                 // 预取 + 热转置源
+                    }
+                    uint64_t tp = cyc();
+                    pack_strip_ld4(Lbig, lda, row0, k0, kc, A);
+                    acc += to_cycles(cyc() - tp);
+                    sme_stop();
+                }
+                r8b[v] = acc / nrep;
+            }
+            printf("8b. 走线器预取后 pack：宿主带冷 B 流 %.0f | 宿主带冷转置源 %.0f | 冷 B + 冷转置 %.0f | 无预取对照 %.0f | 宿主带热转置源 %.0f\n", r8b[0], r8b[1], r8b[2], r8b[3], r8b[4]);
+        }
+    }
+    // 9. 预打包路径复现（case2 结构）：A 条连续（预打包，冷流），Xp 面板连续（冷流），cbuf 驻留；走线器变体
+    {
+        long chunks_total = m / kc;
+        double* Xpp = alloc_on((size_t)chunks_total * kc * nc * 8, -1);
+        memset(Xpp, 0, (size_t)chunks_total * kc * nc * 8);
+        size_t pp_doubles = (size_t)chunks_total * S * 16 * kc;          // 每段 S 条 × 16×kc
+        double* PP = alloc_on(pp_doubles * 8, -1);
+        memset(PP, 0, pp_doubles * 8);
+        int nch = 40;
+        double r9[12];
+        for (int variant = 0; variant < 12; variant++) {
+            // 0 无预取；1 A 走线器；2 A+X 走线器；3 X 走线器；4 A 驻留（固定条）+X 流；5 全驻留；6 A 走线器 + X 驻留；7 A 走线器提前 1 条；8 A+X 走线器 + 起点预热
+            // 9 无预取 + C 微块固定（cbuf 足迹 4 KB）；10 A 走线器 + C 固定；11 A+X 走线器 + C 固定
+            int cfix = variant >= 9;
+            sme_start();
+            if (variant == 8) {   // 预热：首段面板 + 前 2 条 A（真实装载，阻塞式）
+                for (long b = 0; b < kc * nc * 8; b += 64) asm volatile("ld1d z11.d, p0/z, [%0]" ::"r"((const char*)Xpp + b) : "v11");
+                for (long b = 0; b < 2 * 16 * kc * 8; b += 64) asm volatile("ld1d z11.d, p0/z, [%0]" ::"r"((const char*)PP + b) : "v11");
+            }
+            t0 = cyc();
+            for (int ch = 0; ch < nch; ch++) {
+                const double* Xk = Xpp + (size_t)((variant == 5 || variant == 6) ? 0 : ch) * kc * nc;
+                const double* Xkn = Xpp + (size_t)((variant == 5 || variant == 6) ? 0 : ch + 1) * kc * nc;
+                int pend = 0; double* pc = C;
+                for (int rr = 0; rr < S; rr++) {
+                    const double* Acur = PP + ((size_t)((variant == 4 || variant == 5) ? 0 : ch) * S + ((variant == 4 || variant == 5) ? 0 : rr)) * 16 * kc;
+                    long qn2 = (long)ch * S + rr + (variant == 7 ? 1 : 2);
+                    const double* An = PP + (size_t)qn2 * 16 * kc;
+                    for (long t = 0; t < ntile; t++) {
+                        pf_t pf = pfd;
+                        if (variant == 1 || variant == 2 || variant == 6 || variant == 7 || variant == 8 || variant == 10 || variant == 11) { pf.p = (const char*)An + (size_t)t * (kc / 2) * 64; pf.pfn = 1L << 40; pf.pfj = 0; }
+                        if (variant == 2 || variant == 3 || variant == 8 || variant == 11) {
+                            long slots_needed = (kc * nc * 8 + kc * 32 - 1) / (kc * 32), strips_needed = (slots_needed + ntile - 1) / ntile;
+                            long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
+                            if (rr >= xstart) { long slot = (rr - xstart) * ntile + t; if (slot < slots_needed) pf.p2 = (const char*)Xkn + slot * (kc / 2) * 64; }
+                        }
+                        sme_zero_za();
+                        if (pend) kloop_epi_sub(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf, scratch, pc, nc * 8, 32);
+                        else kloop_plain(Acur, 128, 128, Xk + 32 * t, nc * 8, kc, 32, &pf);
+                        za_dump(scratch);
+                        pend = 1; pc = cfix ? C : C + 16 * rr * nc + 32 * t;
+                    }
+                }
+                epi_sub_std(scratch, pc, nc * 8, 32);
+            }
+            r9[variant] = to_cycles(cyc() - t0) / nch;
+            sme_stop();
+        }
+        printf("9. 预打包路径复现（每段周期，理想 %.0f）：无预取 %.0f (%.0f%%) | A 走线器 %.0f (%.0f%%) | A+X 走线器 %.0f (%.0f%%) | X 走线器 %.0f (%.0f%%) | A 驻留+X 流 %.0f (%.0f%%) | 全驻留 %.0f (%.0f%%) | A走线器+X驻留 %.0f (%.0f%%) | A走线器提前1条 %.0f (%.0f%%) | A+X走线器+预热 %.0f (%.0f%%) || C固定: 无预取 %.0f (%.0f%%) | A走线器 %.0f (%.0f%%) | A+X走线器 %.0f (%.0f%%)\n",
+               ideal, r9[0], ideal / r9[0] * 100, r9[1], ideal / r9[1] * 100, r9[2], ideal / r9[2] * 100, r9[3], ideal / r9[3] * 100, r9[4], ideal / r9[4] * 100, r9[5], ideal / r9[5] * 100, r9[6], ideal / r9[6] * 100, r9[7], ideal / r9[7] * 100, r9[8], ideal / r9[8] * 100, r9[9], ideal / r9[9] * 100, r9[10], ideal / r9[10] * 100, r9[11], ideal / r9[11] * 100);
+    }
+    // 10. K 循环作为消费者：A 条（连续 16 KB）冷 / 走线器预取后 / 热 → 每步周期。B = Xp 热。
+    {
+        size_t stripd = (size_t)16 * kc;
+        long nstr = 4096;                                              // 64 MB 的条池，保证冷
+        double* PP2 = alloc_on(nstr * stripd * 8, -1);
+        memset(PP2, 0, nstr * stripd * 8);
+        double r10[6];
+        const int nrep = 60;
+        for (int v = 0; v < 6; v++) {
+            double acc = 0;
+            for (int rep = 0; rep < nrep; rep++) {
+                const double* As = PP2 + (size_t)((rep * 7 + v * 500) % nstr) * stripd;
+                sme_start();
+                if (v == 1) {   // 走线器预取（4 个 K 循环，A/B 热）
+                    for (int t = 0; t < 4; t++) { pf_t pf = { (const char*)As + (size_t)t * (kc / 2) * 64, 1L << 40, 0, (const char*)dummy, (const char*)dummy, 0 }; sme_zero_za(); kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pf); }
+                } else if (v == 2) {   // 热：先跑一遍
+                    sme_zero_za(); kloop_plain(As, 128, 128, Xp, nc * 8, kc, 32, &pfd);
+                } else if (v == 3) {   // 突发 prfm
+                    for (long b = 0; b < (long)stripd * 8; b += 64) asm volatile("prfm pldl1keep, [%0]" ::"r"((const char*)As + b));
+                } else if (v == 4) {   // 突发真实装载
+                    for (long b = 0; b < (long)stripd * 8; b += 64) asm volatile("ld1d z11.d, p0/z, [%0]" ::"r"((const char*)As + b) : "v11");
+                } else if (v == 5) {   // 走线器预取，宿主 K 循环带冷 B（模拟真实：B 面板首条冷）
+                    long chb = 300 + rep * 4;
+                    for (int t = 0; t < 4; t++) { pf_t pf = { (const char*)As + (size_t)t * (kc / 2) * 64, 1L << 40, 0, (const char*)dummy, (const char*)dummy, 0 }; sme_zero_za(); kloop_plain(Ad, 128, 128, Xbig + (size_t)chb * kc * ldb + t * 32, ldb * 8, kc, 32, &pf); }
+                }
+                sme_zero_za();
+                uint64_t tp = cyc();
+                kloop_plain(As, 128, 128, Xp, nc * 8, kc, 32, &pfd);
+                za_dump(scratch);
+                acc += to_cycles(cyc() - tp);
+                sme_stop();
+            }
+            r10[v] = acc / nrep;
+        }
+        printf("10. K 循环消费冷 A 条（%ld KB）：冷 %.0f | 走线器后 %.0f | 热 %.0f | 突发 prfm 后 %.0f | 突发装载后 %.0f | 走线器(宿主冷 B)后 %.0f  周期（理想 %ld）\n",
+               stripd * 8 / 1024, r10[0], r10[1], r10[2], r10[3], r10[4], r10[5], kc * 8);
+        // 10c. 连续消费 64 条 A（每条 4 个 K 循环，如真实结构）：顺序/随机 × 无预取/走线器(2 条前)/走线器(1 条前)
+        {
+            double r10c[6];
+            for (int v = 0; v < 6; v++) {
+                int seq = v < 3, mode = v % 3;
+                double acc = 0;
+                for (int rep = 0; rep < 8; rep++) {
+                    long base = (rep * 811 + v * 3001) % (nstr - 200);
+                    long idx[70];
+                    for (int i = 0; i < 70; i++) idx[i] = seq ? base + i : (base + i * 37) % (nstr - 1);
+                    sme_start();
+                    uint64_t tp = cyc();
+                    for (int i = 0; i < 64; i++) {
+                        const double* As = PP2 + (size_t)idx[i] * stripd;
+                        const double* An = PP2 + (size_t)idx[i + (mode == 2 ? 1 : 2)] * stripd;
+                        for (int t = 0; t < 4; t++) {
+                            pf_t pf = pfd;
+                            if (mode) { pf.p = (const char*)An + (size_t)t * (kc / 2) * 64; pf.pfn = 1L << 40; pf.pfj = 0; }
+                            sme_zero_za(); kloop_plain(As, 128, 128, Xp + 32 * t, nc * 8, kc, 32, &pf); za_dump(scratch);
+                        }
+                    }
+                    acc += to_cycles(cyc() - tp) / 256;
+                    sme_stop();
+                }
+                r10c[v] = acc / 8;
+            }
+            printf("10c. 连续 64 条×4 微块，每 K 循环周期（理想 %ld，热≈%.0f）：顺序: 无预取 %.0f | 走线器2前 %.0f | 走线器1前 %.0f || 随机: 无预取 %.0f | 走线器2前 %.0f | 走线器1前 %.0f\n",
+                   kc * 8, r10[2], r10c[0], r10c[1], r10c[2], r10c[3], r10c[4], r10c[5]);
+        }
+        // 10b. 预取后隔 N 个"流式 K 循环"（各读一条冷 A + 回写 cbuf 微块）再消费：衰减曲线
+        {
+            double r10b[6]; int Ns[6] = {0, 2, 4, 8, 16, 32};
+            for (int vi = 0; vi < 6; vi++) {
+                double acc = 0;
+                for (int rep = 0; rep < nrep; rep++) {
+                    long base = (rep * 97 + vi * 7000) % (nstr - 64);
+                    const double* As = PP2 + (size_t)base * stripd;
+                    sme_start();
+                    for (int t = 0; t < 4; t++) { pf_t pf = { (const char*)As + (size_t)t * (kc / 2) * 64, 1L << 40, 0, (const char*)dummy, (const char*)dummy, 0 }; sme_zero_za(); kloop_plain(Ad, 128, 128, Xp, nc * 8, kc, 32, &pf); }
+                    for (int n = 0; n < Ns[vi]; n++) {   // 干扰：冷 A 条 + 宿主回写到 cbuf 的不同微块
+                        const double* Ai = PP2 + (size_t)(base + 1 + n) * stripd;
+                        sme_zero_za(); kloop_epi_sub(Ai, 128, 128, Xp, nc * 8, kc, 32, &pfd, scratch, C + (n % 64) * 32 * 16, nc * 8, 32); za_dump(scratch);
+                    }
+                    sme_zero_za();
+                    uint64_t tp = cyc();
+                    kloop_plain(As, 128, 128, Xp, nc * 8, kc, 32, &pfd);
+                    za_dump(scratch);
+                    acc += to_cycles(cyc() - tp);
+                    sme_stop();
+                }
+                r10b[vi] = acc / nrep;
+            }
+            printf("10b. 预取后隔 N 个流式 K 循环再消费：N=0 %.0f | 2 %.0f | 4 %.0f | 8 %.0f | 16 %.0f | 32 %.0f 周期\n", r10b[0], r10b[1], r10b[2], r10b[3], r10b[4], r10b[5]);
+        }
     }
     printf("5a. 流式 X 拷贝 + L JIT，无预取        : %8.0f 周期/段，效率 %.1f%%\n", r[9], ideal / r[9] * 100);
     printf("5b. 同上 + K 循环内预取 L 与 X         : %8.0f 周期/段，效率 %.1f%%\n", r[10], ideal / r[10] * 100);
