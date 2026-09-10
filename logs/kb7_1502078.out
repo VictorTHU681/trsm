@@ -1,0 +1,144 @@
+=== HOST
+cn20489
+Thu Sep 10 13:04:06 CST 2026
+--- kc nc mb = 128 128 256 (DDR)
+kc=128 nc=128 mb=256  cpu=40
+SIG4 at pc=0x40220c insn=80c40000
+--- disasm around 0x40220c
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+00000000004021cc <main+0x114c>:
+  4021cc:	5280fa03 	mov	w3, #0x7d0                 	// #2000
+  4021d0:	f9407fe5 	ldr	x5, [sp, #248]
+  4021d4:	c00800ff 	zero	{za}
+  4021d8:	aa1c03e0 	mov	x0, x28
+  4021dc:	aa0503e1 	mov	x1, x5
+  4021e0:	aa1903e4 	mov	x4, x25
+  4021e4:	25d8e3e0 	ptrue	p0.d
+  4021e8:	a5e0a000 	ld1d	{z0.d}, p0/z, [x0]
+  4021ec:	a5e1a001 	ld1d	{z1.d}, p0/z, [x0, #1, mul vl]
+  4021f0:	a5e0a024 	ld1d	{z4.d}, p0/z, [x1]
+  4021f4:	a5e1a025 	ld1d	{z5.d}, p0/z, [x1, #1, mul vl]
+  4021f8:	a5e2a026 	ld1d	{z6.d}, p0/z, [x1, #2, mul vl]
+  4021fc:	a5e3a027 	ld1d	{z7.d}, p0/z, [x1, #3, mul vl]
+  402200:	91020000 	add	x0, x0, #0x80
+  402204:	8b130021 	add	x1, x1, x19
+  402208:	a5e0a008 	ld1d	{z8.d}, p0/z, [x0]
+  40220c:	80c40000 	fmopa	za0.d, p0/m, p0/m, z0.d, z4.d
+  402210:	a5e0a2d4 	ld1d	{z20.d}, p0/z, [x22]
+  402214:	80c50001 	fmopa	za1.d, p0/m, p0/m, z0.d, z5.d
+  402218:	a5e1a009 	ld1d	{z9.d}, p0/z, [x0, #1, mul vl]
+  40221c:	05f56296 	zip1	z22.d, z20.d, z21.d
+  402220:	80c60002 	fmopa	za2.d, p0/m, p0/m, z0.d, z6.d
+  402224:	05fc2ad7 	tbl	z23.d, {z22.d-z23.d}, z28.d
+  402228:	80c70003 	fmopa	za3.d, p0/m, p0/m, z0.d, z7.d
+--- kc nc mb = 256 128 256 (DDR)
+kc=256 nc=128 mb=256  cpu=40
+SIG4 at pc=0x40220c insn=80c40000
+--- disasm around 0x40220c
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+00000000004021cc <main+0x114c>:
+  4021cc:	5280fa03 	mov	w3, #0x7d0                 	// #2000
+  4021d0:	f9407fe5 	ldr	x5, [sp, #248]
+  4021d4:	c00800ff 	zero	{za}
+  4021d8:	aa1c03e0 	mov	x0, x28
+  4021dc:	aa0503e1 	mov	x1, x5
+  4021e0:	aa1903e4 	mov	x4, x25
+  4021e4:	25d8e3e0 	ptrue	p0.d
+  4021e8:	a5e0a000 	ld1d	{z0.d}, p0/z, [x0]
+  4021ec:	a5e1a001 	ld1d	{z1.d}, p0/z, [x0, #1, mul vl]
+  4021f0:	a5e0a024 	ld1d	{z4.d}, p0/z, [x1]
+  4021f4:	a5e1a025 	ld1d	{z5.d}, p0/z, [x1, #1, mul vl]
+  4021f8:	a5e2a026 	ld1d	{z6.d}, p0/z, [x1, #2, mul vl]
+  4021fc:	a5e3a027 	ld1d	{z7.d}, p0/z, [x1, #3, mul vl]
+  402200:	91020000 	add	x0, x0, #0x80
+  402204:	8b130021 	add	x1, x1, x19
+  402208:	a5e0a008 	ld1d	{z8.d}, p0/z, [x0]
+  40220c:	80c40000 	fmopa	za0.d, p0/m, p0/m, z0.d, z4.d
+  402210:	a5e0a2d4 	ld1d	{z20.d}, p0/z, [x22]
+  402214:	80c50001 	fmopa	za1.d, p0/m, p0/m, z0.d, z5.d
+  402218:	a5e1a009 	ld1d	{z9.d}, p0/z, [x0, #1, mul vl]
+  40221c:	05f56296 	zip1	z22.d, z20.d, z21.d
+  402220:	80c60002 	fmopa	za2.d, p0/m, p0/m, z0.d, z6.d
+  402224:	05fc2ad7 	tbl	z23.d, {z22.d-z23.d}, z28.d
+  402228:	80c70003 	fmopa	za3.d, p0/m, p0/m, z0.d, z7.d
+--- kc nc mb = 128 128 128 (DDR)
+kc=128 nc=128 mb=128  cpu=40
+SIG4 at pc=0x40220c insn=80c40000
+--- disasm around 0x40220c
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+00000000004021cc <main+0x114c>:
+  4021cc:	5280fa03 	mov	w3, #0x7d0                 	// #2000
+  4021d0:	f9407fe5 	ldr	x5, [sp, #248]
+  4021d4:	c00800ff 	zero	{za}
+  4021d8:	aa1c03e0 	mov	x0, x28
+  4021dc:	aa0503e1 	mov	x1, x5
+  4021e0:	aa1903e4 	mov	x4, x25
+  4021e4:	25d8e3e0 	ptrue	p0.d
+  4021e8:	a5e0a000 	ld1d	{z0.d}, p0/z, [x0]
+  4021ec:	a5e1a001 	ld1d	{z1.d}, p0/z, [x0, #1, mul vl]
+  4021f0:	a5e0a024 	ld1d	{z4.d}, p0/z, [x1]
+  4021f4:	a5e1a025 	ld1d	{z5.d}, p0/z, [x1, #1, mul vl]
+  4021f8:	a5e2a026 	ld1d	{z6.d}, p0/z, [x1, #2, mul vl]
+  4021fc:	a5e3a027 	ld1d	{z7.d}, p0/z, [x1, #3, mul vl]
+  402200:	91020000 	add	x0, x0, #0x80
+  402204:	8b130021 	add	x1, x1, x19
+  402208:	a5e0a008 	ld1d	{z8.d}, p0/z, [x0]
+  40220c:	80c40000 	fmopa	za0.d, p0/m, p0/m, z0.d, z4.d
+  402210:	a5e0a2d4 	ld1d	{z20.d}, p0/z, [x22]
+  402214:	80c50001 	fmopa	za1.d, p0/m, p0/m, z0.d, z5.d
+  402218:	a5e1a009 	ld1d	{z9.d}, p0/z, [x0, #1, mul vl]
+  40221c:	05f56296 	zip1	z22.d, z20.d, z21.d
+  402220:	80c60002 	fmopa	za2.d, p0/m, p0/m, z0.d, z6.d
+  402224:	05fc2ad7 	tbl	z23.d, {z22.d-z23.d}, z28.d
+  402228:	80c70003 	fmopa	za3.d, p0/m, p0/m, z0.d, z7.d
+--- kc nc mb = 256 128 128 (DDR)
+kc=256 nc=128 mb=128  cpu=40
+SIG4 at pc=0x40220c insn=80c40000
+--- disasm around 0x40220c
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+00000000004021cc <main+0x114c>:
+  4021cc:	5280fa03 	mov	w3, #0x7d0                 	// #2000
+  4021d0:	f9407fe5 	ldr	x5, [sp, #248]
+  4021d4:	c00800ff 	zero	{za}
+  4021d8:	aa1c03e0 	mov	x0, x28
+  4021dc:	aa0503e1 	mov	x1, x5
+  4021e0:	aa1903e4 	mov	x4, x25
+  4021e4:	25d8e3e0 	ptrue	p0.d
+  4021e8:	a5e0a000 	ld1d	{z0.d}, p0/z, [x0]
+  4021ec:	a5e1a001 	ld1d	{z1.d}, p0/z, [x0, #1, mul vl]
+  4021f0:	a5e0a024 	ld1d	{z4.d}, p0/z, [x1]
+  4021f4:	a5e1a025 	ld1d	{z5.d}, p0/z, [x1, #1, mul vl]
+  4021f8:	a5e2a026 	ld1d	{z6.d}, p0/z, [x1, #2, mul vl]
+  4021fc:	a5e3a027 	ld1d	{z7.d}, p0/z, [x1, #3, mul vl]
+  402200:	91020000 	add	x0, x0, #0x80
+  402204:	8b130021 	add	x1, x1, x19
+  402208:	a5e0a008 	ld1d	{z8.d}, p0/z, [x0]
+  40220c:	80c40000 	fmopa	za0.d, p0/m, p0/m, z0.d, z4.d
+  402210:	a5e0a2d4 	ld1d	{z20.d}, p0/z, [x22]
+  402214:	80c50001 	fmopa	za1.d, p0/m, p0/m, z0.d, z5.d
+  402218:	a5e1a009 	ld1d	{z9.d}, p0/z, [x0, #1, mul vl]
+  40221c:	05f56296 	zip1	z22.d, z20.d, z21.d
+  402220:	80c60002 	fmopa	za2.d, p0/m, p0/m, z0.d, z6.d
+  402224:	05fc2ad7 	tbl	z23.d, {z22.d-z23.d}, z28.d
+  402228:	80c70003 	fmopa	za3.d, p0/m, p0/m, z0.d, z7.d
+--- 大数组 HBM: 256 128 256
+kc=256 nc=128 mb=256  cpu=40
+SIG4 at pc=0x40220c insn=80c40000
+=== DONE
+Thu Sep 10 13:04:20 CST 2026

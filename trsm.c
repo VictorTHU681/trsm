@@ -418,6 +418,99 @@ static inline void NAME(const double* pa, long ase, long aso, const double* pb, 
 DEF_KLOOP_EPI(kloop_epi_sub, EV_SUB)
 DEF_KLOOP_EPI(kloop_epi_set, EV_SET)
 
+static const uint64_t g_tbl_idx[4][8];   // tbl2 索引向量（定义见打包节）
+
+// ---------------------------------------------------------------- 带交错转置的 K 循环
+// 在 K 循环里顺带把"下一条 A"（16 行 × K 列的 L 子块）转置成稠密 k 主序：每 16 个 k 步完成一个 8×8 块
+// （8 ld1d、8 zip、8 tbl2、8 tbl2、8 st1d，每步 ≤ 4 条额外指令），32 步完成 8 个 k 的全部 16 行。
+// 寄存器：K 循环 z0/1/4-7/8/9/12-15，宿主回写 z2/z3，转置工作区 z16-z27，tbl2 索引 z28-z31。
+// 块顺序：(kb, 行 0-7) → (kb, 行 8-15) → (kb+8, 行 0-7) …；xl 为源行指针（步进 lda8），xd 为目标（每 k 128 B）。
+#define TH_LD(za, zb)                                                             \
+    "ld1d " za ".d, p0/z, [%[xl]]\n\t"                                            \
+    "add %[xl], %[xl], %[lda8]\n\t"                                               \
+    "ld1d " zb ".d, p0/z, [%[xl]]\n\t"                                            \
+    "add %[xl], %[xl], %[lda8]\n\t"
+#define TH0 TH_LD("z16", "z17")
+#define TH1 TH_LD("z18", "z19")
+#define TH2 TH_LD("z20", "z21")
+#define TH3 TH_LD("z22", "z23")
+#define TH4 "zip1 z24.d, z16.d, z17.d\n\t zip1 z25.d, z18.d, z19.d\n\t"
+#define TH5 "zip2 z26.d, z16.d, z17.d\n\t zip2 z27.d, z18.d, z19.d\n\t"
+#define TH6 "zip1 z16.d, z20.d, z21.d\n\t zip1 z17.d, z22.d, z23.d\n\t"
+#define TH7 "zip2 z18.d, z20.d, z21.d\n\t zip2 z19.d, z22.d, z23.d\n\t"
+#define TH8 "tbl z20.d, {z24.d, z25.d}, z28.d\n\t tbl z22.d, {z24.d, z25.d}, z29.d\n\t"
+#define TH9 "tbl z21.d, {z16.d, z17.d}, z28.d\n\t tbl z23.d, {z16.d, z17.d}, z29.d\n\t"
+#define TH10 "tbl z24.d, {z26.d, z27.d}, z28.d\n\t tbl z16.d, {z26.d, z27.d}, z29.d\n\t"
+#define TH11 "tbl z25.d, {z18.d, z19.d}, z28.d\n\t tbl z17.d, {z18.d, z19.d}, z29.d\n\t"
+#define TH12 "tbl z26.d, {z20.d, z21.d}, z30.d\n\t tbl z27.d, {z20.d, z21.d}, z31.d\n\t"           \
+             "st1d z26.d, p0, [%[xd]]\n\t st1d z27.d, p0, [%[xd], #2, mul vl]\n\t"
+#define TH13 "tbl z18.d, {z22.d, z23.d}, z30.d\n\t tbl z19.d, {z22.d, z23.d}, z31.d\n\t"           \
+             "st1d z18.d, p0, [%[xd], #4, mul vl]\n\t st1d z19.d, p0, [%[xd], #6, mul vl]\n\t"     \
+             "add %[xd], %[xd], #512\n\t"
+#define TH14 "tbl z26.d, {z24.d, z25.d}, z30.d\n\t tbl z27.d, {z24.d, z25.d}, z31.d\n\t"           \
+             "st1d z26.d, p0, [%[xd]]\n\t st1d z27.d, p0, [%[xd], #2, mul vl]\n\t"
+#define TH15 "tbl z18.d, {z16.d, z17.d}, z30.d\n\t tbl z19.d, {z16.d, z17.d}, z31.d\n\t"           \
+             "st1d z18.d, p0, [%[xd], #4, mul vl]\n\t st1d z19.d, p0, [%[xd], #6, mul vl]\n\t"     \
+             "add %[xd], %[xd], #512\n\t"
+// 块结束后：行 0-7 块 → 目标退回 start+64（行 8-15 的槽），源已在行 8；行 8-15 块 → 目标到下一 kb 起点，源回行 0 并右移 8 列
+#define TFIX_H0 "sub %[xd], %[xd], #960\n\t"
+#define TFIX_H1 "sub %[xd], %[xd], #64\n\t sub %[xl], %[xl], %[l16m64]\n\t"
+#define EVX_SUB(j, pj) EV_SUB(j, pj, "z2", "z3")
+#define EVX_NONE(j, pj)
+#define RA_ON EV_ROW_ADV
+#define RA_OFF
+// 16 步（一个 8×8 块）；E 为回写向量钩子（每 4 步一行），RA 为行推进
+#define TB16(E, RA, LASTODD)                                                      \
+    KS_EVEN E(0, "p1") TH0 PF2 KS_ODD E(1, "p2") TH1 KS_EVEN E(2, "p3") TH2 PF2 KS_ODD E(3, "p4") TH3 RA \
+    KS_EVEN E(0, "p1") TH4 PF2 KS_ODD E(1, "p2") TH5 KS_EVEN E(2, "p3") TH6 PF2 KS_ODD E(3, "p4") TH7 RA \
+    KS_EVEN E(0, "p1") TH8 PF2 KS_ODD E(1, "p2") TH9 KS_EVEN E(2, "p3") TH10 PF2 KS_ODD E(3, "p4") TH11 RA \
+    KS_EVEN E(0, "p1") TH12 PF2 KS_ODD E(1, "p2") TH13 KS_EVEN E(2, "p3") TH14 PF2 LASTODD E(3, "p4") TH15 RA
+#define TB_PAIR(E, RA) TB16(E, RA, KS_ODD) TFIX_H0 TB16(E, RA, KS_ODD) TFIX_H1
+#define TB_PAIR_LAST(E, RA) TB16(E, RA, KS_ODD) TFIX_H0 TB16(E, RA, FM_ODD) TFIX_H1
+
+// K 循环 + 宿主回写（epi≠0 时，要求 K ≥ 96）+ 下一条转置（K/4 个 8×8 块 = 16 行 × K 列… 每 K 循环做 K/16 块，
+// 即本条 4 个微块的 K 循环合起来转置一条）。K % 32 == 0。xl：源 L 子块行 0 列 kb0；xd：目标（稠密 128 B/k）。
+static void kloop_tr(const double* pa, long ase, long aso, const double* pb, long bs, long K, const pf_t* pf,
+                     const double* scratch, double* c, long cs, long ecols, int epi,
+                     const double* lsrc, long lda8, double* dst)
+{
+    const double* xa = pa;
+    const double* xb = pb;
+    const char* xpf = pf->p;
+    const char* xs = (const char*)scratch;
+    char* xc = (char*)c;
+    const char* xl = (const char*)lsrc;
+    char* xd = (char*)dst;
+    long pairs = K / 32, pfc = pf->pfn, l16m64 = 16 * lda8 - 64;
+    asm volatile(
+        SET_EPI_PREDS
+        "ld1d z28.d, p0/z, [%[idx]]\n\t"
+        "ld1d z29.d, p0/z, [%[idx], #1, mul vl]\n\t"
+        "ld1d z30.d, p0/z, [%[idx], #2, mul vl]\n\t"
+        "ld1d z31.d, p0/z, [%[idx], #3, mul vl]\n\t"
+        KLOOP_INIT
+        "cbz %[epi], 4f\n\t"
+        TB_PAIR(EVX_SUB, RA_ON)
+        "sub %[xs], %[xs], #3840\n\t"
+        TB_PAIR(EVX_SUB, RA_ON)
+        "sub %[pairs], %[pairs], #2\n\t"
+        "4:\n\t"
+        "subs %[pairs], %[pairs], #1\n\t"
+        "b.eq 6f\n\t"
+        "5:\n\t"
+        TB_PAIR(EVX_NONE, RA_OFF)
+        "subs %[pairs], %[pairs], #1\n\t"
+        "b.ne 5b\n\t"
+        "6:\n\t"
+        TB_PAIR_LAST(EVX_NONE, RA_OFF)
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [pairs] "+&r"(pairs), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc),
+          [xs] "+&r"(xs), [xc] "+&r"(xc), [xl] "+&r"(xl), [xd] "+&r"(xd)
+        : [ase] "r"(ase), [aso] "r"(aso), [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols),
+          [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [epi] "r"((long)epi), [lda8] "r"(lda8), [l16m64] "r"(l16m64),
+          [idx] "r"(g_tbl_idx)
+        : "memory", "cc", "x9", VCLOB, PCLOB);
+}
+
 // ZA 按自然顺序转存到 4 KB 暂存：ZA 向量 n = r*8 + t（tile t 的第 r 行）位于 scratch + n*64。
 // 于是块内第 R 行的 32 个值连续：R<8 在 scratch + R*512，R≥8 在 scratch + (R-8)*512 + 256。
 #define ZA_DUMP_GROUP(G)                                                          \
@@ -857,6 +950,7 @@ typedef struct {
     volatile long next;
     int prof;
     int pf;                 // 软件预取开关
+    int ntstore;            // 结果回写用非临时存储
     int packmode;           // JIT 打包方式：0 SVE zip/tbl2，1 ld4d+8tile（稠密），2 ld2d+4tile 交替，3 单 tile 对 512B/k
     // 任务表（含 K 分裂段）
     const struct task_s* tasks;
@@ -986,83 +1080,118 @@ static void run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, int tid)
     }
 
     // 2. GEMM 段：C 块 -= L[i0.., k0..k0+kk) · X[k0..k0+kk, c0..]
+    //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!c->jit && c->pp[1]) cpy = (int)((i + p) & 1);
     int pend = 0;            // 有待回写的上一微块（暂存中）
     double* pend_c = NULL;
     long pend_cols = 0;
     const long xlines = ((nci * 8 + 63) / 64 + 1) & ~1L;   // X 面板每行预取的 cache 行数（偶数）
+    const long chfirst = split ? tk->ch0 : 0;
     const long kend = split ? tk->ch1 * kc : i0;
-    for (long k0 = split ? tk->ch0 * kc : 0; k0 < kend; k0 += kc) {
+    const long nchunks = (kend - chfirst * kc + kc - 1) / kc;
+    const long nstrips = nchunks * S;
+    double* Abuf[2] = { tb->astrip, tb->astrip + 64L * kc };
+    int hosted_next = 0;     // 下一条已由本条 K 循环转置好
+    const int can_host = c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
+    for (long q = 0; q < nstrips; q++) {
+        const long ch = chfirst + q / S;
+        const int r = (int)(q % S);
+        const long k0 = ch * kc;
         long kk = i0 - k0; if (kk > kc) kk = kc;
-        PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        PROF_T(c, copy_panel(c->B + k0 * ldb + c0, ldb, kk, nci, nc, tb->xpan), t_pf);
-        const double* Xk = tb->xpan;
+        const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
+        if (r == 0) {
+            PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+            PROF_T(c, copy_panel(c->B + k0 * ldb + c0, ldb, kk, nci, nc, tb->xpan), t_pf);
+        }
+        const double* Xk = tb->xpan;
         long rows_per_tile = kk / xlines; if (rows_per_tile < 1) rows_per_tile = 1;
-        long xrow_next = 0;   // 下一段 X 面板已安排预取的行数
-        for (int r = 0; r < S; r++) {
-            const double* A;
-            long ase = 128, aso = 128;
-            const long row0 = i0 + 16 * r;
-            if (c->jit) {
+        // 本条 A
+        const double* A;
+        long ase = 128, aso = 128;
+        if (c->jit) {
+            double* Acur = Abuf[q & 1];
+            if (!hosted_next) {
                 long rows = c->m - row0; if (rows > 16) rows = 16;
                 if (rows == 16 && (kk & 31) == 0 && c->packmode == 1) {
-                    PROF_T(c, pack_strip_ld4(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
+                    PROF_T(c, pack_strip_ld4(c->L, lda, row0, k0, kk, Acur), t_pack);
                 } else if (rows == 16 && (kk & 31) == 0 && c->packmode == 2) {
-                    PROF_T(c, pack_strip_ld2(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
+                    PROF_T(c, pack_strip_ld2(c->L, lda, row0, k0, kk, Acur), t_pack);
                     ase = 128; aso = 384;
                 } else if (rows == 16 && (kk & 7) == 0 && c->packmode == 3) {
-                    PROF_T(c, pack_strip_za(c->L, lda, row0, k0, kk, tb->astrip), t_pack);
+                    PROF_T(c, pack_strip_za(c->L, lda, row0, k0, kk, Acur), t_pack);
                     ase = aso = 512;
                 } else {
-                    PROF_T(c, pack_strip(c->L, lda, c->m, row0, k0, kk, tb->astrip), t_pack);
+                    PROF_T(c, pack_strip(c->L, lda, c->m, row0, k0, kk, Acur), t_pack);
                 }
-                A = tb->astrip;
-            } else {
-                A = c->pp[cpy] + c->pp_off[i0 / 16 + r] + (size_t)k0 * 16;
             }
-            for (long t = 0; t < ntile; t++) {
-                pf_t pf = pf_dummy;
-                if (pf_on && t < 2) {
-                    // 下一条的 A（同段的下一条，或下一段的第 0 条）
-                    long nr = (r + 1 < S) ? row0 + 16 : i0;
-                    long nk = (r + 1 < S) ? k0 : k0n;
-                    if (nk < kend) {
-                        if (c->jit) {
-                            long nrows = c->m - nr;
-                            if (nrows > 8 * t) {
-                                pf.p = (const char*)(c->L + (nr + 8 * t) * lda + nk);
-                                pf.pfn = ((kk * 8 + 63) / 64 + 1) & ~1L;
-                                pf.pfj = lda * 8 - pf.pfn * 64;
-                            }
-                        } else {
-                            long g = (r + 1 < S) ? i0 / 16 + r + 1 : i0 / 16;
-                            const double* An = c->pp[cpy] + c->pp_off[g] + (size_t)nk * 16;
-                            pf.p = (const char*)An + (size_t)t * kk * 64;
-                            pf.pfn = 1L << 40;
-                            pf.pfj = 0;
-                        }
+            A = Acur;
+        } else {
+            A = c->pp[cpy] + c->pp_off[i0 / 16 + r] + (size_t)k0 * 16;
+        }
+        // 下一条（q+1）：能否在本条 K 循环里转置
+        long nrow0 = 0, nk0 = 0;
+        int host_now = 0;
+        if (q + 1 < nstrips) {
+            long qn = q + 1;
+            nrow0 = i0 + 16 * (qn % S);
+            nk0 = (chfirst + qn / S) * kc;
+            long nkk = i0 - nk0; if (nkk > kc) nkk = kc;
+            host_now = can_host && (c->m - nrow0 >= 16) && nkk == kk && (kk & 31) == 0;
+        }
+        hosted_next = host_now;
+        // 2 条之后（预取目标）：转置读的是 q+1 的行，因此预取 q+2；不托管时预取 q+1
+        long pfq = q + (host_now ? 2 : 1);
+        for (long t = 0; t < ntile; t++) {
+            pf_t pf = pf_dummy;
+            if (pf_on && t < 2 && pfq < nstrips) {
+                long pr0 = i0 + 16 * (pfq % S);
+                long pk0 = (chfirst + pfq / S) * kc;
+                long pkk = i0 - pk0; if (pkk > kc) pkk = kc;
+                if (c->jit) {
+                    long nrows = c->m - pr0;
+                    if (nrows > 8 * t) {
+                        pf.p = (const char*)(c->L + (pr0 + 8 * t) * lda + pk0);
+                        pf.pfn = ((pkk * 8 + 63) / 64 + 1) & ~1L;
+                        pf.pfj = lda * 8 - pf.pfn * 64;
                     }
-                } else if (pf_on && k0n < kend && xrow_next < kk) {
-                    // 下一段 X 面板：本微块负责 rows_per_tile 行
-                    pf.p = (const char*)(c->B + (k0n + xrow_next) * ldb + c0);
-                    pf.pfn = xlines;
-                    pf.pfj = ldb * 8 - xlines * 64;
-                    xrow_next += rows_per_tile;
-                }
-                long cols = nci - 32 * t; if (cols > 32) cols = 32;
-                sme_zero_za();
-                if (pend && kk >= 65) {
-                    PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 } else {
-                    if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
-                    PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                    const double* An = c->pp[cpy] + c->pp_off[pr0 / 16] + (size_t)pk0 * 16;
+                    pf.p = (const char*)An + (size_t)t * pkk * 64;
+                    pf.pfn = 1L << 40;
+                    pf.pfj = 0;
                 }
-                PROF_T(c, za_dump(scratch), t_epi);
-                pend = 1; pend_c = acc + 16L * r * nc + 32 * t; pend_cols = cols;
-                tb->n_kstep += kk;
+            } else if (pf_on && t >= 2 && k0n < kend) {
+                // 下一段 X 面板：从本段第 (S/2) 条起，每微块负责 rows_per_tile 行（晚发以缩短在 L2 里的驻留）
+                long xstart = S / 2;
+                if (r >= xstart) {
+                    long slot = (r - xstart) * (ntile - 2) + (t - 2);
+                    long xrow = slot * rows_per_tile;
+                    if (xrow < kk) {
+                        pf.p = (const char*)(c->B + (k0n + xrow) * ldb + c0);
+                        pf.pfn = xlines;
+                        pf.pfj = ldb * 8 - xlines * 64;
+                    }
+                }
             }
+            long cols = nci - 32 * t; if (cols > 32) cols = 32;
+            sme_zero_za();
+            if (host_now) {
+                int epi = pend && kk >= 96;
+                if (pend && !epi) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); }
+                long kb0 = t * (kk / 4);
+                PROF_T(c, kloop_tr(A, ase, aso, Xk + 32 * t, cs, kk, &pf, scratch, pend_c, cs, pend_cols, epi,
+                                   c->L + nrow0 * lda + nk0 + kb0, lda * 8, Abuf[(q + 1) & 1] + kb0 * 16), t_kloop);
+            } else if (pend && kk >= 65) {
+                PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+            } else {
+                if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
+                PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+            }
+            PROF_T(c, za_dump(scratch), t_epi);
+            pend = 1; pend_c = acc + 16L * r * nc + 32 * t; pend_cols = cols;
+            tb->n_kstep += kk;
         }
     }
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
@@ -1127,14 +1256,27 @@ static void run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, int tid)
     {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
-        for (long r = 0; r < mbi; r++) {
-            const double* s = cb + r * nc;
-            double* d = Bblk + r * ldb;
-            long j = 0;
-            for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
-            if (j < nci) {
-                svbool_t pj = svwhilelt_b64((long)j, (long)nci);
-                svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
+        if (c->ntstore) {
+            for (long r = 0; r < mbi; r++) {
+                const double* s = cb + r * nc;
+                double* d = Bblk + r * ldb;
+                long j = 0;
+                for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (j < nci) {
+                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                    svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
+                }
+            }
+        } else {
+            for (long r = 0; r < mbi; r++) {
+                const double* s = cb + r * nc;
+                double* d = Bblk + r * ldb;
+                long j = 0;
+                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (j < nci) {
+                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                    svst1_f64(pj, d + j, svld1_f64(pj, s + j));
+                }
             }
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
@@ -1154,6 +1296,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.prof = env_int("TRSM_PROFILE", 0);
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
+    c.ntstore = env_int("TRSM_NT", 1);
     int mb = env_int("TRSM_MB", 256), nc = env_int("TRSM_NC", 128), kc = env_int("TRSM_KC", 128);
     if (mb < 32) mb = 32;
     mb = (mb + 31) & ~31;
@@ -1331,7 +1474,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         int tid = omp_get_thread_num();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)mb * nc, (size_t)64 * kc, (size_t)kc * nc);
+        ensure_tbuf(tid, (size_t)mb * nc, (size_t)128 * kc, (size_t)kc * nc);
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;

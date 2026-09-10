@@ -1,0 +1,2 @@
+/home/share/wangchenjie/S2/trsm-opt/probe/v3_job.sh: line 14: 3070648 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench 128 128 256
+/home/share/wangchenjie/S2/trsm-opt/probe/v3_job.sh: line 16: 3070653 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench 256 128 256

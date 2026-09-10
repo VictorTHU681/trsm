@@ -1,0 +1,194 @@
+=== HOST
+cn20485
+Thu Sep 10 12:54:10 CST 2026
+--- kc nc mb = 128 128 256 (DDR)
+kc=128 nc=128 mb=256  cpu=40
+1. kloop_plain A 128B/k          :     1032 周期 = 8.06 周期/步
+1b. kloop_plain A 512B/k         :     1101 周期 = 8.60 周期/步
+2. kloop + dump + epi_sub_std    :     1376 周期 → 额外 352
+2h. kloop_epi_sub(宿主回写)+dump  :     1198 周期 → 额外 174
+2s. kloop_epi_set(宿主回写)+dump  :     1210 周期 → 额外 186
+3a. pack_strip_ld4（稠密 128B/k）   :      986 周期 = 0.48 周期/元素  ok
+3b. pack_strip_ld2（交替 128/384）   :      980 周期 = 0.48 周期/元素  ok
+3c. pack_strip_za（512B/k）          :     1312 周期 = 0.64 周期/元素  ok
+3d. pack_strip（SVE zip/tbl2）       :     2042 周期 = 1.00 周期/元素
+3k. kloop A=ld2 布局                 :     1032 周期 = 8.06 周期/步
+SIG4 at pc=0x4069a0 insn=c00800ff
+--- disasm around 0x4069a0
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000406960 <pack_strip_ld4.constprop.0+0x20>:
+  406960:	8b010c01 	add	x1, x0, x1, lsl #3
+  406964:	9345fc40 	asr	x0, x2, #5
+  406968:	91280062 	add	x2, x3, #0xa00
+  40696c:	d282c003 	mov	x3, #0x1600                	// #5632
+  406970:	6d0237ec 	stp	d12, d13, [sp, #32]
+  406974:	f2a00043 	movk	x3, #0x2, lsl #16
+  406978:	6d033fee 	stp	d14, d15, [sp, #48]
+  40697c:	25d8e3e0 	ptrue	p0.d
+  406980:	a5e0a050 	ld1d	{z16.d}, p0/z, [x2]
+  406984:	a5e1a051 	ld1d	{z17.d}, p0/z, [x2, #1, mul vl]
+  406988:	a5e2a052 	ld1d	{z18.d}, p0/z, [x2, #2, mul vl]
+  40698c:	a5e3a053 	ld1d	{z19.d}, p0/z, [x2, #3, mul vl]
+  406990:	a5e4a054 	ld1d	{z20.d}, p0/z, [x2, #4, mul vl]
+  406994:	a5e5a055 	ld1d	{z21.d}, p0/z, [x2, #5, mul vl]
+  406998:	a5e6a056 	ld1d	{z22.d}, p0/z, [x2, #6, mul vl]
+  40699c:	a5e7a057 	ld1d	{z23.d}, p0/z, [x2, #7, mul vl]
+  4069a0:	c00800ff 	zero	{za}
+  4069a4:	aa0103e9 	mov	x9, x1
+  4069a8:	a5e0e120 	ld4d	{z0.d-z3.d}, p0/z, [x9]
+  4069ac:	8b030129 	add	x9, x9, x3
+  4069b0:	80d00000 	fmopa	za0.d, p0/m, p0/m, z0.d, z16.d
+  4069b4:	80d00022 	fmopa	za2.d, p0/m, p0/m, z1.d, z16.d
+  4069b8:	80d00044 	fmopa	za4.d, p0/m, p0/m, z2.d, z16.d
+  4069bc:	80d00066 	fmopa	za6.d, p0/m, p0/m, z3.d, z16.d
+--- kc nc mb = 256 128 256 (DDR)
+kc=256 nc=128 mb=256  cpu=40
+1. kloop_plain A 128B/k          :     2056 周期 = 8.03 周期/步
+1b. kloop_plain A 512B/k         :     2197 周期 = 8.58 周期/步
+2. kloop + dump + epi_sub_std    :     2633 周期 → 额外 585
+2h. kloop_epi_sub(宿主回写)+dump  :     2335 周期 → 额外 287
+2s. kloop_epi_set(宿主回写)+dump  :     2329 周期 → 额外 281
+3a. pack_strip_ld4（稠密 128B/k）   :     2123 周期 = 0.52 周期/元素  ok
+3b. pack_strip_ld2（交替 128/384）   :     2078 周期 = 0.51 周期/元素  ok
+3c. pack_strip_za（512B/k）          :     2633 周期 = 0.64 周期/元素  ok
+3d. pack_strip（SVE zip/tbl2）       :     4101 周期 = 1.00 周期/元素
+3k. kloop A=ld2 布局                 :     2057 周期 = 8.03 周期/步
+SIG4 at pc=0x4069a0 insn=c00800ff
+--- disasm around 0x4069a0
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000406960 <pack_strip_ld4.constprop.0+0x20>:
+  406960:	8b010c01 	add	x1, x0, x1, lsl #3
+  406964:	9345fc40 	asr	x0, x2, #5
+  406968:	91280062 	add	x2, x3, #0xa00
+  40696c:	d282c003 	mov	x3, #0x1600                	// #5632
+  406970:	6d0237ec 	stp	d12, d13, [sp, #32]
+  406974:	f2a00043 	movk	x3, #0x2, lsl #16
+  406978:	6d033fee 	stp	d14, d15, [sp, #48]
+  40697c:	25d8e3e0 	ptrue	p0.d
+  406980:	a5e0a050 	ld1d	{z16.d}, p0/z, [x2]
+  406984:	a5e1a051 	ld1d	{z17.d}, p0/z, [x2, #1, mul vl]
+  406988:	a5e2a052 	ld1d	{z18.d}, p0/z, [x2, #2, mul vl]
+  40698c:	a5e3a053 	ld1d	{z19.d}, p0/z, [x2, #3, mul vl]
+  406990:	a5e4a054 	ld1d	{z20.d}, p0/z, [x2, #4, mul vl]
+  406994:	a5e5a055 	ld1d	{z21.d}, p0/z, [x2, #5, mul vl]
+  406998:	a5e6a056 	ld1d	{z22.d}, p0/z, [x2, #6, mul vl]
+  40699c:	a5e7a057 	ld1d	{z23.d}, p0/z, [x2, #7, mul vl]
+  4069a0:	c00800ff 	zero	{za}
+  4069a4:	aa0103e9 	mov	x9, x1
+  4069a8:	a5e0e120 	ld4d	{z0.d-z3.d}, p0/z, [x9]
+  4069ac:	8b030129 	add	x9, x9, x3
+  4069b0:	80d00000 	fmopa	za0.d, p0/m, p0/m, z0.d, z16.d
+  4069b4:	80d00022 	fmopa	za2.d, p0/m, p0/m, z1.d, z16.d
+  4069b8:	80d00044 	fmopa	za4.d, p0/m, p0/m, z2.d, z16.d
+  4069bc:	80d00066 	fmopa	za6.d, p0/m, p0/m, z3.d, z16.d
+--- kc nc mb = 128 128 128 (DDR)
+kc=128 nc=128 mb=128  cpu=40
+1. kloop_plain A 128B/k          :     1032 周期 = 8.06 周期/步
+1b. kloop_plain A 512B/k         :     1143 周期 = 8.93 周期/步
+2. kloop + dump + epi_sub_std    :     1373 周期 → 额外 349
+2h. kloop_epi_sub(宿主回写)+dump  :     1198 周期 → 额外 174
+2s. kloop_epi_set(宿主回写)+dump  :     1214 周期 → 额外 190
+3a. pack_strip_ld4（稠密 128B/k）   :      991 周期 = 0.48 周期/元素  ok
+3b. pack_strip_ld2（交替 128/384）   :      979 周期 = 0.48 周期/元素  ok
+3c. pack_strip_za（512B/k）          :     1312 周期 = 0.64 周期/元素  ok
+3d. pack_strip（SVE zip/tbl2）       :     2042 周期 = 1.00 周期/元素
+3k. kloop A=ld2 布局                 :     1032 周期 = 8.07 周期/步
+SIG4 at pc=0x4069a0 insn=c00800ff
+--- disasm around 0x4069a0
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000406960 <pack_strip_ld4.constprop.0+0x20>:
+  406960:	8b010c01 	add	x1, x0, x1, lsl #3
+  406964:	9345fc40 	asr	x0, x2, #5
+  406968:	91280062 	add	x2, x3, #0xa00
+  40696c:	d282c003 	mov	x3, #0x1600                	// #5632
+  406970:	6d0237ec 	stp	d12, d13, [sp, #32]
+  406974:	f2a00043 	movk	x3, #0x2, lsl #16
+  406978:	6d033fee 	stp	d14, d15, [sp, #48]
+  40697c:	25d8e3e0 	ptrue	p0.d
+  406980:	a5e0a050 	ld1d	{z16.d}, p0/z, [x2]
+  406984:	a5e1a051 	ld1d	{z17.d}, p0/z, [x2, #1, mul vl]
+  406988:	a5e2a052 	ld1d	{z18.d}, p0/z, [x2, #2, mul vl]
+  40698c:	a5e3a053 	ld1d	{z19.d}, p0/z, [x2, #3, mul vl]
+  406990:	a5e4a054 	ld1d	{z20.d}, p0/z, [x2, #4, mul vl]
+  406994:	a5e5a055 	ld1d	{z21.d}, p0/z, [x2, #5, mul vl]
+  406998:	a5e6a056 	ld1d	{z22.d}, p0/z, [x2, #6, mul vl]
+  40699c:	a5e7a057 	ld1d	{z23.d}, p0/z, [x2, #7, mul vl]
+  4069a0:	c00800ff 	zero	{za}
+  4069a4:	aa0103e9 	mov	x9, x1
+  4069a8:	a5e0e120 	ld4d	{z0.d-z3.d}, p0/z, [x9]
+  4069ac:	8b030129 	add	x9, x9, x3
+  4069b0:	80d00000 	fmopa	za0.d, p0/m, p0/m, z0.d, z16.d
+  4069b4:	80d00022 	fmopa	za2.d, p0/m, p0/m, z1.d, z16.d
+  4069b8:	80d00044 	fmopa	za4.d, p0/m, p0/m, z2.d, z16.d
+  4069bc:	80d00066 	fmopa	za6.d, p0/m, p0/m, z3.d, z16.d
+--- kc nc mb = 256 128 128 (DDR)
+kc=256 nc=128 mb=128  cpu=40
+1. kloop_plain A 128B/k          :     2056 周期 = 8.03 周期/步
+1b. kloop_plain A 512B/k         :     2201 周期 = 8.60 周期/步
+2. kloop + dump + epi_sub_std    :     2636 周期 → 额外 588
+2h. kloop_epi_sub(宿主回写)+dump  :     2346 周期 → 额外 298
+2s. kloop_epi_set(宿主回写)+dump  :     2327 周期 → 额外 279
+3a. pack_strip_ld4（稠密 128B/k）   :     2124 周期 = 0.52 周期/元素  ok
+3b. pack_strip_ld2（交替 128/384）   :     2062 周期 = 0.50 周期/元素  ok
+3c. pack_strip_za（512B/k）          :     2633 周期 = 0.64 周期/元素  ok
+3d. pack_strip（SVE zip/tbl2）       :     4101 周期 = 1.00 周期/元素
+3k. kloop A=ld2 布局                 :     2057 周期 = 8.03 周期/步
+SIG4 at pc=0x4069a0 insn=c00800ff
+--- disasm around 0x4069a0
+probe/kbench:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000406960 <pack_strip_ld4.constprop.0+0x20>:
+  406960:	8b010c01 	add	x1, x0, x1, lsl #3
+  406964:	9345fc40 	asr	x0, x2, #5
+  406968:	91280062 	add	x2, x3, #0xa00
+  40696c:	d282c003 	mov	x3, #0x1600                	// #5632
+  406970:	6d0237ec 	stp	d12, d13, [sp, #32]
+  406974:	f2a00043 	movk	x3, #0x2, lsl #16
+  406978:	6d033fee 	stp	d14, d15, [sp, #48]
+  40697c:	25d8e3e0 	ptrue	p0.d
+  406980:	a5e0a050 	ld1d	{z16.d}, p0/z, [x2]
+  406984:	a5e1a051 	ld1d	{z17.d}, p0/z, [x2, #1, mul vl]
+  406988:	a5e2a052 	ld1d	{z18.d}, p0/z, [x2, #2, mul vl]
+  40698c:	a5e3a053 	ld1d	{z19.d}, p0/z, [x2, #3, mul vl]
+  406990:	a5e4a054 	ld1d	{z20.d}, p0/z, [x2, #4, mul vl]
+  406994:	a5e5a055 	ld1d	{z21.d}, p0/z, [x2, #5, mul vl]
+  406998:	a5e6a056 	ld1d	{z22.d}, p0/z, [x2, #6, mul vl]
+  40699c:	a5e7a057 	ld1d	{z23.d}, p0/z, [x2, #7, mul vl]
+  4069a0:	c00800ff 	zero	{za}
+  4069a4:	aa0103e9 	mov	x9, x1
+  4069a8:	a5e0e120 	ld4d	{z0.d-z3.d}, p0/z, [x9]
+  4069ac:	8b030129 	add	x9, x9, x3
+  4069b0:	80d00000 	fmopa	za0.d, p0/m, p0/m, z0.d, z16.d
+  4069b4:	80d00022 	fmopa	za2.d, p0/m, p0/m, z1.d, z16.d
+  4069b8:	80d00044 	fmopa	za4.d, p0/m, p0/m, z2.d, z16.d
+  4069bc:	80d00066 	fmopa	za6.d, p0/m, p0/m, z3.d, z16.d
+--- 大数组 HBM: 256 128 256
+kc=256 nc=128 mb=256  cpu=40
+1. kloop_plain A 128B/k          :     2056 周期 = 8.03 周期/步
+1b. kloop_plain A 512B/k         :     2219 周期 = 8.67 周期/步
+2. kloop + dump + epi_sub_std    :     2619 周期 → 额外 571
+2h. kloop_epi_sub(宿主回写)+dump  :     2342 周期 → 额外 294
+2s. kloop_epi_set(宿主回写)+dump  :     2325 周期 → 额外 277
+3a. pack_strip_ld4（稠密 128B/k）   :     2121 周期 = 0.52 周期/元素  ok
+3b. pack_strip_ld2（交替 128/384）   :     2076 周期 = 0.51 周期/元素  ok
+3c. pack_strip_za（512B/k）          :     2634 周期 = 0.64 周期/元素  ok
+3d. pack_strip（SVE zip/tbl2）       :     4102 周期 = 1.00 周期/元素
+3k. kloop A=ld2 布局                 :     2057 周期 = 8.03 周期/步
+SIG4 at pc=0x4069a0 insn=c00800ff
+=== DONE
+Thu Sep 10 12:54:22 CST 2026

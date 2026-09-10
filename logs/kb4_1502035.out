@@ -1,0 +1,11 @@
+=== HOST
+cn20482
+Thu Sep 10 12:50:14 CST 2026
+--- kc nc mb = 128 128 256 (DDR)
+--- kc nc mb = 256 128 256 (DDR)
+--- kc nc mb = 128 128 128 (DDR)
+--- kc nc mb = 256 128 128 (DDR)
+--- kc nc mb = 64 128 256 (DDR)
+--- 大数组 HBM: 256 128 256
+=== DONE
+Thu Sep 10 12:50:30 CST 2026

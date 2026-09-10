@@ -1,0 +1,6 @@
+/home/share/wangchenjie/S2/trsm-opt/probe/kb_job.sh: line 8: 849913 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench $cfg
+/home/share/wangchenjie/S2/trsm-opt/probe/kb_job.sh: line 8: 850022 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench $cfg
+/home/share/wangchenjie/S2/trsm-opt/probe/kb_job.sh: line 8: 850155 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench $cfg
+/home/share/wangchenjie/S2/trsm-opt/probe/kb_job.sh: line 8: 850167 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench $cfg
+/home/share/wangchenjie/S2/trsm-opt/probe/kb_job.sh: line 8: 850263 Segmentation fault      (core dumped) OMP_NUM_THREADS=1 taskset -c 40 ./probe/kbench $cfg
+/home/share/wangchenjie/S2/trsm-opt/probe/kb_job.sh: line 11: 850294 Illegal instruction     (core dumped) OMP_NUM_THREADS=1 numactl -m 17 taskset -c 40 ./probe/kbench 256 128 256
