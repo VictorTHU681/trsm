@@ -1270,6 +1270,41 @@ static inline void NAME(double* c, long cs, long cols)                          
 DEF_ZA_C_TRANSFER(za_load_direct, "ld1d", "/z")
 DEF_ZA_C_TRANSFER(za_store_direct, "st1d", "")
 
+// Complete 128-column panels have fixed predicates and a 1024-byte C row stride.
+// The first vector uses C directly, avoiding a redundant address move per row.
+#define FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, R)                             \
+    "mov w12, #" #R "\n\t"                                                        \
+    OP " {za" #T0 "h.d[w12, 0]}, p1" SUFFIX ", [%[xc]]\n\t"                       \
+    "add x13, %[xc], #64\n\t"                                                     \
+    OP " {za" #T1 "h.d[w12, 0]}, p2" SUFFIX ", [x13]\n\t"                         \
+    "add x13, %[xc], #128\n\t"                                                    \
+    OP " {za" #T2 "h.d[w12, 0]}, p3" SUFFIX ", [x13]\n\t"                         \
+    "add x13, %[xc], #192\n\t"                                                    \
+    OP " {za" #T3 "h.d[w12, 0]}, p4" SUFFIX ", [x13]\n\t"                         \
+    "add %[xc], %[xc], #1024\n\t"
+#define FIXED_ZA_C_ROWS8(OP, SUFFIX, T0, T1, T2, T3)                              \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 0)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 1)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 2)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 3)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 4)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 5)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 6)                                 \
+    FIXED_ZA_C_ROW(OP, SUFFIX, T0, T1, T2, T3, 7)
+#define FIXED_DEF_ZA_C_TRANSFER(NAME, OP, SUFFIX)                                 \
+static inline void NAME(double* c, long cs, long cols)                            \
+{                                                                                 \
+    char* xc = (char*)c;                                                          \
+    asm volatile(                                                                 \
+        "ptrue p1.d\n\t" "ptrue p2.d\n\t" "ptrue p3.d\n\t" "ptrue p4.d\n\t"       \
+        FIXED_ZA_C_ROWS8(OP, SUFFIX, 0, 1, 2, 3)                                  \
+        FIXED_ZA_C_ROWS8(OP, SUFFIX, 4, 5, 6, 7)                                  \
+        : [xc] "+&r"(xc) :                                                        \
+        : "memory", "cc", "x9", "x12", "x13", VCLOB, PCLOB);                      \
+}
+FIXED_DEF_ZA_C_TRANSFER(za_load_fixed, "ld1d", "/z")
+FIXED_DEF_ZA_C_TRANSFER(za_store_fixed, "st1d", "")
+
 // ---------------------------------------------------------------- 用 FMOPA 转置打包 A（JIT）
 // 16 行 × kk 列（kk % 8 == 0，16 行全部有效）→ dst：每 k 占 512 B，前 128 B 为 [行 0-7 | 行 8-15] 的第 k 列。
 // 原理：za0 += L 行 r ⊗ e_r（e_r 单位向量）→ za0[k][r] = L[r][k]，tile 行 k 即所需 A 向量；
@@ -2453,9 +2488,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
-    for (long q = 0; q < nstrips; q++) {
-        const long ch = chfirst + q / S;
-        const int r = (int)(q % S);
+    // Prepacked traversal advances one strip at a time; no division by S is needed.
+    long strip_ch = chfirst;
+    int strip_r = 0;
+    for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
+        const long ch = strip_ch;
+        const int r = strip_r;
         const long k0 = ch * kc;
         long kk = i0 - k0; if (kk > kc) kk = kc;
         const long row0 = i0 + 16 * r;
@@ -2485,7 +2523,10 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             A = Acur;
         } else {
-            A = (mode==3) ? (const double*)(c->qp+c->pp_off[i0 / 16 + r]+(size_t)k0*16) : c->pp[cpy] + special_l_offset(c,mode, i0 / 16 + r, k0);
+            // For mode 2 each full KC chunk contains S strips of 1024 doubles.
+            A = (mode==3) ? (const double*)(c->qp+c->pp_off[i0 / 16 + r]+(size_t)k0*16)
+                : c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
+                    : special_l_offset(c,mode,i0/16+r,k0));
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
         long nrow0 = 0, nk0 = 0;
@@ -2504,8 +2545,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             pf_t pf = pf_dummy;
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
             if (pf_on && pfq < nstrips) {
-                long pr0 = i0 + 16 * (pfq % S);
-                long pk0 = (chfirst + pfq / S) * kc;
+                long pr0 = i0 + 16 * (r + 1 == S ? 0 : r + 1);
+                long pk0 = (ch + (r + 1 == S)) * kc;
                 long pkk = i0 - pk0; if (pkk > kc) pkk = kc;
                 long lines_per_row = (pkk * 8 + 63) / 64;
                 long rows_per_tile = (kk / 2) / lines_per_row; if (rows_per_tile < 1) rows_per_tile = 1;
@@ -2517,7 +2558,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = (mode==3) ? (const double*)(c->qp+c->pp_off[pr0/16]+(size_t)pk0*16) : c->pp[cpy] + special_l_offset(c,mode, pr0 / 16, pk0);
+                    const double* An = (mode==3) ? (const double*)(c->qp+c->pp_off[pr0/16]+(size_t)pk0*16)
+                        : c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
+                            : special_l_offset(c,mode,pr0/16,pk0));
                     pf.p = (const char*)An + (size_t)t * (kk / ((mode==3) ? 4 : 2)) * 64;
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
@@ -2543,7 +2586,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             sw_advance(tb);
             if((mode==1)) {
-                PROF_T(c,za_load_direct(acc+16L*r*ncp+32*t,cs,cols),t_load);
+                PROF_T(c,za_load_fixed(acc+16L*r*ncp+32*t,cs,cols),t_load);
             } else sme_zero_za();
             if((mode==3)) {
                 if(pend && kk==64) PROF_T(c,kloop_fixed_qepi(A,64,64,Xk+32*t,cs,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
@@ -2574,7 +2617,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 else PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
             if((mode==1)) {
-                PROF_T(c,za_store_direct(acc+16L*r*ncp+32*t,cs,cols),t_dump);
+                PROF_T(c,za_store_fixed(acc+16L*r*ncp+32*t,cs,cols),t_dump);
                 pend=0;
             } else {
                 PROF_T(c, za_dump(scratch), t_dump);
