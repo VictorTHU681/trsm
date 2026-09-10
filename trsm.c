@@ -1650,10 +1650,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     {
         const double* D = c->diagc[dcpy] + c->diag_off[i];
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
-        long nb_rows = 0, nb_done = 0, nb_lines = 0;
-        const double* nb_base = NULL;
-        long nb_ldb8 = ldb * 8;
-        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        if (!c->owner && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
             long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
