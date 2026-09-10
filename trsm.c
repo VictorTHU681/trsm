@@ -1210,6 +1210,7 @@ static void diag_prep_sub(const double* L, long lda, long i0, int mbi, int s, do
 }
 
 // ---------------------------------------------------------------- 上下文与缓冲
+#define MAX_LCOPY 8
 typedef struct {
     long m, n, lda, ldb;
     const double* L;
@@ -1218,12 +1219,13 @@ typedef struct {
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
-    double* diag;           // 全部行块的对角打包
+    double* diag;           // 全部行块的对角打包（副本 0）
+    double* diagc[MAX_LCOPY]; int ndiag;   // 对角打包副本（面板驻留模式：多份分散同址争用，线程取 tid % ndiag）
     size_t* diag_off;       // 每行块起点（double 下标）
     int jit;                // 1：GEMM 部分就地转置；0：用预打包
     int ppmode;             // 0：预打包在并行区开头一次完成；1：打包作为任务流水式进行（大 L），消费者等 pflags
     volatile int* pflags;   // 每条的打包完成标志（ppmode=1）
-    double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
+    double* pp[MAX_LCOPY]; int npp;        // 预打包副本（常规：0 主 HBM，1 副 DDR；面板驻留模式：npp 份，线程取 tid % npp）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
     volatile int* flags;    // nrb*npan
@@ -1312,11 +1314,12 @@ static inline void sw_advance(tbuf_t* tb)
 
 static tbuf_t g_tb[1024];
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024];
-static double* g_diag = NULL;
-static size_t g_diag_cap = 0;
-static double* g_pp[2] = {NULL, NULL};
-static size_t g_pp_cap[2] = {0, 0};
-static int g_pp_node[2] = {-3, -3};
+static double* g_diag[MAX_LCOPY];
+static size_t g_diag_cap[MAX_LCOPY];
+static int g_diag_node[MAX_LCOPY] = {-3, -3, -3, -3, -3, -3, -3, -3};
+static double* g_pp[MAX_LCOPY];
+static size_t g_pp_cap[MAX_LCOPY];
+static int g_pp_node[MAX_LCOPY] = {-3, -3, -3, -3, -3, -3, -3, -3};
 static int* g_flags = NULL;
 static size_t g_flags_cap = 0;
 static int* g_pflags = NULL;
@@ -1434,8 +1437,10 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 
     // 2. GEMM 段：C 块 -= L[i0.., k0..k0+kk) · X[k0..k0+kk, c0..]
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
-    int cpy = 0;   // 预打包副本选择（按任务交替）
-    if (!c->jit && c->pp[1]) cpy = (int)((i + p) & 1);
+    int cpy = 0;   // 预打包副本选择：常规按任务交替（HBM/DDR 分担）；面板驻留模式按线程取副本（分散同址争用）
+    if (c->owner) cpy = c->npp > 0 ? tid % c->npp : 0;
+    else if (!c->jit && c->pp[1]) cpy = (int)((i + p) & 1);
+    const int dcpy = c->owner ? tid % c->ndiag : 0;
     if (!c->jit && c->ppmode == 1 && i0 > 0) {   // 等本行块各条打包完成
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         for (int r = 0; r < S; r++)
@@ -1452,7 +1457,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     const long nstrips = nchunks * S;
     double* Abuf[2] = { tb->astrip, tb->astrip + 64L * kc };
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
-    const char* dpf = (const char*)(c->diag + c->diag_off[i]);
+    const char* dpf = (const char*)(c->diagc[dcpy] + c->diag_off[i]);
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
@@ -1611,7 +1616,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
     }
     {
-        const double* D = c->diag + c->diag_off[i];
+        const double* D = c->diagc[dcpy] + c->diag_off[i];
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
@@ -1626,6 +1631,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         for (int s = 0; s < S; s++) {
             const double* A = D + diag_strip_off(s);
             long K = 16L * (s + 1);
+            // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
+            const int dnt = c->dnt && K <= 256;
             for (long t = 0; t < ntile; t++) {
                 pf_t pf = pf_dummy;
                 if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
@@ -1829,12 +1836,25 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         doff += diag_block_doubles(c.S_of[i]);
     }
     c.diag_off[c.nrb] = doff;
-    if (g_diag_cap < doff) {
-        trsm_free_buffer(g_diag, g_diag_cap * 8);
-        g_diag = alloc_on(doff * 8, -1);
-        g_diag_cap = doff;
+    // 对角打包副本：常规 1 份（默认节点）；面板驻留模式 TRSM_LCOPIES 份（默认 4）尽量放 HBM，38 线程同步扫同一条带时分散同址争用
+    c.ndiag = c.owner ? env_int("TRSM_LCOPIES", 4) : 1;
+    if (c.ndiag < 1) c.ndiag = 1;
+    if (c.ndiag > MAX_LCOPY) c.ndiag = MAX_LCOPY;
+    for (int k = 0; k < c.ndiag; k++) {
+        int node = -1;
+        if (c.owner && g_hbm_node >= 0) {
+            if (g_diag_cap[k] >= doff && g_diag_node[k] == g_hbm_node) node = g_hbm_node;
+            else { HBM_MAKE_ROOM(doff * 8); node = HBM_ROOM(doff * 8) ? g_hbm_node : -1; }
+        }
+        if (g_diag_cap[k] < doff || g_diag_node[k] != node) {
+            trsm_free_buffer(g_diag[k], g_diag_cap[k] * 8);
+            g_diag[k] = alloc_on(doff * 8, node);
+            g_diag_cap[k] = doff;
+            g_diag_node[k] = node;
+        }
+        c.diagc[k] = g_diag[k];
     }
-    c.diag = g_diag;
+    c.diag = g_diag[0];
 
     // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定
     if (!c.owner) {
@@ -1858,9 +1878,35 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
 
     // 预打包缓冲：条 g 属于行块 i=(16g)/mb，打包 k∈[0, i*mb)
-    c.pp[0] = c.pp[1] = NULL;
+    for (int k = 0; k < MAX_LCOPY; k++) c.pp[k] = NULL;
+    c.npp = 0;
     c.pp_off = NULL;
-    if (!c.jit) {
+    if (!c.jit && c.owner) {
+        // 面板驻留模式：TRSM_LCOPIES 份预打包副本尽量都放 HBM（每份 ≤ 几 MB），线程按 tid 取副本
+        c.pp_off = malloc(sizeof(size_t) * (c.nstrip + 1));
+        size_t off = 0;
+        for (long g = 0; g < c.nstrip; g++) {
+            c.pp_off[g] = off;
+            long i = (16 * g) / mb;
+            off += (size_t)16 * (i * mb);
+        }
+        c.pp_off[c.nstrip] = off;
+        c.npp = c.ndiag;
+        for (int k = 0; k < c.npp; k++) {
+            int node = -1;
+            if (g_hbm_node >= 0) {
+                if (g_pp_cap[k] >= off && g_pp_node[k] == g_hbm_node) node = g_hbm_node;
+                else { HBM_MAKE_ROOM(off * 8 + 4096); node = HBM_ROOM(off * 8 + 4096) ? g_hbm_node : (g_cpu_node >= 0 ? g_cpu_node : -1); }
+            }
+            if (g_pp_cap[k] < off || g_pp_node[k] != node) {
+                trsm_free_buffer(g_pp[k], g_pp_cap[k] * 8);
+                g_pp[k] = alloc_on(off * 8 + 4096, node);
+                g_pp_cap[k] = off;
+                g_pp_node[k] = node;
+            }
+            c.pp[k] = g_pp[k];
+        }
+    } else if (!c.jit) {
         c.pp_off = malloc(sizeof(size_t) * (c.nstrip + 1));
         size_t off = 0;
         for (long g = 0; g < c.nstrip; g++) {
@@ -1891,6 +1937,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             }
             c.pp[k] = g_pp[k];
         }
+        c.npp = c.pp[1] ? 2 : 1;
     }
 
     size_t nflags = (size_t)c.ntask;
@@ -2044,7 +2091,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         for (long q = 0; q < ndiag_items; q++) {
             long i = ditem_i[q];
             long mbi = m - i * mb; if (mbi > mb) mbi = mb;
-            diag_prep_sub(L, lda, i * mb, (int)mbi, ditem_s[q], c.diag + c.diag_off[i] + diag_strip_off(ditem_s[q]));
+            size_t o = c.diag_off[i] + diag_strip_off(ditem_s[q]);
+            diag_prep_sub(L, lda, i * mb, (int)mbi, ditem_s[q], c.diag + o);
+            for (int k = 1; k < c.ndiag; k++) memcpy(c.diagc[k] + o, c.diag + o, (size_t)256 * (ditem_s[q] + 1) * 8);
         }
         // 阶段 1b：预打包（小 L 一次完成；大 L 由打包任务流水完成）
         if (!c.jit && c.ppmode == 0) {
@@ -2054,7 +2103,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 long kk = i * mb;
                 if (kk <= 0) continue;
                 pack_strip(L, lda, m, 16 * g, 0, kk, c.pp[0] + c.pp_off[g]);
-                if (c.pp[1]) memcpy(c.pp[1] + c.pp_off[g], c.pp[0] + c.pp_off[g], (size_t)kk * 16 * 8);
+                for (int k = 1; k < c.npp; k++) memcpy(c.pp[k] + c.pp_off[g], c.pp[0] + c.pp_off[g], (size_t)kk * 16 * 8);
             }
         }
 #pragma omp barrier
