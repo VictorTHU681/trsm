@@ -68,7 +68,7 @@ DEF_PROBE(p_f32_4t, "ptrue p0.s\n\t ptrue p1.s\n\t fdup z0.s, #1.0\n\t fdup z1.s
 DEF_PROBE(p_f32_2t, "ptrue p0.s\n\t ptrue p1.s\n\t fdup z0.s, #1.0\n\t fdup z1.s, #0.5\n\t", OP8_S2("fmopa", "s"))
 DEF_PROBE(p_i8_4t,  "ptrue p0.b\n\t ptrue p1.b\n\t dup z0.b, #3\n\t dup z1.b, #-5\n\t", OP8_S("smopa", "b"))
 DEF_PROBE(p_u8_4t,  "ptrue p0.b\n\t ptrue p1.b\n\t dup z0.b, #3\n\t dup z1.b, #5\n\t", OP8_S("umopa", "b"))
-DEF_PROBE(p_bf16_4t,"ptrue p0.h\n\t ptrue p1.h\n\t dup z0.h, #0x3f80\n\t dup z1.h, #0x3f00\n\t", OP8_S("bfmopa", "h"))
+DEF_PROBE(p_bf16_4t,"ptrue p0.h\n\t ptrue p1.h\n\t dup z0.h, #0x3f00\n\t dup z1.h, #0x3e00\n\t", OP8_S("bfmopa", "h"))
 DEF_PROBE(p_f16w_4t,"ptrue p0.h\n\t ptrue p1.h\n\t dup z0.h, #0x3c00\n\t dup z1.h, #0x3800\n\t", OP8_S("fmopa", "h"))
 #ifdef HAVE_I16I64
 DEF_PROBE(p_i16_8t, "ptrue p0.h\n\t ptrue p1.h\n\t dup z0.h, #3\n\t dup z1.h, #-5\n\t", OP8_D("smopa", "h"))
