@@ -1460,6 +1460,7 @@ typedef struct {
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
+    int dant;               // 专用双 bank GEMM 内核的 A 条用 ldnt1d（TRSM_DANT）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -2225,6 +2226,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 : [ct] "+&r"(ct),[cb] "+&r"(cb):[bs] "r"(bs): "memory","cc","x12",VCLOB,PCLOB);}
 // Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
 // Expand all eight output rows; the final K step never loads another operand.
+#define DUP_LDA "ld1d "
 #define DUPLEX0_U_BODY \
  "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
@@ -2234,9 +2236,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
  "mova z22.d, p0/m, za7h.d[w12, 0]\n\t" \
  "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2244,9 +2246,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t" \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2260,9 +2262,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "prfm pldl2keep, [%[bp]]\n\t" \
  "add %[ap], %[ap], #64\n\t" \
  "add %[bp], %[bp], #64\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2270,9 +2272,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t" \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2287,9 +2289,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "prfm pldl2keep, [%[pc], #8192]\n\t" \
  "prfm pldl2keep, [%[pc], #8256]\n\t" \
  "add %[pc], %[pc], #1024\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2297,9 +2299,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t" \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2313,9 +2315,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "prfm pldl2keep, [%[bp]]\n\t" \
  "add %[ap], %[ap], #64\n\t" \
  "add %[bp], %[bp], #64\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2324,9 +2326,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t"
 #define DUPLEX0_U_NEXT \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2353,8 +2355,8 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "ptrue p0.d\n\t"
  "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
  "mov w12, #0\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
  "ld1d z4.d, p0/z, [%[b]]\n\t"
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
@@ -2368,6 +2370,34 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
  "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_LDA
+#define DUP_LDA "ldnt1d "
+// A 条 ldnt1d 版本（TRSM_DANT）：GEMM 的 A 流不在 L2 滞留
+static inline void kloop_duplex_bank0_nt(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_LDA
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
 #undef DUPLEX0_U_LAST
@@ -2375,6 +2405,7 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
 
 // Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
 // Expand all eight output rows; the final K step never loads another operand.
+#define DUP_LDA "ld1d "
 #define DUPLEX4_U_BODY \
  "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
@@ -2384,9 +2415,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
  "mova z22.d, p0/m, za3h.d[w12, 0]\n\t" \
  "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2394,9 +2425,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t" \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2410,9 +2441,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "prfm pldl2keep, [%[bp]]\n\t" \
  "add %[ap], %[ap], #64\n\t" \
  "add %[bp], %[bp], #64\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2420,9 +2451,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t" \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2437,9 +2468,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "prfm pldl2keep, [%[pc], #8192]\n\t" \
  "prfm pldl2keep, [%[pc], #8256]\n\t" \
  "add %[pc], %[pc], #1024\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2447,9 +2478,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t" \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2463,9 +2494,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "prfm pldl2keep, [%[bp]]\n\t" \
  "add %[ap], %[ap], #64\n\t" \
  "add %[bp], %[bp], #64\n\t" \
- "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
  "ld1d z12.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
@@ -2474,9 +2505,9 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t"
 #define DUPLEX4_U_NEXT \
- "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
  "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "ld1d z4.d, p0/z, [%[b]]\n\t" \
  "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
@@ -2503,8 +2534,8 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "ptrue p0.d\n\t"
  "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
  "mov w12, #0\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
  "ld1d z4.d, p0/z, [%[b]]\n\t"
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
@@ -2518,6 +2549,34 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
  "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_LDA
+#define DUP_LDA "ldnt1d "
+// A 条 ldnt1d 版本（TRSM_DANT）：GEMM 的 A 流不在 L2 滞留
+static inline void kloop_duplex_bank4_nt(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_LDA
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
 #undef DUPLEX4_U_LAST
@@ -2709,8 +2768,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
+                if (c->dant) {
+                    PROF_T(c,kloop_duplex_bank0_nt(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
+                    PROF_T(c,kloop_duplex_bank4_nt(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                } else {
                 PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
                 PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                }
                 pend=1;pend_c=cur;pend_cols=cols;
                 if(c->prof>=2)tb->n_kstep+=kk;
                 continue;
@@ -3025,6 +3089,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.xptm = env_int("TRSM_XPTM", 0);
         c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
+        c.dant = env_int("TRSM_DANT", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
