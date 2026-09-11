@@ -1473,6 +1473,7 @@ typedef struct {
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
+    int fstore;             // 专用路径 mode2：Xp 与 X 融合成单遍回写（cbuf 每行只读一次，两条写流交错；TRSM_FSTORE）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -2856,7 +2857,30 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         double* Bout=Bblk;
 
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb && (mode==2 || mode==4) && c->xptm) {
+        // mode2 融合回写：每行读一次 cbuf，同时写 Xp 微面板（st1）与 X 行（对齐 stnt1），flag 在两者之后
+        const int fst = c->fstore && mode == 2 && !last_rb;
+        if (fst) {
+            for (long r = 0; r < mbi; r++) {
+                long gr = i0 + r;
+                const double* s = cb + r * ncp;
+                double* pan = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp;
+                long ro = (gr % kc) * 16;
+                for (long j = 0; j < nc; j += 16) {
+                    double* dj = pan + (j / 16) * kc * 16 + ro;
+                    svst1_f64(pg, dj, svld1_f64(pg, s + j));
+                    svst1_f64(pg, dj + 8, svld1_f64(pg, s + j + 8));
+                }
+                double* d = Bout + r * ldb;
+                long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);
+                if (pre > nci) pre = nci;
+                long j = 0;
+                if (pre) { svbool_t ph = svwhilelt_b64(0L, pre); svstnt1_f64(ph, d, svld1_f64(ph, s)); j = pre; }
+                for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (j < nci) { svbool_t pj = svwhilelt_b64((long)j, (long)nci); svstnt1_f64(pj, d + j, svld1_f64(pj, s + j)); }
+            }
+            __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+        }
+        if (!fst && !last_rb && (mode==2 || mode==4) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
@@ -2870,7 +2894,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     }
                 }
             }
-        } else if (!last_rb) for (long r = 0; r < mbi; r++) {
+        } else if (!fst && !last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
@@ -2886,12 +2910,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         // 专用路径的消费者只读 Xp（列块主序副本），不读 X：Xp 写完就发布 flag，X 的回写放到 flag 之后——
         // 缩短行块间依赖链（case3 每环 ≈ 最后一段 GEMM + 归约 + 对角 + 回写，89 环串行），下游任务少等一次 X 回写的时间
-        if (c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+        if (c->eflag && !fst) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
         // The specialized Xp layout is tiled; copy final output from C below.
         const int can_sw = 0;
-        if (can_sw) {
+        if (fst) {
+        } else if (can_sw) {
             for (long r0 = 0; r0 < mbi; r0 += kc) {
                 long rows = mbi - r0; if (rows > kc) rows = kc;
                 sw_t w;
@@ -2933,7 +2958,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    if (!c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (!c->eflag && !fst) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
@@ -3013,6 +3038,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.eflag = env_int("TRSM_EFLAG", 1);
+        c.fstore = env_int("TRSM_FSTORE", 0);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     {
