@@ -1483,7 +1483,9 @@ typedef struct {
     size_t* diag_off;       // 每行块起点（double 下标）
     int jit;                // 1：GEMM 部分就地转置；0：用预打包
     int ppmode;             // 0：预打包在并行区开头一次完成；1：打包作为任务流水式进行（大 L），消费者等 pflags
-    volatile int* pflags;   // 每条的打包完成标志（ppmode=1）
+    volatile int* pflags;   // 每条的打包完成标志（ppmode=1；nobar 时 ppmode=0 也用）
+    volatile int* dcnt;     // 每个行块已完成的对角条数（nobar：任务对角阶段前等它等于 S_of[i]）
+    int nobar;              // 预处理阶段不设全局 barrier：预处理项按行块顺序动态领取，消费者用 pflags/dcnt 等（TRSM_NOBAR）
     double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
@@ -1579,6 +1581,7 @@ static int* g_flags = NULL;
 static size_t g_flags_cap = 0;
 static int* g_pflags = NULL;
 static size_t g_pflags_cap = 0;
+static int* g_dcnt = NULL; static size_t g_dcnt_cap = 0;
 static int* g_seg_cnt = NULL;
 static task_t* g_tasks = NULL;
 static size_t g_tasks_cap = 0;
@@ -1758,7 +1761,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!(fast_owner ? 0 : c->jit) && c->pp[1]) cpy = (int)((i + p) & 1);
-    if (!(fast_owner ? 0 : c->jit) && (fast_owner ? 0 : c->ppmode) == 1 && i0 > 0) {   // 等本行块各条打包完成
+    if (!(fast_owner ? 0 : c->jit) && ((fast_owner ? 0 : c->ppmode) == 1 || c->nobar) && i0 > 0) {   // 等本行块各条打包完成（nobar 时预打包也按条设 flag）
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         for (int r = 0; r < S; r++)
             while (__atomic_load_n(&c->pflags[i0 / 16 + r], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
@@ -1965,6 +1968,11 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     }
 
     // 3. 对角求解：X[s] = Linv_ss C[s] - Σ (Linv_ss L_ss') X[s']，A = 对角打包条带，B = C 块行 0..16(s+1)
+    if (c->nobar) {   // 本行块的对角条是否都已预处理好（无 barrier 模式）
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        while (__atomic_load_n(&c->dcnt[i], __ATOMIC_ACQUIRE) < S) asm volatile("yield");
+        if (c->prof >= 2) tb->t_wait += cyc() - t0;
+    }
     if ((fast_owner ? 1 : c->reserve) && !(fast_owner ? 1 : c->owner)) {   // 此时预占下一任务：提前量只有对角阶段 + 回写，不会明显加深依赖流水（面板驻留模式下一任务已确定，作为 tkn_guess 传入）
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
@@ -2570,7 +2578,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!0 && c->pp[1]) cpy = (int)((i + p) & 1);
     // FP64 narrow panels consume asynchronously packed L strips.
-    if(mode==4 && i0>0) {
+    if((mode==4 || c->nobar) && i0>0) {
         uint64_t t0=c->prof>=2?cyc():0;
         for(int r=0;r<S;r++)
             while(__atomic_load_n(&c->pflags[i0/16+r],__ATOMIC_ACQUIRE)==0) asm volatile("yield");
@@ -2775,6 +2783,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     }
 
     // 3. 对角求解：X[s] = Linv_ss C[s] - Σ (Linv_ss L_ss') X[s']，A = 对角打包条带，B = C 块行 0..16(s+1)
+    if (c->nobar) {   // 本行块的对角条是否都已预处理好（无 barrier 模式）
+        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        while (__atomic_load_n(&c->dcnt[i], __ATOMIC_ACQUIRE) < S) asm volatile("yield");
+        if (c->prof >= 2) tb->t_wait += cyc() - t0;
+    }
     if (1) {   // 此时预占下一任务：提前量只有对角阶段 + 回写，不会明显加深依赖流水
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
@@ -3140,6 +3153,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (g_pflags_cap < (size_t)c.nstrip) { free(g_pflags); g_pflags = calloc(c.nstrip, sizeof(int)); g_pflags_cap = c.nstrip; }
     memset(g_pflags, 0, c.nstrip * sizeof(int));
     c.pflags = g_pflags;
+    if (g_dcnt_cap < (size_t)c.nrb) { free(g_dcnt); g_dcnt = calloc(c.nrb, sizeof(int)); g_dcnt_cap = c.nrb; }
+    memset(g_dcnt, 0, c.nrb * sizeof(int));
+    c.dcnt = g_dcnt;
+    c.nobar = env_int("TRSM_NOBAR", 1);
 
     // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
     // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)
@@ -3269,15 +3286,23 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         (void)ntile_full;
     }
 
-    // 预处理工作项：对角子块 (i, s) 与预打包条 g
+    // 预处理工作项：对角子块 (i, s) 与预打包条 g。nobar 时合成一张按行块顺序排列的表（对角项 ditem_s>=0，打包条 ditem_s=-1、ditem_i=g），
+    // 各线程动态领取，做完自己领到的就直接进任务阶段（消费者按 pflags/dcnt 等，通常早已就绪）——省掉全局 barrier 等最慢线程
+    const int prep_pack = !c.jit && c.ppmode == 0;
     long ndiag_items = 0;
     for (long i = 0; i < c.nrb; i++) ndiag_items += c.S_of[i];
-    long* ditem_i = malloc(sizeof(long) * ndiag_items);
-    int* ditem_s = malloc(sizeof(int) * ndiag_items);
+    long nprep_items = ndiag_items + ((c.nobar && prep_pack) ? c.nstrip : 0);
+    long* ditem_i = malloc(sizeof(long) * nprep_items);
+    int* ditem_s = malloc(sizeof(int) * nprep_items);
     {
         long q = 0;
-        for (long i = 0; i < c.nrb; i++)
+        for (long i = 0; i < c.nrb; i++) {
             for (int s = 0; s < c.S_of[i]; s++) { ditem_i[q] = i; ditem_s[q] = s; q++; }
+            if (c.nobar && prep_pack) {
+                long g0 = i * mb / 16, g1 = (i + 1) * mb / 16; if (g1 > c.nstrip) g1 = c.nstrip;
+                for (long g = g0; g < g1; g++) { ditem_i[q] = g; ditem_s[q] = -1; q++; }
+            }
+        }
     }
     uint64_t t1 = c.prof ? cyc() : 0;
 
@@ -3296,15 +3321,30 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->n_swflush = tb->n_swq = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
-        // 阶段 1：对角预处理
+        // 阶段 1：对角预处理（+ nobar 时的预打包条，同一张表、按行块顺序动态领取）
 #pragma omp for schedule(dynamic, 1) nowait
-        for (long q = 0; q < ndiag_items; q++) {
-            long i = ditem_i[q];
-            long mbi = m - i * mb; if (mbi > mb) mbi = mb;
-            diag_prep_sub(L, lda, i * mb, (int)mbi, ditem_s[q], c.diag + c.diag_off[i] + diag_strip_off(ditem_s[q]));
+        for (long q = 0; q < nprep_items; q++) {
+            if (ditem_s[q] >= 0) {
+                long i = ditem_i[q];
+                long mbi = m - i * mb; if (mbi > mb) mbi = mb;
+                diag_prep_sub(L, lda, i * mb, (int)mbi, ditem_s[q], c.diag + c.diag_off[i] + diag_strip_off(ditem_s[q]));
+                if (c.nobar) __atomic_fetch_add(&c.dcnt[i], 1, __ATOMIC_RELEASE);
+            } else {
+                long g = ditem_i[q];
+                long i = (16 * g) / mb;
+                long kk = i * mb;
+                if (kk > 0) {
+                    if (c.lchunk) pack_l_chunked(&c, g);
+                    else {
+                        pack_strip(L, lda, m, 16 * g, 0, kk, c.pp[0] + c.pp_off[g]);
+                        if (c.pp[1]) memcpy(c.pp[1] + c.pp_off[g], c.pp[0] + c.pp_off[g], (size_t)kk * 16 * 8);
+                    }
+                }
+                __atomic_store_n(&c.pflags[g], 1, __ATOMIC_RELEASE);
+            }
         }
-        // 阶段 1b：预打包（小 L 一次完成；大 L 由打包任务流水完成）
-        if (!c.jit && c.ppmode == 0) {
+        // 阶段 1b：预打包（barrier 模式：单独一轮）
+        if (prep_pack && !c.nobar) {
 #pragma omp for schedule(dynamic, 1) nowait
             for (long g = 0; g < c.nstrip; g++) {
                 long i = (16 * g) / mb;
@@ -3315,8 +3355,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (c.pp[1]) memcpy(c.pp[1] + c.pp_off[g], c.pp[0] + c.pp_off[g], (size_t)kk * 16 * 8);
             }
         }
+        if (!c.nobar) {
 #pragma omp barrier
-        if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理 + barrier
+        }
+        if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理（+ barrier）
         // 阶段 2：任务
         // 面板驻留模式的线程调度表在进入流式模式前建好（流式区内 malloc 等系统调用会清 PSTATE.SM → 后续 SME 指令 SIGILL）：
         // 线程 tid 的连续区间 [a, b)（面板主序）。区间两端可能各含一个不完整面板：
