@@ -3225,15 +3225,24 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (nseg > nch) nseg = (int)nch;
                 if (nseg < 1) nseg = 1;
             }
-            for (long p = 0; p < c.npan; p++) {
-                for (int s = 0; s < nseg; s++) {
-                    task_t* t = &g_tasks[q++];
-                    t->kind = 0; t->g = 0;
-                    t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
-                    t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
-                    t->part_off = poff;
+            // 分裂任务的派发顺序：TRSM_LASTLATE=1 时先派发各面板的非末段（不依赖前一行块），末段（含最后一个 K 段、要等前一行块 flag）放到最后，
+            // 让末段更晚到达等待点、独立工作更早开始
+            const int lastlate = nseg > 1 && env_int("TRSM_LASTLATE", 1);
+            size_t poff0 = poff;
+            for (int pass = 0; pass < (lastlate ? 2 : 1); pass++) {
+                poff = poff0;
+                for (long p = 0; p < c.npan; p++) {
+                    for (int s = 0; s < nseg; s++) {
+                        int is_last = s == nseg - 1;
+                        if (lastlate && (pass == 0) == is_last) continue;   // pass 0：非末段；pass 1：末段
+                        task_t* t = &g_tasks[q++];
+                        t->kind = 0; t->g = 0;
+                        t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
+                        t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
+                        t->part_off = poff;
+                    }
+                    if (nseg > 1) poff += (size_t)nseg * mb * c.ncp;
                 }
-                if (nseg > 1) poff += (size_t)nseg * mb * c.ncp;
             }
         }
         nitems = q;
