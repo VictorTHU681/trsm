@@ -4,7 +4,7 @@
 // 结构：
 //   * 任务 = (行块 i：mb 行, 列块 p：nc 列)。C 块 (mb×nc) 放在线程私有缓冲里驻留 L2；
 //     K 维按 kc 分段，每段对行块内每个 16 行条：取打包 A（L 的列段，k 主序 16 double/步），
-//     对该行条的 nc/32 个微块各跑一次 K 循环；常规路径转存 ZA，完整宽 FP64 面板用两组 16×16 ZA 交错回写。
+//     对该行条的 nc/32 个微块各跑一次 K 循环；常规路径转存 ZA，完整 FP64 面板用两组 16×16 ZA 交错回写。
 //   * 对角块预处理成 [-Linv_ss·L_ss' | Linv_ss]（16 行子块 s），整段对角求解也是一次 fmopa K 循环：
 //     X[s] = Linv_ss·C[s] - Σ_{s'<s} (Linv_ss L_ss') X[s']，无除法、无三角小核。
 //   * L 小时预打包成 k 主序 16 行条（可放两份分担 HBM/DDR）；L 大时就地 JIT 转置（SVE zip+tbl2 8×8）。
@@ -1999,7 +1999,7 @@ static inline size_t special_l_offset(const ctx_t* c,int mode,long g,long k0) {
 // A kernel clears/computes its own bank while MOVA drains the preceding bank
 // into C. This overlaps output subtraction with FMOPA and avoids ZA scratch
 // dumps. Only the final ZA4..7 bank needs a separate flush.
-// Admission is mode 2 (MB256/NC128/KC64). Xp stores eight contiguous Kx16
+// Modes 2/4 use MB256/192 with NC128/KC64. Xp stores eight contiguous Kx16
 // micro-panels per chunk; C remains row-major with stride 128. A loads are
 // temporal so the second column half can reuse the same 16-row strip.
 // The last K step performs no preload, including at the allocation boundary.
@@ -2073,8 +2073,8 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[ap]]\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "prfm pldl2keep, [%[bp]]\n\t"
  "add %[ap], %[ap], #64\n\t"
  "add %[bp], %[bp], #64\n\t"
  "ld1d z8.d, p0/z, [%[a]]\n\t"
@@ -2130,8 +2130,8 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[ap]]\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "prfm pldl2keep, [%[bp]]\n\t"
  "add %[ap], %[ap], #64\n\t"
  "add %[bp], %[bp], #64\n\t"
  "ld1d z8.d, p0/z, [%[a]]\n\t"
@@ -2213,8 +2213,8 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[ap]]\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "prfm pldl2keep, [%[bp]]\n\t"
  "add %[ap], %[ap], #64\n\t"
  "add %[bp], %[bp], #64\n\t"
  "ld1d z8.d, p0/z, [%[a]]\n\t"
@@ -2270,8 +2270,8 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[ap]]\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "prfm pldl2keep, [%[bp]]\n\t"
  "add %[ap], %[ap], #64\n\t"
  "add %[bp], %[bp], #64\n\t"
  "ld1d z8.d, p0/z, [%[a]]\n\t"
@@ -2372,6 +2372,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!0 && c->pp[1]) cpy = (int)((i + p) & 1);
+    // FP64 narrow panels consume asynchronously packed L strips.
+    if(mode==4 && i0>0) {
+        uint64_t t0=c->prof>=2?cyc():0;
+        for(int r=0;r<S;r++)
+            while(__atomic_load_n(&c->pflags[i0/16+r],__ATOMIC_ACQUIRE)==0) asm volatile("yield");
+        if(c->prof>=2)tb->t_wait+=cyc()-t0;
+    }
 
     int pend = 0;            // 有待回写的上一微块（暂存中）
     double* pend_c = NULL;
@@ -2389,7 +2396,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     // Prepacked traversal advances one strip at a time; no division by S is needed.
     // The first previous bank is zero; later kernels consume the preceding output.
-    if(mode==2)sme_zero_za();
+    if((mode==2 || mode==4))sme_zero_za();
     long strip_ch = chfirst;
     int strip_r = 0;
     for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
@@ -2424,8 +2431,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             A = Acur;
         } else {
-            // For mode 2 each full KC chunk contains S strips of 1024 doubles.
-            A = c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
+            // Each full KC chunk contains S strips of 1024 doubles.
+            A = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
                     : special_l_offset(c,mode,i0/16+r,k0));
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
@@ -2458,7 +2465,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
+                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
                     pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
@@ -2483,7 +2490,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
             if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
-            if(mode==2) {
+            if((mode==2 || mode==4)) {
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
@@ -2532,7 +2539,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
-    if(mode==2 && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
+    if((mode==2 || mode==4) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
@@ -2633,8 +2640,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             const double* s = cb + r * ncp;
             if (0) for (long j = 0; j < nc; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
             else for (long j = 0; j < nc; j += 8) {
-                // Mode 2 packs Kx16 X tiles for the duplex kernels.
-                double* dj=(mode==2)?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                // Duplex modes pack Kx16 X tiles for the shared FP64 kernels.
+                double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svst1_f64(pg,dj,svld1_f64(pg,s+j));
             }
         }
@@ -2692,6 +2699,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
 
 static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1);}
 static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2);}
+static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4);}
 // ---------------------------------------------------------------- 主流程
 static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
 {
@@ -2750,6 +2758,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if(env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
       if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
       if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
+      if(mb==192 && !c.direct && c.ppmode==1 && c.npan<=8 &&
+         (!c.swhost || env_int("TRSM_SWHOST",-1)<0)) {
+        c.special=4;
+        c.swhost=0; // Kx16 Xp is copied to B directly after the diagonal solve.
+      }
     }
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
@@ -2998,6 +3011,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
         if(c.special==2)taskfn=run_task_special2;
+        if(c.special==4)taskfn=run_task_special4;
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
