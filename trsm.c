@@ -2958,7 +2958,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    if (!c->eflag && !fst) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (!c->eflag && !(c->fstore && mode == 2 && i + 1 != c->nrb)) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
