@@ -1517,6 +1517,7 @@ typedef struct {
     long n_swflush, n_swq;   // 同步收尾拷的 cache 行数 / 排队的总行数（诊断托管走线器是否生效）
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
+    uint64_t t_by_i[16]; long n_by_i[16];   // prof>=3：按行块号统计任务耗时（前 16 个行块）
     long n_task, n_kstep;
     uint64_t t_dump, t_ddump;
     long n_dkstep;
@@ -2172,7 +2173,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
     __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
-    if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
+    if (c->prof >= 2) { uint64_t dt = cyc() - tt0; tb->t_task += dt; tb->n_task++; if (c->prof >= 3 && tk->i < 16) { tb->t_by_i[tk->i] += dt; tb->n_by_i[tk->i]++; } }
     (void)tid;
     return tnext;
 }
@@ -2965,7 +2966,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
     __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
-    if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
+    if (c->prof >= 2) { uint64_t dt = cyc() - tt0; tb->t_task += dt; tb->n_task++; if (c->prof >= 3 && tk->i < 16) { tb->t_by_i[tk->i] += dt; tb->n_by_i[tk->i]++; } }
     (void)tid;
     return tnext;
 }
@@ -3310,6 +3311,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->n_task = tb->n_kstep = tb->n_dkstep = 0;
             tb->t_dump = tb->t_ddump = 0;
             tb->n_swflush = tb->n_swq = 0;
+            for (int q = 0; q < 16; q++) { tb->t_by_i[q] = 0; tb->n_by_i[q] = 0; }
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
         // 阶段 1：对角预处理
@@ -3439,6 +3441,15 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 fprintf(stderr, "[trsm prof]  每线程收尾 µs:");
                 for (int t = 0; t < nth; t++) fprintf(stderr, " %d:%.0f%s", t, (g_tail_cyc[t] - tail_min) / hz * 1e6, c.owner ? "" : "");
                 fprintf(stderr, "\n");
+                {
+                    fprintf(stderr, "[trsm prof]  按行块 i 的平均任务耗时 µs:");
+                    for (int q = 0; q < 16 && q < c.nrb; q++) {
+                        double tt = 0; long nn = 0;
+                        for (int t = 0; t < nth; t++) { tt += g_tb[t].t_by_i[q]; nn += g_tb[t].n_by_i[q]; }
+                        if (nn) fprintf(stderr, " %d:%.1f", q, tt / nn / hz * 1e6);
+                    }
+                    fprintf(stderr, "\n");
+                }
                 if (c.owner) {
                     fprintf(stderr, "[trsm prof]  每线程任务数/ms:");
                     for (int t = 0; t < nth; t++) fprintf(stderr, " %ld/%.3f", c.owner_bound[t + 1] - c.owner_bound[t], g_tb[t].t_task / hz * 1e3);
