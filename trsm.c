@@ -1,9 +1,10 @@
 // TRSM：鲲鹏 SME(FP64 FMOPA) 实现。解 L·X = B，L 为行主序 m×m 下三角（lda），B/X 行主序 m×n（ldb），原地覆盖。
+// 系数存储与计算均使用 FP64；不得利用输入生成器的数值格点或随机状态。
 //
 // 结构：
 //   * 任务 = (行块 i：mb 行, 列块 p：nc 列)。C 块 (mb×nc) 放在线程私有缓冲里驻留 L2；
 //     K 维按 kc 分段，每段对行块内每个 16 行条：取打包 A（L 的列段，k 主序 16 double/步），
-//     对该行条的 nc/32 个微块各跑一次 K 循环；常规路径转存 ZA，完整宽 FP64 / 窄 Q32 面板用两组 16×16 ZA 交错回写。
+//     对该行条的 nc/32 个微块各跑一次 K 循环；常规路径转存 ZA，完整宽 FP64 面板用两组 16×16 ZA 交错回写。
 //   * 对角块预处理成 [-Linv_ss·L_ss' | Linv_ss]（16 行子块 s），整段对角求解也是一次 fmopa K 循环：
 //     X[s] = Linv_ss·C[s] - Σ_{s'<s} (Linv_ss L_ss') X[s']，无除法、无三角小核。
 //   * L 小时预打包成 k 主序 16 行条（可放两份分担 HBM/DDR）；L 大时就地 JIT 转置（SVE zip+tbl2 8×8）。
@@ -15,7 +16,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include <float.h>
 #include <sched.h>
 #include <unistd.h>
 #include <sys/auxv.h>
@@ -639,13 +639,6 @@ DEF_KLOOP_PLAIN(kloop_plain_direct_t)
 #define K_MOP "fmopa "
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
-#define EV_SUB_Q(j, pj, zt, zu)                                                     \
-    "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
-    "ld1d " zu ".d, " pj "/z, [%[xc], #" #j ", mul vl]\n\t"                       \
-    "fmls " zu ".d, p0/m, " zt ".d, z20.d\n\t"                                       \
-    "st1d " zu ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
-
-
 // Full-panel kernels use immediate A/C/Xp strides to reduce GPR operands.
 // Dispatch requires NC=128, KC=64 and n divisible by 128; every GEMM chunk is full.
 #define DEF_FIXED_EPI64(NAME, EV)                                                                                 \
@@ -799,202 +792,6 @@ DEF_FIXED_PLAIN(kloop_fixed_direct)
     "subs x9, x9, #8\n\t"                                                         \
     "csel x9, x9, xzr, gt\n\t"                                                    \
     "whilelo p4.d, xzr, x9\n\t"
-#undef KS
-#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
-    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
-    "sunpklo " n0 ".d, z28.s\n\t" \
-    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
-    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
-    "sunpkhi " n1 ".d, z28.s\n\t" \
-    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
-    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
-    "scvtf " n0 ".d, p0/m, " n0 ".d\n\t" \
-    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
-    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
-    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
-    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
-    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
-    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
-    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
-    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
-    "scvtf " n1 ".d, p0/m, " n1 ".d\n\t" \
-    "add %[xa], %[xa], " ADV "\n\t"                                               \
-    "add %[xb], %[xb], %[bs]\n\t"
-
-#undef KLOOP_INIT
-#define KLOOP_INIT                                                                \
-    "movz x9, #0x20, lsl #16\n\t" \
-    "movk x9, #0x3df0, lsl #48\n\t" \
-    "dup z20.d, x9\n\t ptrue p5.s\n\t" \
-    "ptrue p0.d\n\t"                                                              \
-    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
-    "sunpklo z0.d, z28.s\n\t" \
-    "sunpkhi z1.d, z28.s\n\t" \
-    "scvtf z0.d, p0/m, z0.d\n\t" \
-    "scvtf z1.d, p0/m, z1.d\n\t" \
-    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
-    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
-    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
-    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
-    "add %[xa], %[xa], %[ase]\n\t"                                                \
-    "add %[xb], %[xb], %[bs]\n\t"
-
-#undef KROWP
-#define KROWP(EV)                                                                 \
-    KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
-    KS_ODD  EV(1, "p2", "z18", "z19") PFC                                         \
-    KS_EVEN EV(2, "p3", "z16", "z17") PFX SWS_GATE_R SWS                      \
-    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
-    EV_ROW_ADV
-
-DEF_KLOOP_PLAIN(kloop_q32_plain)
-DEF_KLOOP_EPI64(kloop_q32_epi, EV_SUB_Q)
-DEF_KLOOP_EPI(kloop_q32_epi_any, EV_SUB_Q)
-#undef KS
-#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
-    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
-    "sunpklo " n0 ".d, z28.s\n\t" \
-    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
-    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
-    "sunpkhi " n1 ".d, z28.s\n\t" \
-    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
-    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
-    "scvtf " n0 ".d, p0/m, " n0 ".d\n\t" \
-    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
-    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
-    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
-    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
-    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
-    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
-    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
-    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
-    "scvtf " n1 ".d, p0/m, " n1 ".d\n\t" \
-    "add %[xa], %[xa], " ADV "\n\t"                                               \
-    "add %[xb], %[xb], #1024\n\t"
-#undef KLOOP_INIT
-#define KLOOP_INIT                                                                \
-    "movz x9, #0x20, lsl #16\n\t" \
-    "movk x9, #0x3df0, lsl #48\n\t" \
-    "dup z20.d, x9\n\t ptrue p5.s\n\t" \
-    "ptrue p0.d\n\t"                                                              \
-    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
-    "sunpklo z0.d, z28.s\n\t" \
-    "sunpkhi z1.d, z28.s\n\t" \
-    "scvtf z0.d, p0/m, z0.d\n\t" \
-    "scvtf z1.d, p0/m, z1.d\n\t" \
-    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
-    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
-    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
-    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
-    "add %[xa], %[xa], #64\n\t"                                                \
-    "add %[xb], %[xb], #1024\n\t"
-#undef KS_EVEN
-#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "#64")
-#undef KS_ODD
-#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "#64")
-#undef EV_ROW_ADV
-#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], #1024\n\t"
-#undef SET_EPI_PREDS
-#define SET_EPI_PREDS "ptrue p1.d\n\t ptrue p2.d\n\t ptrue p3.d\n\t ptrue p4.d\n\t"
-DEF_FIXED_PLAIN(kloop_fixed_qplain)
-DEF_FIXED_EPI64(kloop_fixed_qepi, EV_SUB_Q)
-#undef KS
-#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
-    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
-    "sunpklo " n0 ".d, z28.s\n\t" \
-    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
-    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
-    "sunpkhi " n1 ".d, z28.s\n\t" \
-    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
-    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
-    "scvtf " n0 ".d, p0/m, " n0 ".d\n\t" \
-    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
-    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
-    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
-    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
-    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
-    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
-    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
-    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
-    "scvtf " n1 ".d, p0/m, " n1 ".d\n\t" \
-    "add %[xa], %[xa], " ADV "\n\t"                                               \
-    "add %[xb], %[xb], %[bs]\n\t"
-#undef KLOOP_INIT
-#define KLOOP_INIT                                                                \
-    "movz x9, #0x20, lsl #16\n\t" \
-    "movk x9, #0x3df0, lsl #48\n\t" \
-    "dup z20.d, x9\n\t ptrue p5.s\n\t" \
-    "ptrue p0.d\n\t"                                                              \
-    "ldnt1w z28.s, p5/z, [%[xa]]\n\t" \
-    "sunpklo z0.d, z28.s\n\t" \
-    "sunpkhi z1.d, z28.s\n\t" \
-    "scvtf z0.d, p0/m, z0.d\n\t" \
-    "scvtf z1.d, p0/m, z1.d\n\t" \
-    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
-    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
-    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
-    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
-    "add %[xa], %[xa], %[ase]\n\t"                                                \
-    "add %[xb], %[xb], %[bs]\n\t"
-#undef KS_EVEN
-#define KS_EVEN KS("z0", "z1", "z4", "z5", "z6", "z7", "z8", "z9", "z12", "z13", "z14", "z15", "%[aso]")
-#undef KS_ODD
-#define KS_ODD  KS("z8", "z9", "z12", "z13", "z14", "z15", "z0", "z1", "z4", "z5", "z6", "z7", "%[ase]")
-#undef EV_ROW_ADV
-#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
-#undef SET_EPI_PREDS
-#define SET_EPI_PREDS                                                             \
-    "whilelo p1.d, xzr, %[ecols]\n\t"                                             \
-    "subs x9, %[ecols], #8\n\t"                                                   \
-    "csel x9, x9, xzr, gt\n\t"                                                    \
-    "whilelo p2.d, xzr, x9\n\t"                                                   \
-    "subs x9, x9, #8\n\t"                                                         \
-    "csel x9, x9, xzr, gt\n\t"                                                    \
-    "whilelo p3.d, xzr, x9\n\t"                                                   \
-    "subs x9, x9, #8\n\t"                                                         \
-    "csel x9, x9, xzr, gt\n\t"                                                    \
-    "whilelo p4.d, xzr, x9\n\t"
-
-#undef KROWP
-#define KROWP(EV)                                                                 \
-    KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
-    KS_ODD  EV(1, "p2", "z18", "z19") PFC                                         \
-    KS_EVEN EV(2, "p3", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
-    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
-    EV_ROW_ADV
-
-
-#undef KS
-#define KS(a0, a1, b0, b1, b2, b3, n0, n1, m0, m1, m2, m3, ADV)                  \
-    LDA_I n0 ".d, p0/z, [%[xa]]\n\t"                                              \
-    "fmopa za0.d, p0/m, p0/m, " a0 ".d, " b0 ".d\n\t"                             \
-    "fmopa za1.d, p0/m, p0/m, " a0 ".d, " b1 ".d\n\t"                             \
-    LDA_I n1 ".d, p0/z, [%[xa], #1, mul vl]\n\t"                                  \
-    "fmopa za2.d, p0/m, p0/m, " a0 ".d, " b2 ".d\n\t"                             \
-    "fmopa za3.d, p0/m, p0/m, " a0 ".d, " b3 ".d\n\t"                             \
-    LDB_I m0 ".d, p0/z, [%[xb]]\n\t"                                              \
-    "fmopa za4.d, p0/m, p0/m, " a1 ".d, " b0 ".d\n\t"                             \
-    LDB_I m1 ".d, p0/z, [%[xb], #1, mul vl]\n\t"                                  \
-    "fmopa za5.d, p0/m, p0/m, " a1 ".d, " b1 ".d\n\t"                             \
-    LDB_I m2 ".d, p0/z, [%[xb], #2, mul vl]\n\t"                                  \
-    "fmopa za6.d, p0/m, p0/m, " a1 ".d, " b2 ".d\n\t"                             \
-    LDB_I m3 ".d, p0/z, [%[xb], #3, mul vl]\n\t"                                  \
-    "fmopa za7.d, p0/m, p0/m, " a1 ".d, " b3 ".d\n\t"                             \
-    "add %[xa], %[xa], " ADV "\n\t"                                               \
-    "add %[xb], %[xb], %[bs]\n\t"
-
-#undef KLOOP_INIT
-#define KLOOP_INIT                                                                \
-    "ptrue p0.d\n\t"                                                              \
-    LDA_I "z0.d, p0/z, [%[xa]]\n\t"                                                \
-    LDA_I "z1.d, p0/z, [%[xa], #1, mul vl]\n\t"                                    \
-    LDB_I "z4.d, p0/z, [%[xb]]\n\t"                                                \
-    LDB_I "z5.d, p0/z, [%[xb], #1, mul vl]\n\t"                                    \
-    LDB_I "z6.d, p0/z, [%[xb], #2, mul vl]\n\t"                                    \
-    LDB_I "z7.d, p0/z, [%[xb], #3, mul vl]\n\t"                                    \
-    "add %[xa], %[xa], %[ase]\n\t"                                                \
-    "add %[xb], %[xb], %[bs]\n\t"
-
 static const uint64_t g_tbl_idx[4][8];   // tbl2 索引向量（定义见打包节）
 
 // ---------------------------------------------------------------- 带交错转置的 K 循环
@@ -1541,7 +1338,6 @@ static __attribute__((unused)) void copy_panel(const double* X, long ldb, long k
     }
 }
 
-
 // ---------------------------------------------------------------- 打包 A（L 的 16 行 × kk 列 → k 主序）
 // dst[k*16 + r] = L[(row0+r)*lda + k0 + k]，row0+r ≥ m 的行补零。
 static const uint64_t g_tbl_idx[4][8] = {
@@ -1602,221 +1398,6 @@ static void pack_strip(const double* L, long lda, long m, long row0, long k0, lo
     }
 }
 
-// Only weights depend on dimensions; all coefficient checks are recomputed
-// from this call's L. No factor or solution is reused between calls.
-static double* g_qweights;
-static double* g_qprefix;
-static long g_qweight_cap;
-
-// Bound the coefficient perturbation on the tail after the first exact MB rows.
-// With w[i]=(i+1)^1.25 and mu[i]=|Lii|*wi-sum_{j>=MB,j<i}|Lij|*wj,
-// max |error_i|/wi <= max (i0*delta*max|X|/mu[i]). The cross-block norm
-// uses the verified |Lij|<=0.5 bound; within-block coefficients remain FP64.
-// A failed bound keeps the original B and repeats the solve in FP64.
-// The 2e-13 budget is for coefficient perturbation, leaving room within the
-// benchmark's 1e-12 tolerance for floating-point arithmetic.
-
-// For verified |L|<=1/2, the biased FMA has exponent 52 and unit spacing.
-// Its low 32 bits encode the signed integer q; subtracting the bias recovers q
-// exactly for the existing per-element reconstruction-error check. Acceptance
-// still requires the range, finite-value and weighted perturbation checks.
-static void pack_q32(const double* L,long lda,long m,long row0,long k0,long kk,int32_t* dst,long mb,double* eta) {
- long rows=m-row0;if(rows>16)rows=16;
- if(rows==16 && (kk&7)==0) {
-  svbool_t pg=svptrue_b64();svbool_t pg32=svptrue_b32();
-  svfloat64_t dmax=svdup_f64(0),lmax=svdup_f64(0);
-  svuint64_t iq1=svld1_u64(pg,g_tbl_idx[0]),iq2=svld1_u64(pg,g_tbl_idx[1]);
-  svuint64_t ih1=svld1_u64(pg,g_tbl_idx[2]),ih2=svld1_u64(pg,g_tbl_idx[3]);
-  for(long kb=0;kb<kk;kb+=8) {
-   const double* src=L+row0*lda+k0+kb;
-   svfloat64_t la0=svld1_f64(pg,src+0*lda);
-   svfloat64_t ya0=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la0,4294967294.0);
-   svfloat64_t qa0=svsub_n_f64_x(pg,ya0,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la0));
-   svfloat64_t ea0=svabs_f64_x(pg,svmls_n_f64_x(pg,la0,qa0,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea0);
-   svint32_t a0=svreinterpret_s32_f64(ya0);
-   svfloat64_t lb0=svld1_f64(pg,src+8*lda);
-   svfloat64_t yb0=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb0,4294967294.0);
-   svfloat64_t qb0=svsub_n_f64_x(pg,yb0,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb0));
-   svfloat64_t eb0=svabs_f64_x(pg,svmls_n_f64_x(pg,lb0,qb0,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb0);
-   svint32_t b0=svreinterpret_s32_f64(yb0);
-   svfloat64_t r0=svreinterpret_f64_s32(svuzp1_s32(a0,b0));
-   svfloat64_t la1=svld1_f64(pg,src+1*lda);
-   svfloat64_t ya1=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la1,4294967294.0);
-   svfloat64_t qa1=svsub_n_f64_x(pg,ya1,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la1));
-   svfloat64_t ea1=svabs_f64_x(pg,svmls_n_f64_x(pg,la1,qa1,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea1);
-   svint32_t a1=svreinterpret_s32_f64(ya1);
-   svfloat64_t lb1=svld1_f64(pg,src+9*lda);
-   svfloat64_t yb1=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb1,4294967294.0);
-   svfloat64_t qb1=svsub_n_f64_x(pg,yb1,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb1));
-   svfloat64_t eb1=svabs_f64_x(pg,svmls_n_f64_x(pg,lb1,qb1,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb1);
-   svint32_t b1=svreinterpret_s32_f64(yb1);
-   svfloat64_t r1=svreinterpret_f64_s32(svuzp1_s32(a1,b1));
-   svfloat64_t la2=svld1_f64(pg,src+2*lda);
-   svfloat64_t ya2=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la2,4294967294.0);
-   svfloat64_t qa2=svsub_n_f64_x(pg,ya2,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la2));
-   svfloat64_t ea2=svabs_f64_x(pg,svmls_n_f64_x(pg,la2,qa2,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea2);
-   svint32_t a2=svreinterpret_s32_f64(ya2);
-   svfloat64_t lb2=svld1_f64(pg,src+10*lda);
-   svfloat64_t yb2=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb2,4294967294.0);
-   svfloat64_t qb2=svsub_n_f64_x(pg,yb2,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb2));
-   svfloat64_t eb2=svabs_f64_x(pg,svmls_n_f64_x(pg,lb2,qb2,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb2);
-   svint32_t b2=svreinterpret_s32_f64(yb2);
-   svfloat64_t r2=svreinterpret_f64_s32(svuzp1_s32(a2,b2));
-   svfloat64_t la3=svld1_f64(pg,src+3*lda);
-   svfloat64_t ya3=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la3,4294967294.0);
-   svfloat64_t qa3=svsub_n_f64_x(pg,ya3,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la3));
-   svfloat64_t ea3=svabs_f64_x(pg,svmls_n_f64_x(pg,la3,qa3,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea3);
-   svint32_t a3=svreinterpret_s32_f64(ya3);
-   svfloat64_t lb3=svld1_f64(pg,src+11*lda);
-   svfloat64_t yb3=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb3,4294967294.0);
-   svfloat64_t qb3=svsub_n_f64_x(pg,yb3,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb3));
-   svfloat64_t eb3=svabs_f64_x(pg,svmls_n_f64_x(pg,lb3,qb3,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb3);
-   svint32_t b3=svreinterpret_s32_f64(yb3);
-   svfloat64_t r3=svreinterpret_f64_s32(svuzp1_s32(a3,b3));
-   svfloat64_t la4=svld1_f64(pg,src+4*lda);
-   svfloat64_t ya4=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la4,4294967294.0);
-   svfloat64_t qa4=svsub_n_f64_x(pg,ya4,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la4));
-   svfloat64_t ea4=svabs_f64_x(pg,svmls_n_f64_x(pg,la4,qa4,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea4);
-   svint32_t a4=svreinterpret_s32_f64(ya4);
-   svfloat64_t lb4=svld1_f64(pg,src+12*lda);
-   svfloat64_t yb4=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb4,4294967294.0);
-   svfloat64_t qb4=svsub_n_f64_x(pg,yb4,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb4));
-   svfloat64_t eb4=svabs_f64_x(pg,svmls_n_f64_x(pg,lb4,qb4,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb4);
-   svint32_t b4=svreinterpret_s32_f64(yb4);
-   svfloat64_t r4=svreinterpret_f64_s32(svuzp1_s32(a4,b4));
-   svfloat64_t la5=svld1_f64(pg,src+5*lda);
-   svfloat64_t ya5=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la5,4294967294.0);
-   svfloat64_t qa5=svsub_n_f64_x(pg,ya5,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la5));
-   svfloat64_t ea5=svabs_f64_x(pg,svmls_n_f64_x(pg,la5,qa5,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea5);
-   svint32_t a5=svreinterpret_s32_f64(ya5);
-   svfloat64_t lb5=svld1_f64(pg,src+13*lda);
-   svfloat64_t yb5=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb5,4294967294.0);
-   svfloat64_t qb5=svsub_n_f64_x(pg,yb5,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb5));
-   svfloat64_t eb5=svabs_f64_x(pg,svmls_n_f64_x(pg,lb5,qb5,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb5);
-   svint32_t b5=svreinterpret_s32_f64(yb5);
-   svfloat64_t r5=svreinterpret_f64_s32(svuzp1_s32(a5,b5));
-   svfloat64_t la6=svld1_f64(pg,src+6*lda);
-   svfloat64_t ya6=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la6,4294967294.0);
-   svfloat64_t qa6=svsub_n_f64_x(pg,ya6,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la6));
-   svfloat64_t ea6=svabs_f64_x(pg,svmls_n_f64_x(pg,la6,qa6,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea6);
-   svint32_t a6=svreinterpret_s32_f64(ya6);
-   svfloat64_t lb6=svld1_f64(pg,src+14*lda);
-   svfloat64_t yb6=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb6,4294967294.0);
-   svfloat64_t qb6=svsub_n_f64_x(pg,yb6,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb6));
-   svfloat64_t eb6=svabs_f64_x(pg,svmls_n_f64_x(pg,lb6,qb6,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb6);
-   svint32_t b6=svreinterpret_s32_f64(yb6);
-   svfloat64_t r6=svreinterpret_f64_s32(svuzp1_s32(a6,b6));
-   svfloat64_t la7=svld1_f64(pg,src+7*lda);
-   svfloat64_t ya7=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),la7,4294967294.0);
-   svfloat64_t qa7=svsub_n_f64_x(pg,ya7,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,la7));
-   svfloat64_t ea7=svabs_f64_x(pg,svmls_n_f64_x(pg,la7,qa7,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,ea7);
-   svint32_t a7=svreinterpret_s32_f64(ya7);
-   svfloat64_t lb7=svld1_f64(pg,src+15*lda);
-   svfloat64_t yb7=svmla_n_f64_x(pg,svdup_f64(0x1.8p52),lb7,4294967294.0);
-   svfloat64_t qb7=svsub_n_f64_x(pg,yb7,0x1.8p52);
-   lmax=svmax_f64_x(pg,lmax,svabs_f64_x(pg,lb7));
-   svfloat64_t eb7=svabs_f64_x(pg,svmls_n_f64_x(pg,lb7,qb7,1.0/4294967294.0));
-   dmax=svmax_f64_x(pg,dmax,eb7);
-   svint32_t b7=svreinterpret_s32_f64(yb7);
-   svfloat64_t r7=svreinterpret_f64_s32(svuzp1_s32(a7,b7));
-
-   svfloat64_t t0 = svzip1_f64(r0, r1), t1 = svzip2_f64(r0, r1);
-   svfloat64_t t2 = svzip1_f64(r2, r3), t3 = svzip2_f64(r2, r3);
-   svfloat64_t t4 = svzip1_f64(r4, r5), t5 = svzip2_f64(r4, r5);
-   svfloat64_t t6 = svzip1_f64(r6, r7), t7 = svzip2_f64(r6, r7);
-   svfloat64_t u0 = svtbl2_f64(svcreate2_f64(t0, t2), iq1), u1 = svtbl2_f64(svcreate2_f64(t0, t2), iq2);
-   svfloat64_t u2 = svtbl2_f64(svcreate2_f64(t1, t3), iq1), u3 = svtbl2_f64(svcreate2_f64(t1, t3), iq2);
-   svfloat64_t u4 = svtbl2_f64(svcreate2_f64(t4, t6), iq1), u5 = svtbl2_f64(svcreate2_f64(t4, t6), iq2);
-   svfloat64_t u6 = svtbl2_f64(svcreate2_f64(t5, t7), iq1), u7 = svtbl2_f64(svcreate2_f64(t5, t7), iq2);
-   svint32_t v0=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u0,u4),ih1));
-   svint32_t v1=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u0,u4),ih2));
-   svint32_t v2=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u1,u5),ih1));
-   svint32_t v3=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u1,u5),ih2));
-   svint32_t v4=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u2,u6),ih1));
-   svint32_t v5=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u2,u6),ih2));
-   svint32_t v6=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u3,u7),ih1));
-   svint32_t v7=svreinterpret_s32_f64(svtbl2_f64(svcreate2_f64(u3,u7),ih2));
-   svint32_t qc0=svuzp1_s32(v0,v4);
-   svst1_s32(pg32,dst+(kb+0)*16,qc0);
-   svint32_t qc1=svuzp2_s32(v0,v4);
-   svst1_s32(pg32,dst+(kb+1)*16,qc1);
-   svint32_t qc2=svuzp1_s32(v1,v5);
-   svst1_s32(pg32,dst+(kb+2)*16,qc2);
-   svint32_t qc3=svuzp2_s32(v1,v5);
-   svst1_s32(pg32,dst+(kb+3)*16,qc3);
-   svint32_t qc4=svuzp1_s32(v2,v6);
-   svst1_s32(pg32,dst+(kb+4)*16,qc4);
-   svint32_t qc5=svuzp2_s32(v2,v6);
-   svst1_s32(pg32,dst+(kb+5)*16,qc5);
-   svint32_t qc6=svuzp1_s32(v3,v7);
-   svst1_s32(pg32,dst+(kb+6)*16,qc6);
-   svint32_t qc7=svuzp2_s32(v3,v7);
-   svst1_s32(pg32,dst+(kb+7)*16,qc7);
-  }
-  double delta=svmaxv_f64(pg,dmax)*(1+4*DBL_EPSILON)+DBL_MIN;
-  double lbound=svmaxv_f64(pg,lmax);
-  if(!(lbound<=0.5) || !isfinite(delta)){*eta=INFINITY;return;}
-  double worst=0;
-  for(long r=0;r<16;r++) {
-   long row=row0+r;double wi=g_qweights[row];
-   double norm=0.5*(g_qprefix[kk]-g_qprefix[mb]);
-   svfloat64_t dsum=svdup_f64(0);
-   for(long k=kk;k<row;k+=8) {
-    svbool_t pk=svwhilelt_b64(k,row);
-    dsum=svmla_f64_x(pg,dsum,svabs_f64_x(pg,svld1_f64(pk,L+row*lda+k)),svld1_f64(pk,g_qweights+k));
-   }
-   norm+=svaddv_f64(pg,dsum);
-   double diag=fabs(L[row*lda+row]);
-   double mu=diag*wi-norm*(1+4*m*DBL_EPSILON)-16*DBL_EPSILON*diag*wi;
-   double e=kk*delta/mu;
-   if(!(mu>0) || !isfinite(diag) || !isfinite(e))e=INFINITY;
-   if(e>worst)worst=e;
-  }
-  *eta=worst;
-  return;
- }
- *eta=INFINITY;
- for(long k=0;k<kk;k++)for(long r=0;r<16;r++){double v=r<rows?L[(row0+r)*lda+k0+k]:0;dst[k*16+r]=fabs(v)<=0.5?(int32_t)nearbyint(v*4294967294.0):0;}
-}
-static void epi_sub_q32(const double* scratch,double* c,long cs,long cols) {
- const svbool_t pg=svptrue_b64();
- for(long r=0;r<16;r++)for(long j=0;j<cols;j+=8) {
-  svbool_t pj=svwhilelt_b64(j,cols);double* out=(double*)((char*)c+r*cs)+j;
-  svfloat64_t v=svld1_f64(pg,scratch+(r%8)*64+(r/8)*32+j);
-  svst1_f64(pj,out,svmls_n_f64_x(pg,svld1_f64(pj,out),v,1.0/4294967294.0));
- }
-}
-
 // ---------------------------------------------------------------- 对角块预处理
 // 行块 i（行 [i0, i0+mbi)，S 个 16 行子块）→ dst：子块 s 的打包条带（16 × 16(s+1)），
 //   k <  16s：dst[k*16 + r] = -(Linv_ss · L_{s,k/16})[r][k%16]
@@ -1870,8 +1451,6 @@ typedef struct {
     double* B;
     int mb, nc, kc;
     int lchunk, direct, special;
-    int q32; int32_t* qp;
-    double* qout; double* qeta; double* qmax;
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -2040,9 +1619,8 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
     long i0 = i * c->mb;
     long row0 = 16 * g;
     long rows = c->m - row0; if (rows > 16) rows = 16;
-    double* dst = c->q32 ? NULL : c->pp[0] + c->pp_off[g];
-    if (i0 > 0 && c->q32) {pack_q32(c->L,c->lda,c->m,row0,0,i0,c->qp+c->pp_off[g],c->mb,c->qeta+g);}
-    else if (i0 > 0 && c->lchunk) { pack_l_chunked(c, g); }
+    double* dst = c->pp[0] + c->pp_off[g];
+    if (i0 > 0 && c->lchunk) { pack_l_chunked(c, g); }
     else if (i0 > 0) {
         if (rows == 16 && (i0 & 31) == 0) pack_strip_ld4(c->L, c->lda, row0, 0, i0, dst);
         else pack_strip(c->L, c->lda, c->m, row0, 0, i0, dst);
@@ -2162,7 +1740,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
             A = Acur;
         } else {
-            A = c->q32 ? (const double*)(c->qp+c->pp_off[i0 / 16 + r]+(size_t)k0*16) : c->pp[cpy] + packed_l_offset(c, i0 / 16 + r, k0);
+            A = c->pp[cpy] + packed_l_offset(c, i0 / 16 + r, k0);
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
         long nrow0 = 0, nk0 = 0;
@@ -2194,8 +1772,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->q32 ? (const double*)(c->qp+c->pp_off[pr0/16]+(size_t)pk0*16) : c->pp[cpy] + packed_l_offset(c, pr0 / 16, pk0);
-                    pf.p = (const char*)An + (size_t)t * (kk / (c->q32 ? 4 : 2)) * 64;
+                    const double* An = c->pp[cpy] + packed_l_offset(c, pr0 / 16, pk0);
+                    pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
                 }
@@ -2222,11 +1800,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             if(c->direct) {
                 PROF_T(c,za_load_direct(acc+16L*r*ncp+32*t,cs,cols),t_load);
             } else sme_zero_za();
-            if(c->q32) {
-                if(pend && kk==64) PROF_T(c,kloop_q32_epi(A,64,64,Xk+32*t,cs,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
-                else if(pend && kk>=65) PROF_T(c,kloop_q32_epi_any(A,64,64,Xk+32*t,cs,kk,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
-                else {if(pend)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);PROF_T(c,kloop_q32_plain(A,64,64,Xk+32*t,cs,kk,cols,&pf),t_kloop);}
-            } else if(c->direct) {
+            if(c->direct) {
                 if(c->ant)PROF_T(c,kloop_plain_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
                 else PROF_T(c,kloop_plain_direct_t(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
             } else if (host_now) {
@@ -2260,7 +1834,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
-    if (pend) { if(c->q32)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);else PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
+    if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
         // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
@@ -2351,17 +1925,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         // 上一任务遗留的托管回写先同步收尾（通常已在 K 循环里完成）
         sw_flush(tb);
         // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
-        double* Bout=c->q32?c->qout+i0*ldb+c0:Bblk;
-        if(c->q32) {
-            svfloat64_t xm=svdup_f64(0);
-            for(long rr=0;rr<mbi;rr++)for(long jj=0;jj<nci;jj+=8) {
-                svbool_t pp=svwhilelt_b64(jj,nci);
-                xm=svmax_f64_x(pg,xm,svabs_f64_x(pg,svld1_f64(pp,cb+rr*ncp+jj)));
-            }
-            double x=svmaxv_f64(pg,xm);
-            if(!isfinite(x))c->qmax[tid*16]=INFINITY;
-            else if(x>c->qmax[tid*16])c->qmax[tid*16]=x;
-        }
+        double* Bout=Bblk;
+
         const int last_rb = (i + 1 == c->nrb);
         if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
@@ -2420,7 +1985,6 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     (void)tid;
     return tnext;
 }
-
 
 // Constant block configurations let the compiler remove generic index and mode work.
 // Keep the general task independent; it handles all unmatched settings and layouts.
@@ -2749,364 +2313,6 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "cmp w12, #8\n\t"
  "b.lt 1b\n\t"
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-// Guarded Q32 counterpart of the duplex FP64 kernels. LD1SW directly
-// sign-extends eight coefficients into D lanes, and SCVTF is exact for int32.
-// For LD1SW .D, #1,mul vl advances by eight words (32 bytes).
-// Accumulate q*X, then subtract with the same RN(1/Q) FMLS as the existing
-// Q32 epilogue. The coefficient checks, weighted bound and FP64 retry are
-// unchanged. Mode 3 shares mode 2's Kx16 X layout; final X is copied directly
-// from C because the former row-major Xp store walker does not match it.
-static inline void za_flush_duplex_qbank4(double* c, long bs)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8 * bs;
-    asm volatile(
- "ptrue p0.d\n\t"
- "mov x13, #0x200000\n\t"
- "movk x13, #0x3df0, lsl #48\n\t"
- "dup z20.d, x13\n\t"
- "mov w12, #0\n\t"
- "1:\n\t"
- "mova z16.d, p0/m, za4h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
- "mova z16.d, p0/m, za5h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
- "mova z16.d, p0/m, za6h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
- "mova z16.d, p0/m, za7h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
- "add %[ct], %[ct], %[bs]\n\t"
- "add %[cb], %[cb], %[bs]\n\t"
- "add w12, w12, #1\n\t"
- "cmp w12, #8\n\t"
- "b.lt 1b\n\t"
-: [ct] "+&r"(ct),[cb] "+&r"(cb):[bs] "r"(bs): "memory","cc","x12","x13",VCLOB,PCLOB);}
-static inline void kloop_duplex_qbank0(const int32_t* a, const double* b, double* c,
-                                       const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "mov x13, #0x200000\n\t"
- "movk x13, #0x3df0, lsl #48\n\t"
- "dup z20.d, x13\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "1:\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za4h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[ap]]\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
- "add %[ap], %[ap], #64\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za5h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[pc]]\n\t"
- "prfm pldl2keep, [%[pc], #64]\n\t"
- "prfm pldl2keep, [%[pc], #8192]\n\t"
- "prfm pldl2keep, [%[pc], #8256]\n\t"
- "add %[pc], %[pc], #1024\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za6h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za7h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
- "cmp w12, #7\n\t"
- "b.eq 2f\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "b 3f\n\t"
- "2:\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "3:\n\t"
- "add %[ct], %[ct], #1024\n\t"
- "add %[cb], %[cb], #1024\n\t"
- "add w12, w12, #1\n\t"
- "cmp w12, #8\n\t"
- "b.lt 1b\n\t"
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12","x13",VCLOB,PCLOB);}
-static inline void kloop_duplex_qbank4(const int32_t* a, const double* b, double* c,
-                                       const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "mov x13, #0x200000\n\t"
- "movk x13, #0x3df0, lsl #48\n\t"
- "dup z20.d, x13\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "1:\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za0h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[ap]]\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
- "add %[ap], %[ap], #64\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za1h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[pc]]\n\t"
- "prfm pldl2keep, [%[pc], #64]\n\t"
- "prfm pldl2keep, [%[pc], #8192]\n\t"
- "prfm pldl2keep, [%[pc], #8256]\n\t"
- "add %[pc], %[pc], #1024\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za2h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl1keep, [%[bp]]\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1sw z8.d, p0/z, [%[a]]\n\t"
- "scvtf z8.d, p0/m, z8.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1sw z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z9.d, p0/m, z9.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za3h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
- "fmls z17.d, p0/m, z16.d, z20.d\n\t"
- "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
- "cmp w12, #7\n\t"
- "b.eq 2f\n\t"
- "ld1sw z0.d, p0/z, [%[a]]\n\t"
- "scvtf z0.d, p0/m, z0.d\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1sw z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "scvtf z1.d, p0/m, z1.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #64\n\t"
- "add %[b], %[b], #128\n\t"
- "b 3f\n\t"
- "2:\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "3:\n\t"
- "add %[ct], %[ct], #1024\n\t"
- "add %[cb], %[cb], #1024\n\t"
- "add w12, w12, #1\n\t"
- "cmp w12, #8\n\t"
- "b.lt 1b\n\t"
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12","x13",VCLOB,PCLOB);}
 static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
@@ -3166,12 +2372,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!0 && c->pp[1]) cpy = (int)((i + p) & 1);
-    if (!0 && (mode==3?1:0) == 1 && i0 > 0) {   // 等本行块各条打包完成
-        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-        for (int r = 0; r < S; r++)
-            while (__atomic_load_n(&c->pflags[i0 / 16 + r], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
-        if (c->prof >= 2) tb->t_wait += cyc() - t0;
-    }
+
     int pend = 0;            // 有待回写的上一微块（暂存中）
     double* pend_c = NULL;
     long pend_cols = 0;
@@ -3188,7 +2389,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     // Prepacked traversal advances one strip at a time; no division by S is needed.
     // The first previous bank is zero; later kernels consume the preceding output.
-    if(mode==2 || mode==3)sme_zero_za();
+    if(mode==2)sme_zero_za();
     long strip_ch = chfirst;
     int strip_r = 0;
     for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
@@ -3224,8 +2425,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             A = Acur;
         } else {
             // For mode 2 each full KC chunk contains S strips of 1024 doubles.
-            A = (mode==3) ? (const double*)(c->qp+c->pp_off[i0 / 16 + r]+(size_t)k0*16)
-                : c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
+            A = c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
                     : special_l_offset(c,mode,i0/16+r,k0));
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
@@ -3258,10 +2458,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = (mode==3) ? (const double*)(c->qp+c->pp_off[pr0/16]+(size_t)pk0*16)
-                        : c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
+                    const double* An = c->pp[cpy] + (mode==2 ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
-                    pf.p = (const char*)An + (size_t)t * (kk / ((mode==3) ? 4 : 2)) * 64;
+                    pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
                 }
@@ -3294,24 +2493,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 if(c->prof>=2)tb->n_kstep+=kk;
                 continue;
             }
-            if(mode==3) {
-                double* cur=acc+16L*r*ncp+32*t;
-                const char* ap=pf.p; const char* bp=pf.p2;
-                PROF_T(c,kloop_duplex_qbank0((const int32_t*)A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
-                PROF_T(c,kloop_duplex_qbank4((const int32_t*)A,Xk+32*t*kc+1024,cur,ap+512,bp+1024,pf.pc+128),t_kloop);
-                pend=1;pend_c=cur;pend_cols=cols;
-                if(c->prof>=2)tb->n_kstep+=kk;
-                continue;
-            }
+
             sw_advance(tb);
             if((mode==1)) {
                 PROF_T(c,za_load_fixed(acc+16L*r*ncp+32*t,cs,cols),t_load);
             } else sme_zero_za();
-            if((mode==3)) {
-                if(pend && kk==64) PROF_T(c,kloop_fixed_qepi(A,64,64,Xk+32*t,cs,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
-                else if(pend && kk>=65) PROF_T(c,kloop_q32_epi_any(A,64,64,Xk+32*t,cs,kk,cols,&pf,scratch,pend_c,cs,pend_cols),t_kloop);
-                else {if(pend)PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);PROF_T(c,kloop_fixed_qplain(A,64,64,Xk+32*t,cs,kk,cols,&pf),t_kloop);}
-            } else if((mode==1)) {
+            if((mode==1)) {
                 if(c->ant)PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
                 else PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
             } else if (host_now) {
@@ -3346,8 +2533,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
     }
     if(mode==2 && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
-    if(mode==3 && pend) {PROF_T(c,za_flush_duplex_qbank4(pend_c+16,cs),t_epi);pend=0;}
-    if (pend) { if((mode==3))PROF_T(c,epi_sub_q32(scratch,pend_c,cs,pend_cols),t_epi);else PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
+    if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
         // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
@@ -3438,17 +2624,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         // 上一任务遗留的托管回写先同步收尾（通常已在 K 循环里完成）
         sw_flush(tb);
         // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
-        double* Bout=(mode==3)?c->qout+i0*ldb+c0:Bblk;
-        if((mode==3)) {
-            svfloat64_t xm=svdup_f64(0);
-            for(long rr=0;rr<mbi;rr++)for(long jj=0;jj<nci;jj+=8) {
-                svbool_t pp=svwhilelt_b64(jj,nci);
-                xm=svmax_f64_x(pg,xm,svabs_f64_x(pg,svld1_f64(pp,cb+rr*ncp+jj)));
-            }
-            double x=svmaxv_f64(pg,xm);
-            if(!isfinite(x))c->qmax[tid*16]=INFINITY;
-            else if(x>c->qmax[tid*16])c->qmax[tid*16]=x;
-        }
+        double* Bout=Bblk;
+
         const int last_rb = (i + 1 == c->nrb);
         if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
@@ -3456,8 +2633,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             const double* s = cb + r * ncp;
             if (0) for (long j = 0; j < nc; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
             else for (long j = 0; j < nc; j += 8) {
-                // Modes 2 and 3 pack Kx16 X tiles for the duplex kernels.
-                double* dj=(mode==2 || mode==3)?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                // Mode 2 packs Kx16 X tiles for the duplex kernels.
+                double* dj=(mode==2)?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svst1_f64(pg,dj,svld1_f64(pg,s+j));
             }
         }
@@ -3513,15 +2690,10 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     return tnext;
 }
 
-
 static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1);}
 static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2);}
-static long run_task_special3(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,3);}
 // ---------------------------------------------------------------- 主流程
-static int32_t* g_q32;
-static size_t g_q32_cap;
-static double* g_qout;static size_t g_qout_cap;
-static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb,int enableq)
+static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
 {
     ctx_t c;
     memset(&c, 0, sizeof(c));
@@ -3545,17 +2717,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (kc > mb) kc = mb;
     while (mb % kc) kc -= 32;           // 要求 kc | mb，使每个 K 段落在单个行块内
     c.mb = mb; c.nc = nc; c.kc = kc;
-    c.q32=enableq && m<32768 && env_int("TRSM_Q32",m>=4096 && n<=1024);
-    if(c.q32) {
-      if(g_qweight_cap<m) {
-       free(g_qweights);free(g_qprefix);g_qweights=malloc(m*8);g_qprefix=malloc((m+1)*8);g_qprefix[0]=0;
-       for(long i=0;i<m;i++){double x=i+1;g_qweights[i]=x*sqrt(sqrt(x));g_qprefix[i+1]=g_qprefix[i]+g_qweights[i];}
-       g_qweight_cap=m;
-      }
-      c.qeta=calloc((m+15)/16,sizeof(double));c.qmax=calloc(1024*16,sizeof(double));
-    }
     c.lchunk = env_int("TRSM_LCHUNK", 1) && mb % kc == 0;
-    c.direct = !c.q32 && env_int("TRSM_DIRECT", m <= 1024);
+    c.direct = env_int("TRSM_DIRECT", m <= 1024);
     c.nrb = (m + mb - 1) / mb;
     c.npan = (n + nc - 1) / nc;
     c.ncp = nc + TRSM_NCPAD;
@@ -3574,13 +2737,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     if (g_ncpu > 0 && g_ncpu < nth) nth = g_ncpu;
     detect_nodes();
-    // Allocate after NUMA discovery so a first-call quantized solve can use HBM.
-    if(c.q32) {
-      size_t need=(size_t)m*ldb;
-      if(g_qout_cap<need) {trsm_free_buffer(g_qout,g_qout_cap*8);g_qout=alloc_on(need*8,g_hbm_node);g_qout_cap=need;}
-      c.qout=g_qout;
-    }
-
     // 决定 GEMM 部分的 L 打包方式：L 下三角 ≤ 阈值时预打包（两份），否则 JIT
     size_t tri_bytes = (size_t)m * (m + 1) / 2 * 8;
     long jit_mb = env_int("TRSM_JIT_MB", 256);
@@ -3589,14 +2745,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.ppmode = bigL ? env_int("TRSM_PPMODE", 1) : 0;
     c.jit = (bigL && c.ppmode == 0) ? 1 : 0;
     if (env_int("TRSM_JIT", -1) >= 0) { c.jit = env_int("TRSM_JIT", -1); if (c.jit) c.ppmode = 0; }
-    if(c.q32)c.jit=0;
     // Admit a specialization only when every baked-in setting matches this call.
-    // Modes 1/2 use FP64; mode 3 preserves the existing guarded Q32 path.
     c.special=0;
     if(env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
-      if(mb==192 && !c.q32 && c.direct && !c.ppmode && !c.swhost)c.special=1;
-      if(mb==256 && !c.q32 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
-      if(mb==192 && c.q32 && !c.direct && c.ppmode==1 && c.swhost)c.special=3;
+      if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
+      if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
     }
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
@@ -3672,24 +2825,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             off += (size_t)16 * (i * mb);
         }
         c.pp_off[c.nstrip] = off;
-        if(c.q32) {
-            if(g_q32_cap<off) {trsm_free_buffer(g_q32,g_q32_cap*4+4096);g_q32=alloc_on(off*4+4096,g_hbm_node);g_q32_cap=off;}
-            c.qp=g_q32;
-        }
+
         // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本；流水式打包只有一份
         int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", 1);
-        if(c.q32)split=0;
         if (c.ppmode == 1 && g_pp[1]) { trsm_free_buffer(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
-        if (!c.q32 && node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
+        if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
             HBM_MAKE_ROOM(off * 8 + 4096);
             if (!HBM_ROOM(off * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
         }
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);
         if (env_int("TRSM_LNODE1", -3) != -3) node1 = env_int("TRSM_LNODE1", -3);
         for (int k = 0; k < 2; k++) {
-            if(c.q32)break;
             if (k == 1 && !split) break;
             int node = k == 0 ? node0 : node1;
             if (g_pp_cap[k] < off || g_pp_node[k] != node) {
@@ -3837,7 +2985,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 long i = (16 * g) / mb;
                 long kk = i * mb;
                 if (kk <= 0) continue;
-                if(c.q32) {pack_q32(L,lda,m,16*g,0,kk,c.qp+c.pp_off[g],mb,c.qeta+g);continue;}
                 if (c.lchunk) { pack_l_chunked(&c, g); continue; }
                 pack_strip(L, lda, m, 16 * g, 0, kk, c.pp[0] + c.pp_off[g]);
                 if (c.pp[1]) memcpy(c.pp[1] + c.pp_off[g], c.pp[0] + c.pp_off[g], (size_t)kk * 16 * 8);
@@ -3851,7 +2998,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
         if(c.special==2)taskfn=run_task_special2;
-        if(c.special==3)taskfn=run_task_special3;
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
@@ -3902,28 +3048,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     free(ditem_i); free(ditem_s);
     free(c.S_of); free(c.diag_off); free(c.pp_off);
-    if(c.q32) {
-        double eta=0,xmax=0;
-        for(long g=0;g<(m+15)/16;g++)if(c.qeta[g]>eta)eta=c.qeta[g];
-        for(int t=0;t<nth;t++)if(c.qmax[t*16]>xmax)xmax=c.qmax[t*16];
-        double bound=g_qweights[m-1]*eta*xmax;
-        int pass=isfinite(bound)&&bound<=2e-13;
-        if(c.prof)fprintf(stderr,"[qguard] coefficient_bound=%.4e xmax=%.6g decision=%s\n",bound,xmax,pass?"accept":"retry-fp64");
-        free(c.qeta);free(c.qmax);
-        if(pass) {
-#pragma omp parallel for num_threads(nth) schedule(static)
-            for(long r=0;r<m;r++) {
-                const double* src=c.qout+r*ldb;double* dst=B+r*ldb;
-                svbool_t pg=svptrue_b64();
-                // Align complete streaming stores; predicates preserve row padding.
-                long pre=(long)(((64-((uintptr_t)dst&63))&63)>>3);if(pre>n)pre=n;
-                long j=0;
-                if(pre){svbool_t pp=svwhilelt_b64(0L,pre);svstnt1_f64(pp,dst,svld1_f64(pp,src));j=pre;}
-                for(;j+8<=n;j+=8)svstnt1_f64(pg,dst+j,svld1_f64(pg,src+j));
-                if(j<n){svbool_t pp=svwhilelt_b64(j,n);svstnt1_f64(pp,dst+j,svld1_f64(pp,src+j));}
-            }
-        } else trsm_sme(m,n,L,lda,B,ldb,0);
-    }
 }
 #endif // TRSM_NO_SME_ASM
 
@@ -3933,7 +3057,7 @@ void l_trsm(int m, int n, const double* L, int lda, double* B, int ldb)
     if (m <= 0 || n <= 0) return;
 #ifndef TRSM_NO_SME_ASM
     if (sme_f64_available()) {
-        trsm_sme(m, n, L, lda, B, ldb,1);
+        trsm_sme(m, n, L, lda, B, ldb);
         return;
     }
 #endif
