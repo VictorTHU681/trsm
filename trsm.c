@@ -3435,6 +3435,16 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sdump * f, sepi * f, sdkl * f, sddump * f, sdepi * f, sst * f, stask * f,
                     (tail_max - tail_min) / hz * 1e3, tail_idle * f, nks, ndks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
             fprintf(stderr, "[trsm prof]  托管回写：排队 %ld 行，同步收尾 %ld 行（%.1f%%）\n", nswq, nswf, nswq ? 100.0 * nswf / nswq : 0.0);
+            if (c.prof >= 3) {   // 每线程收尾时刻（相对最早者，µs）与静态区间任务数（面板驻留模式）
+                fprintf(stderr, "[trsm prof]  每线程收尾 µs:");
+                for (int t = 0; t < nth; t++) fprintf(stderr, " %d:%.0f%s", t, (g_tail_cyc[t] - tail_min) / hz * 1e6, c.owner ? "" : "");
+                fprintf(stderr, "\n");
+                if (c.owner) {
+                    fprintf(stderr, "[trsm prof]  每线程任务数/ms:");
+                    for (int t = 0; t < nth; t++) fprintf(stderr, " %ld/%.3f", c.owner_bound[t + 1] - c.owner_bound[t], g_tb[t].t_task / hz * 1e3);
+                    fprintf(stderr, "\n");
+                }
+            }
         }
     }
     free(ditem_i); free(ditem_s);
