@@ -3304,14 +3304,26 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
             for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
         }
-        if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
-            for (long p = 0; p < c.npan; p++)
+        if (c.owner) {   // 面板主序：虚拟面板 v 的行块 0..nrb-1 连续，q = v*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
+            // 虚拟面板 v → 真实面板 p = (v·st) mod npan（st 与 npan 互素、≈0.618·npan）：每个线程的面板散布到整个矩阵，
+            // 抹平按列偏移系统性变化的装载/回写速度（实测同一调度下慢线程集合固定、与核无关）；TRSM_OWNER_PERM=0 关闭
+            long st = 1;
+            if (env_int("TRSM_OWNER_PERM", 1) && c.npan > 3) {
+                st = (long)(c.npan * 0.618 + 0.5);
+                for (long d = 0; d < c.npan; d++) {
+                    long cand = st + d; long a = cand, b = c.npan; while (b) { long tmod = a % b; a = b; b = tmod; }
+                    if (a == 1) { st = cand; break; }
+                }
+            }
+            for (long v = 0; v < c.npan; v++) {
+                long p = (v * st) % c.npan;
                 for (long i = 0; i < c.nrb; i++) {
                     task_t* t = &g_tasks[q++];
                     memset(t, 0, sizeof *t);
                     t->i = (int)i; t->p = (int)p; t->nseg = 1;
                     t->ch0 = 0; t->ch1 = (i * mb) / kc;
                 }
+            }
             // 任务代价模型（case1 实测每行块任务 µs：18.9/22.6/29.4/36.7/44.9/54.1/63.7/80.2，i 越大越贵且是凸的——
             // 面板缓冲 393 KB 不能整体常驻 L2，行块越靠后 B 行的 L2 缺失越多）：cost(i) = (i + 0.5 + c2·i²)·mb²·nc + c0·mb·nc
             double c0 = env_int("TRSM_OWNER_C0", 371) * (double)mb * nc;
@@ -3459,8 +3471,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
-                    long pc0 = pa * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
-                    for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
+                    const long preal = c.tasks[pa * c.nrb].p;   // 虚拟面板 pa 对应的真实面板
+                    long pc0 = preal * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
+                    for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + preal);
                     double* buf = g_tb[tid].cbuf;
                     const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
                     for (long gr = 0; gr < ia * mb; gr++) {
