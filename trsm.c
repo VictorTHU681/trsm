@@ -3061,6 +3061,27 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             xmig_ptr = B; xmig_bytes = xbytes;
         }
     }
+    if (env_int("TRSM_SMAPS", 0)) {   // 诊断：X / L / 打包缓冲所在 VMA 的透明大页覆盖率（每次调用打印）
+        const void* tgt[3] = { B, L, g_pp[0] };
+        const char* nm[3] = { "X", "L", "pp0" };
+        FILE* f = fopen("/proc/self/smaps", "r");
+        if (f) {
+            char line[256]; uintptr_t lo = 0, hi = 0; long huge = -1;
+            int in[3] = {0,0,0};
+            while (fgets(line, sizeof line, f)) {
+                uintptr_t a, b2;
+                if (sscanf(line, "%lx-%lx", &a, &b2) == 2) {
+                    lo = a; hi = b2;
+                    for (int k = 0; k < 3; k++) in[k] = tgt[k] && (uintptr_t)tgt[k] >= a && (uintptr_t)tgt[k] < b2;
+                } else if (sscanf(line, "AnonHugePages: %ld", &huge) == 1) {
+                    for (int k = 0; k < 3; k++)
+                        if (in[k]) fprintf(stderr, "[trsm smaps] %s vma %ld MB, anonhuge %ld MB (%.0f%%)\n",
+                                           nm[k], (long)((hi - lo) >> 20), huge >> 10, (hi - lo) ? 100.0 * (huge << 10) / (double)(hi - lo) : 0);
+                }
+            }
+            fclose(f);
+        }
+    }
 
     // 对角打包缓冲
     c.S_of = malloc(sizeof(int) * c.nrb);
