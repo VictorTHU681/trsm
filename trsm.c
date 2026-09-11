@@ -1829,7 +1829,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     const int helper = tb->help_role == 1;                       // 协助者：部分和写到 hbuf，K 段 [0, help_ch)，owner 到达时随时可被叫停
     const int helped = tb->help_role == 2;                       // 被协助的 owner：叫停协助者，算其未完成的 K 段 [P, i)，再加协助者的部分和
     double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : (helper ? tb->hbuf : cb);
-    const double* panel = helper ? tb->help_src : tb->cbuf;      // 面板驻留模式 B 操作数来源（协助者读 owner 的面板缓冲）
+    const double* panel = tb->cbuf;                              // 面板驻留模式 B 操作数来源（协助者把已完成行块的 X 行按段拷进自己的面板缓冲）
     const long hq = c->owner ? p * c->nrb + i : 0;               // 协助协议用的任务号
     if (helped) __atomic_store_n(&c->hstop[hq], 1, __ATOMIC_RELEASE);   // 先叫停：装载 C 块期间协助者做完当前 K 段就退出
 
@@ -1908,6 +1908,21 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         const long k0n = k0 + kc;
         if (helper && r == 0 && ch > 0 && __atomic_load_n(&c->hstop[hq], __ATOMIC_ACQUIRE)) { hdone_ch = ch; break; }   // owner 已到：停在段边界
         if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+        if (helper && r == 0 && ch > 0 && __atomic_load_n(&c->hstop[hq], __ATOMIC_ACQUIRE)) { hdone_ch = ch; break; }   // 等 flag 期间 owner 可能已到
+        if (helper && r == 0) {   // 协助者：把该段的 X 行（已由 owner/前一线程写回 X）拷进自己的面板缓冲作 B 操作数（越界列补零）
+            uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+            const svbool_t pg = svptrue_b64();
+            long rows = c->m - k0; if (rows > kc) rows = kc;
+            for (long gr = 0; gr < rows; gr++) {
+                double* d = tb->cbuf + (size_t)(k0 + gr) * ncp;
+                const double* sp = c->B + (size_t)(k0 + gr) * ldb + c0;
+                long j = 0;
+                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
+                if (j < nci) { svbool_t pj = svwhilelt_b64(j, nci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
+                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+            }
+            if (c->prof >= 2) tb->t_load += cyc() - t0;
+        }
         // 本段 B 面板（连续，行距 ncp）与下一段面板（预取目标）：面板驻留模式直接取本线程面板缓冲的第 ch 段
         const double* Xk = c->owner ? panel + (size_t)ch * kc * ncp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
         const double* Xkn = c->owner ? panel + (size_t)(ch + 1) * kc * ncp : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;
@@ -3437,8 +3452,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
         if (c.owner) {
-            g_sched_p[tid] = sched; g_sched_n[tid] = k;
-            __atomic_store_n(&g_cur_s[tid], -1L, __ATOMIC_RELEASE);
+            __atomic_store_n(&g_cur_s[tid], -1L, __ATOMIC_RELEASE);   // 先发布"未开始"，再发布调度表（协助者先读表长再读进度）
+            g_sched_p[tid] = sched;
+            __atomic_store_n(&g_sched_n[tid], k, __ATOMIC_RELEASE);
             tbuf_t* tbo = &g_tb[tid];
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
@@ -3485,8 +3501,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     int best = -1; double bestrem = 0; long bests = -1;
                     for (int v = 0; v < nth; v++) {
                         if (v == tid) continue;
+                        long nv = __atomic_load_n(&g_sched_n[v], __ATOMIC_ACQUIRE);
                         long cs_ = __atomic_load_n(&g_cur_s[v], __ATOMIC_ACQUIRE);
-                        long nv = g_sched_n[v];
                         if (cs_ < 0 || cs_ + 1 >= nv) continue;
                         double rem = g_suffix_p[v][cs_ + 1];
                         if (rem > bestrem) { bestrem = rem; best = v; bests = cs_ + 1; }
@@ -3499,21 +3515,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         asm volatile("yield");
                         continue;
                     }
-                    // 候选：victim 当前任务之后、同一面板内的行块 i ≥ 2（前缀 [0, i-1) 非空）
+                    // 候选：victim 当前任务之后的行块 i ≥ 2（前缀 [0, i-1) 非空；B 行从 X 拷入，不依赖 victim 的面板缓冲）
                     long* vs = g_sched_p[best]; long nv = g_sched_n[best];
-                    long qcur = vs[bests - 1];
                     int claimed = 0;
                     for (long o2 = 0; o2 < 3; o2++) {
                         long s2 = bests + (o2 == 0 ? 1 : (o2 == 1 ? 2 : 0));   // 先认领 cur+2（owner 到达前有一整个任务的时间），再 cur+3，最后 cur+1
                         if (s2 >= nv) continue;
                         long q2 = vs[s2];
-                        if (q2 / nrb != qcur / nrb) { tbo->n_h_otherpanel++; continue; }   // 只在 owner 当前面板内（其面板缓冲已就位）
                         long i2 = q2 % nrb;
                         if (i2 < 2) { tbo->n_h_smalli++; continue; }
                         int ex = 0;
                         if (!__atomic_compare_exchange_n(&c.seg_cnt[q2], &ex, mytag, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) { tbo->n_h_casfail++; continue; }
                         {
-                            tbo->help_role = 1; tbo->help_ch = i2 - 1; tbo->help_src = g_tb[best].cbuf;
+                            tbo->help_role = 1; tbo->help_ch = i2 - 1; tbo->help_src = NULL;
                             tbo->help_flag = &c.seg_cnt[q2]; tbo->help_flag_done = mytag + 1;
                             run_task(&c, tbo, &c.tasks[q2], NULL, tid);
                             tbo->help_role = 0;
