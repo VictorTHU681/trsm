@@ -1523,7 +1523,7 @@ typedef struct {
     uint64_t t_by_i[16]; long n_by_i[16];   // prof>=3：按行块号统计任务耗时（前 16 个行块）
     // 面板驻留模式的尾部协助（TRSM_OWNER_HELP）：help_role 0 无 / 1 本线程是协助者（算别人任务 K 段 [0, help_ch) 的部分和到 hbuf）
     // / 2 本线程是被协助的 owner（只算 K 段 [help_ch, i)，GEMM 后等协助者的部分和并加进 C 块）
-    int help_role; long help_ch; const double* help_src; const double* help_partial; int* help_flag; int help_flag_done;
+    int help_role; long help_ch; const double* help_src; const double* help_partial; volatile int* help_flag; int help_flag_done;
     double* hbuf; size_t hbuf_cap;
     long n_task, n_kstep;
     uint64_t t_dump, t_ddump;
@@ -3436,12 +3436,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 __atomic_store_n(&g_cur_s[tid], s, __ATOMIC_RELEASE);
                 tbo->help_role = 0;
                 if (c.ohelp) {
-                    int* hf = &c.seg_cnt[sched[s]];
+                    volatile int* hf = &c.seg_cnt[sched[s]];
                     int ex = 0;
                     if (!__atomic_compare_exchange_n(hf, &ex, 1, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-                        int hv = (ex - 2) / 16;                        // 协助者线程号
+                        int hv = (ex - 2) / 16;                        // 协助者线程号（ex 可能已是"已完成"= tag+1）
+                        int tag = 2 + 16 * hv;
                         tbo->help_role = 2; tbo->help_ch = (long)(sched[s] % c.nrb) - 1;
-                        tbo->help_partial = g_tb[hv].hbuf; tbo->help_flag = hf; tbo->help_flag_done = ex + 1;
+                        tbo->help_partial = g_tb[hv].hbuf; tbo->help_flag = hf; tbo->help_flag_done = tag + 1;
                     }
                 }
                 run_task(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
