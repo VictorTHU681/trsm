@@ -1572,6 +1572,13 @@ static inline void sw_advance(tbuf_t* tb)
 
 static tbuf_t g_tb[1024];
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024], g_wake_cyc[1024];
+// 面板驻留模式的自适应区间（TRSM_ADAPT）：上一次同形状调用里各线程任务区间的实测周期 → 相对速度权重，
+// 下一次调用按权重重划 owner_bound。case1 的慢线程集合固定且模型修不掉（区间边界形状效应），实测出来直接补偿。
+// 只影响调度（哪个线程算哪些列面板），不复用任何数值结果。
+static long g_ab_m, g_ab_n; static int g_ab_nth, g_ab_valid;
+static double g_ab_speed[1024];   // 归一化的相对速度（限幅 [0.8, 1.25]）
+static double g_ab_cost[1024];    // 本次调用分给各线程的模型代价
+static uint64_t g_ab_busy[1024];  // 本次调用各线程任务区间的实测周期
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
 static double* g_pp[2] = {NULL, NULL};
@@ -3226,22 +3233,32 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             }
             ototal *= c.npan;
             c.owner_bound = malloc(sizeof(long) * (nth + 1));
+            // 自适应权重：同形状的上一次调用量到的相对速度（首次调用等权）
+            static double wpre_[1025];
+            const int adapt = env_int("TRSM_ADAPT", 1) && g_ab_valid && g_ab_m == m && g_ab_n == n && g_ab_nth == nth;
+            wpre_[0] = 0;
+            for (int t = 0; t < nth; t++) wpre_[t + 1] = wpre_[t] + (adapt ? g_ab_speed[t] : 1.0);
             double cum = 0;
             int tb_ = 1;
             c.owner_bound[0] = 0;
             // Each panel repeats the same row costs. Reuse those costs and
             // update the next boundary only when advancing to another thread.
             long row = 0;
-            double next_bound = ototal / nth;
+            double next_bound = ototal * wpre_[1] / wpre_[nth];
             for (long qq = 0; qq < q && tb_ < nth; qq++) {
                 cum += cost[row];
                 if (++row == c.nrb) row = 0;
                 while (tb_ < nth && cum >= next_bound) {
                     c.owner_bound[tb_++] = qq + 1;
-                    next_bound = ototal * tb_ / nth;
+                    next_bound = ototal * wpre_[tb_] / wpre_[nth];
                 }
             }
             while (tb_ <= nth) c.owner_bound[tb_++] = q;
+            for (int t = 0; t < nth; t++) {   // 记录本次分配的模型代价（速度 = 代价/实测周期）
+                double cc = 0;
+                for (long qq = c.owner_bound[t]; qq < c.owner_bound[t + 1]; qq++) cc += cost[qq % c.nrb];
+                g_ab_cost[t] = cc;
+            }
         } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
@@ -3390,6 +3407,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
         if (c.owner) {
+            uint64_t ab0 = cyc();
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
@@ -3408,6 +3426,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
                 (c.special == 5 ? run_task_owner : run_task)(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
             }
+            g_ab_busy[tid] = cyc() - ab0;
         } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
@@ -3429,6 +3448,25 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (c.prof >= 2) g_tb[tid].t_store += cyc() - t0;
         }
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
+    }
+    if (c.owner) {   // 自适应区间：由实测周期更新相对速度（均值归一 + 限幅，防单次噪声振荡）
+        double sp[1024], mean = 0; int ok = 1;
+        for (int t = 0; t < nth; t++) {
+            if (!g_ab_busy[t] || g_ab_cost[t] <= 0) { ok = 0; break; }
+            sp[t] = g_ab_cost[t] / (double)g_ab_busy[t];
+            mean += sp[t];
+        }
+        if (ok && mean > 0) {
+            mean /= nth;
+            for (int t = 0; t < nth; t++) {
+                double r = sp[t] / mean;
+                if (r < 0.8) r = 0.8;
+                if (r > 1.25) r = 1.25;
+                g_ab_speed[t] = r;
+            }
+            g_ab_m = m; g_ab_n = n; g_ab_nth = nth; g_ab_valid = 1;
+        }
+        for (int t = 0; t < nth; t++) g_ab_busy[t] = 0;
     }
     if (c.prof) {
         uint64_t t2 = cyc();
