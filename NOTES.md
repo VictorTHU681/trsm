@@ -278,3 +278,14 @@ kblas 线程在同一批核上可运行，忙等的池线程 vruntime 高，被 
 专用路径 B 操作数直接读行主序 X（`TRSM_XDIRECT`，寄存器步长双 bank 内核，省掉 Xp 写）：正确，store 1.66→0.64，但 kloop 17.1→28.6：
 ldb=17088 的行距 136 KB ≡ 16 条 line (mod 64 组)，一个 bank 的 64 行 B 只落在 4 个 L1 组里（8 路 × 4 = 32 行装不下 128 行），全部 L1 冲突缺失；撤回。
 case2 各开关（DNT/XPNT/XPTM/LOADPF 8/32、LSPLIT）与 case1 的 DNT/LOADPF/C0 扫描均持平。
+
+**2026-09-12 凌晨（fresh3，目标 TC1 3274 / TC2 4929 线上）**：8 项实验全负或持平，v43 不变。
+- 自适应区间（`TRSM_ADAPT`，预热调用实测每线程耗时→重划 owner 边界）：逐轮重标定 −1.5%、50% 阻尼更差、只用预热标定 −12%。
+  标定源只有校验调用，而它含 X 迁移/首触等一次性开销且线程间分布不均；慢线程偏差绑定区间形状 (ia,ib)，边界一动偏差就重分布——自调优调度此路不通。
+- mode2 融合回写（`TRSM_FSTORE`，Xp+X 单遍扫 cbuf）：持平（store 受写带宽限制，省一遍 L2 重读不可见）。
+- 对角条预取窗口开大（`TRSM_DPFCH`，把每段前半游标 2 的"哑地址 prfm"指向对角条）：case2 −1%。哑地址 prfm 不产生内存流量，
+  指向真地址等于把对角冷读挪进 K 循环的 line 墙窗口，总行数不减、K 循环更敏感。
+- 波前任务序（`TRSM_WAVE`，最后行块的 133 个 ~1.3 ms 长任务摊到全程）：W=4/8/16 单调变差（早期波依赖等待 + 局部性丢失）；
+  case2 尾部 0.6 ms 在 TAILW/WAVE 两种做法下都拿不回。
+- 确认已在最优档：`TRSM_LNODE0=1`（L 去 DDR）case1 −15%/case3 −7%；`TRSM_OWNER_PF2=0` case1 −9%；`TRSM_LOADPF` 4/6/8/32、
+  `TRSM_OWNER_C0` 160/224、case2 的 DNT/XPNT/XPTM 全部持平（DNT 剖析里 dkloop 2.40→2.23 但端到端不可见）。
