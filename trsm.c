@@ -3277,6 +3277,18 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (int s = 0; s < c.S_of[i]; s++) { ditem_i[q] = i; ditem_s[q] = s; q++; }
     }
     uint64_t t1 = c.prof ? cyc() : 0;
+    static double g_probe_ms[2];
+    if (c.prof >= 2 && env_int("TRSM_PROBE_REGION", 0)) {   // 诊断：连发两个空并行区，量"间隔后第一个并行区"和"紧接着的第二个"的开销
+        uint64_t a0 = cyc();
+#pragma omp parallel num_threads(nth)
+        { asm volatile("" ::: "memory"); }
+        uint64_t a1 = cyc();
+#pragma omp parallel num_threads(nth)
+        { asm volatile("" ::: "memory"); }
+        uint64_t a2 = cyc();
+        g_probe_ms[0] = (a1 - a0) / (double)cyc_hz() * 1e6; g_probe_ms[1] = (a2 - a1) / (double)cyc_hz() * 1e6;
+        t1 = cyc();
+    }
 
 #pragma omp parallel num_threads(nth)
     {
@@ -3398,6 +3410,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 uint64_t wmax = 0, wsum = 0; int wn = 0;
                 for (int t = 0; t < nth; t++) { uint64_t d = g_wake_cyc[t] > t1 ? g_wake_cyc[t] - t1 : 0; if (d > wmax) wmax = d; wsum += d; wn++; }
                 fprintf(stderr, "[trsm prof]  并行区唤醒：最慢线程 %.1f µs，平均 %.1f µs，主线程 %.1f µs\n", wmax / hz * 1e6, (double)wsum / wn / hz * 1e6, (g_wake_cyc[0] > t1 ? g_wake_cyc[0] - t1 : 0) / hz * 1e6);
+                if (g_probe_ms[0] > 0) fprintf(stderr, "[trsm prof]  空并行区：第一个 %.1f µs，第二个 %.1f µs\n", g_probe_ms[0], g_probe_ms[1]);
             }
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
             long nks = 0, ndks = 0, ntk = 0, nswf = 0, nswq = 0;
