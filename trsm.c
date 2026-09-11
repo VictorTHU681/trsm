@@ -1590,6 +1590,7 @@ typedef struct {
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int fuse;               // 首段融合装载（TRSM_FUSE）：整块任务不做装载阶段，首段托管回写改为 C = B 行 − 暂存
     int torder;             // GEMM 段内循环顺序：0 条→列块（B 段常驻 L2），1 列块→条（B 子段留 L1，A 条常驻 L2）
+    int duplex;             // 面板驻留模式 GEMM 用两组 16×16 ZA bank 流水（行主序 B/C 内核），不经暂存转存
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1768,6 +1769,10 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
     if (c->prof >= 2) tb->t_pack += cyc() - t0;
 }
 
+// 双 ZA bank 内核（定义在后面的专用任务实现旁），面板驻留模式的通用任务也用
+static inline void za_flush_duplex_bank4(double* c, long bs);
+static inline void kloop_duplex_bank0_rm(const double* a, const double* b, double* c, long bs, long cs, const char* ap, const char* pc);
+static inline void kloop_duplex_bank4_rm(const double* a, const double* b, double* c, long bs, long cs, const char* ap, const char* pc);
 // 返回：对角阶段预占到的下一任务号（未预占为 -1）
 static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid)
 {
@@ -1858,6 +1863,11 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     // 段内 S 个 A 条（S×8 KB）在 L2 里被 ntile 个列块复用；B 段不必整块常驻 L2，给更宽的 nc 腾 L2 空间
     const int torder = c->torder && !c->jit;
     const long nouter = torder ? nstrips * ntile : nstrips;
+    // 面板驻留模式的双 ZA bank 流水：每个 32 列块先算 bank0（列 0..15，同时把上一块 bank4 的结果减进 C），再算 bank4（列 16..31，同时减 bank0）
+    // 要求 kc=64、整面板（全 32 列块）、预打包 A（稠密 128 B/k）、非分裂、非直接 ZA 路径
+    const int duplex = c->duplex && c->owner && !c->direct && !c->jit && !split && kc == 64 && nci == nc && (nc & 31) == 0;
+    int dpend = 0; double* dpend_c = NULL;
+    if (duplex) sme_zero_za();   // 第一次 bank0 会把 bank4（全零）减进 C，无害
     for (long qq = 0; qq < nouter; qq++) {
         long q; int t0, t1;
         if (torder) {
@@ -1958,6 +1968,15 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 if (fuse && ch == chfirst) { pf.pc = (const char*)(Bblk + 16L * r * ldb + 32 * t); pf.pcs = ldb * 8; }
                 else { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             }
+            if (duplex) {
+                double* cur = acc + 16L * r * ncp + 32 * t;
+                const char* ap = pf.p;
+                PROF_T(c, kloop_duplex_bank0_rm(A, Xk + 32 * t, (dpend ? dpend_c : cur) + 16, cs, cs, ap, pf.pc), t_kloop);
+                PROF_T(c, kloop_duplex_bank4_rm(A, Xk + 32 * t + 16, cur, cs, cs, ap + 1024, pf.pc + 128), t_kloop);
+                dpend = 1; dpend_c = cur;
+                if (c->prof >= 2) tb->n_kstep += kk;
+                continue;
+            }
             sw_advance(tb);
             if(c->direct) {
                 PROF_T(c,za_load_direct(acc+16L*r*ncp+32*t,cs,cols),t_load);
@@ -2004,6 +2023,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
+    if (duplex && dpend) { PROF_T(c, za_flush_duplex_bank4(dpend_c + 16, cs), t_epi); dpend = 0; }
     if (pend) {
         if (pend_first) PROF_T(c, epi_subb_std(scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_epi);
         else PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
@@ -2492,6 +2512,283 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "cmp w12, #8\n\t"
  "b.lt 1b\n\t"
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+// 行主序 B/C 版本（面板驻留模式）：B 段行距 bs、C 行距 cs 用寄存器；不预取 B（面板缓冲已在 L2）
+static inline void kloop_duplex_bank0_rm(const double* a, const double* b, double* c, long bs, long cs,
+                                      const char* ap, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8 * cs;
+    const long cs8 = 8 * cs;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "1:\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "add %[ap], %[ap], #64\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za5h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "add x13, %[pc], %[cs8]\n\t"
+ "prfm pldl2keep, [%[pc]]\n\t"
+ "prfm pldl2keep, [%[pc], #64]\n\t"
+ "prfm pldl2keep, [x13]\n\t"
+ "prfm pldl2keep, [x13, #64]\n\t"
+ "add %[pc], %[pc], %[cs]\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za6h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "add %[ap], %[ap], #64\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za7h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
+ "cmp w12, #7\n\t"
+ "b.eq 2f\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "b 3f\n\t"
+ "2:\n\t"
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "3:\n\t"
+ "add %[ct], %[ct], %[cs]\n\t"
+ "add %[cb], %[cb], %[cs]\n\t"
+ "add w12, w12, #1\n\t"
+ "cmp w12, #8\n\t"
+ "b.lt 1b\n\t"
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[pc] "+&r"(pc): [bs] "r"(bs),[cs] "r"(cs),[cs8] "r"(cs8): "memory","cc","x12","x13",VCLOB,PCLOB);}
+static inline void kloop_duplex_bank4_rm(const double* a, const double* b, double* c, long bs, long cs,
+                                      const char* ap, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8 * cs;
+    const long cs8 = 8 * cs;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "1:\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "add %[ap], %[ap], #64\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za1h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "add x13, %[pc], %[cs8]\n\t"
+ "prfm pldl2keep, [%[pc]]\n\t"
+ "prfm pldl2keep, [%[pc], #64]\n\t"
+ "prfm pldl2keep, [x13]\n\t"
+ "prfm pldl2keep, [x13, #64]\n\t"
+ "add %[pc], %[pc], %[cs]\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za2h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "prfm pldl2keep, [%[ap]]\n\t"
+ "add %[ap], %[ap], #64\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "mova z16.d, p0/m, za3h.d[w12, 0]\n\t"
+ "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
+ "fsub z17.d, z17.d, z16.d\n\t"
+ "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
+ "cmp w12, #7\n\t"
+ "b.eq 2f\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], %[bs]\n\t"
+ "b 3f\n\t"
+ "2:\n\t"
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "3:\n\t"
+ "add %[ct], %[ct], %[cs]\n\t"
+ "add %[cb], %[cb], %[cs]\n\t"
+ "add w12, w12, #1\n\t"
+ "cmp w12, #8\n\t"
+ "b.lt 1b\n\t"
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[pc] "+&r"(pc): [bs] "r"(bs),[cs] "r"(cs),[cs8] "r"(cs8): "memory","cc","x12","x13",VCLOB,PCLOB);}
 static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
@@ -2957,6 +3254,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     c.fuse = env_int("TRSM_FUSE", 0);   // 首段融合装载：实测 case1 2.42→2.49、case2 通用路径持平（装载字节并入 K 循环只是把停顿搬了位置），默认关
     c.torder = env_int("TRSM_TORDER", 0);
+    c.duplex = env_int("TRSM_DUPLEX", 1);
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
