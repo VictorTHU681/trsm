@@ -2275,6 +2275,8 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 // Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
 // Expand all eight output rows; the final K step never loads another operand.
 #define DUP_PF_FULL "prfm pldl2keep, [%[ap]]\n\t" "prfm pldl2keep, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
+#define DUP_PF_A1 "prfm pldl1keep, [%[ap]]\n\t" "prfm pldl2keep, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
+#define DUP_PF_STRM "prfm pldl2strm, [%[ap]]\n\t" "prfm pldl2strm, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
 #define DUP_PF_ADDONLY "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
 #define DUP_PF1 DUP_PF_FULL
 #define DUP_PF2 DUP_PF_FULL
@@ -2472,6 +2474,69 @@ static inline void kloop_duplex_bank0_h(const double* a, const double* b, double
  "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
  "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF1
+#undef DUP_PF2
+#define DUP_PF1 DUP_PF_A1
+#define DUP_PF2 DUP_PF_A1
+// A 预取进 L1（pldl1keep）版本
+static inline void kloop_duplex_bank0_a1(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF1
+#undef DUP_PF2
+#define DUP_PF1 DUP_PF_STRM
+#define DUP_PF2 DUP_PF_STRM
+// 流式提示（pldl2strm）版本
+static inline void kloop_duplex_bank0_strm(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF1
+#undef DUP_PF2
+#define DUP_PF1 DUP_PF_FULL
+#define DUP_PF2 DUP_PF_FULL
+
 #undef DUP_PF2
 #define DUP_PF2 DUP_PF_FULL
 
@@ -2677,6 +2742,69 @@ static inline void kloop_duplex_bank4_h(const double* a, const double* b, double
  "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
  "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF1
+#undef DUP_PF2
+#define DUP_PF1 DUP_PF_A1
+#define DUP_PF2 DUP_PF_A1
+// A 预取进 L1（pldl1keep）版本
+static inline void kloop_duplex_bank4_a1(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF1
+#undef DUP_PF2
+#define DUP_PF1 DUP_PF_STRM
+#define DUP_PF2 DUP_PF_STRM
+// 流式提示（pldl2strm）版本
+static inline void kloop_duplex_bank4_strm(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF1
+#undef DUP_PF2
+#define DUP_PF1 DUP_PF_FULL
+#define DUP_PF2 DUP_PF_FULL
+
 #undef DUP_PF2
 #define DUP_PF2 DUP_PF_FULL
 

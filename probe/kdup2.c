@@ -39,7 +39,13 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
                     bp = (const char*)Bnext + off;
                 }
                 const char* pc = (const char*)C;
-                if (g->hp) {
+                if (g->hp == 2) {
+                    kloop_duplex_bank0_a1(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
+                    kloop_duplex_bank4_a1(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                } else if (g->hp == 3) {
+                    kloop_duplex_bank0_strm(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
+                    kloop_duplex_bank4_strm(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                } else if (g->hp) {
                     kloop_duplex_bank0_h(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
                     kloop_duplex_bank4_h(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
                 } else if (g->nt) {
@@ -109,6 +115,10 @@ int main(void)
     v = base; v.bbytes = big; v.pfb = 1; v.hp = 1; show("v5h 只 B 流式, 半预取内核", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.hp = 1; show("v4h A、B 流式(B 后半), 半预取内核", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.hp = 1; show("v4h0 A、B 流式(B 前半), 半预取内核", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.hp = 2; show("v3a1 只 A 流式, A 预取 pldl1keep", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.hp = 2; show("v4a1 A、B 流式(B 后半), A→L1", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.hp = 3; show("v4st A、B 流式(B 后半), pldl2strm", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.hp = 2; show("v4a1f A、B 流式(B 前半), A→L1", run(&v, n, dummy));
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
