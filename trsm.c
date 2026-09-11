@@ -3456,13 +3456,15 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             sp[t] = g_ab_cost[t] / (double)g_ab_busy[t];
             mean += sp[t];
         }
-        if (ok && mean > 0) {
+        const int same = g_ab_valid && g_ab_m == m && g_ab_n == n && g_ab_nth == nth;
+        const int blend = env_int("TRSM_ADAPT_BLEND", 100);   // 0 = 只用第一次（预热）标定，之后冻结；100 = 每次重标定
+        if (ok && mean > 0 && !(same && blend == 0)) {
             mean /= nth;
             for (int t = 0; t < nth; t++) {
                 double r = sp[t] / mean;
                 if (r < 0.8) r = 0.8;
                 if (r > 1.25) r = 1.25;
-                g_ab_speed[t] = r;
+                g_ab_speed[t] = same ? (g_ab_speed[t] * (100 - blend) + r * blend) / 100.0 : r;
             }
             g_ab_m = m; g_ab_n = n; g_ab_nth = nth; g_ab_valid = 1;
         }
