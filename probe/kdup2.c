@@ -61,7 +61,7 @@ int main(void)
 {
     char* dummy = (char*)al(1 << 20);
     const size_t big = 256UL << 20;
-    double* Abig = al(big); double* Bbig = al(big); double* Cbig = al(4UL << 20);
+    double* Abig = al(big); double* Bbig = al(big); double* Cbig = al(8UL << 20);
     for (size_t i = 0; i < big / 8; i += 7) Abig[i] = 1.0 / (i + 1), Bbig[i] = 1.0 / (i + 3);
     sme_start();
     double r1;
@@ -96,6 +96,12 @@ int main(void)
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.S = 8; v.cS = 1; show("v4tiny S=8, C 16K（活跃集 ~200K）", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.nt = 1; show("v4nt A 用 ldnt1d 内核", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.nt = 1; v.blate = 1; show("v4nt+bl", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.NT = 2; show("v3t2 只 A 流式, NT=2（A 行/fmopa ×2）", run(&v, n, dummy));
+    v = base; v.bbytes = big; v.pfb = 1; v.NT = 2; show("v5t2 只 B 流式, NT=2（B 段换频 ×2）", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.NT = 8; show("v3t8 只 A 流式, NT=8（A 行/fmopa ÷2）", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.NT = 8; show("v4t8 A、B 流式 NT=8（C 512K）", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.S = 32; v.cS = 32; show("v4s32 A、B 流式 S=32（C 512K）", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.S = 8; v.NT = 8; v.cS = 8; show("v4s8t8 S=8 NT=8（C 256K, B 段 128K）", run(&v, n, dummy));
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
