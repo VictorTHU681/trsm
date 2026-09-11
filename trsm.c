@@ -1598,27 +1598,31 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
 
 // ---------------------------------------------------------------- 对角阶段的双 ZA bank 内核（SET 语义、变 K、行主序 B/C）
 // 对角求解每个 32 列块：bank0 算列 0..15 时把上一块 bank4 的结果直接存进 C（SET，不读旧值），bank4 算列 16..31 时存 bank0。
-// K = 16(s+1)，16 的倍数：K=16 每步排 2 行；K≥32 前 32 步每步排 1 行，其余步只算。每步先装载再 fmopa（不越界预读）。
+// K = 16(s+1)，16 的倍数：K=16 每步排 2 行；K≥32 前 32 步每步排 1 行，其余步只算。
+// 软件流水：每步先发下一步的装载（另一组寄存器）再算本步；最后一步不预读（不越界）。
 // 排水顺序按 tile 主序（tile 的 8 行连续），目标行指针 xd 每行 +cs；C 行距 cs、B 行距 bs 均为字节。
-#define DSTEP(A0, A1, B0, B1, T0, T1, T2, T3)                                     \
+#define DLOAD(A0, A1, B0, B1)                                                      \
     "ld1d " A0 ".d, p0/z, [%[a]]\n\t"                                              \
     "ld1d " A1 ".d, p0/z, [%[a], #1, mul vl]\n\t"                                  \
     "ld1d " B0 ".d, p0/z, [%[b]]\n\t"                                              \
     "ld1d " B1 ".d, p0/z, [%[b], #1, mul vl]\n\t"                                  \
     "add %[a], %[a], #128\n\t"                                                     \
-    "add %[b], %[b], %[bs]\n\t"                                                    \
+    "add %[b], %[b], %[bs]\n\t"
+#define DFM(A0, A1, B0, B1, T0, T1, T2, T3)                                        \
     "fmopa " T0 ".d, p0/m, p0/m, " A0 ".d, " B0 ".d\n\t"                           \
     "fmopa " T1 ".d, p0/m, p0/m, " A0 ".d, " B1 ".d\n\t"                           \
     "fmopa " T2 ".d, p0/m, p0/m, " A1 ".d, " B0 ".d\n\t"                           \
     "fmopa " T3 ".d, p0/m, p0/m, " A1 ".d, " B1 ".d\n\t"
-#define DSTEP_E(T0, T1, T2, T3) DSTEP("z0", "z1", "z4", "z5", T0, T1, T2, T3)
-#define DSTEP_O(T0, T1, T2, T3) DSTEP("z8", "z9", "z12", "z13", T0, T1, T2, T3)
+// 偶步：算 z0/z1/z4/z5，预读下一步到 z8/z9/z12/z13；奇步反之；末步只算
+#define DSTEP_E(T0, T1, T2, T3) DLOAD("z8", "z9", "z12", "z13") DFM("z0", "z1", "z4", "z5", T0, T1, T2, T3)
+#define DSTEP_O(T0, T1, T2, T3) DLOAD("z0", "z1", "z4", "z5") DFM("z8", "z9", "z12", "z13", T0, T1, T2, T3)
+#define DSTEP_O_LAST(T0, T1, T2, T3) DFM("z8", "z9", "z12", "z13", T0, T1, T2, T3)
 #define DDRAIN(DT)                                                                 \
     "mova z16.d, p0/m, " DT "h.d[w12, 0]\n\t"                                      \
     "st1d z16.d, p0, [%[xd]]\n\t"                                                  \
     "add %[xd], %[xd], %[cs]\n\t"                                                  \
     "add w12, w12, #1\n\t"
-// 一个 tile 的 8 行排水块：K≥32 时 8 步（每步 1 行）；K=16 时 4 步（每步 2 行）
+// 一个 tile 的 8 行排水块：K≥32 时 8 步（每步 1 行）；K=16 时 4 步（每步 2 行）。_LAST 版最后一步不预读
 #define DBLOCK8(DT, BASE, T0, T1, T2, T3)                                          \
     "mov w12, #0\n\t"                                                              \
     "mov %[xd], " BASE "\n\t"                                                      \
@@ -1627,6 +1631,16 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
     DSTEP_O(T0, T1, T2, T3) DDRAIN(DT)                                             \
     "cmp w12, #8\n\t"                                                              \
     "b.lt 11b\n\t"
+#define DBLOCK8_LAST(DT, BASE, T0, T1, T2, T3)                                     \
+    "mov w12, #0\n\t"                                                              \
+    "mov %[xd], " BASE "\n\t"                                                      \
+    "15:\n\t"                                                                      \
+    DSTEP_E(T0, T1, T2, T3) DDRAIN(DT) PFL PFX                                     \
+    DSTEP_O(T0, T1, T2, T3) DDRAIN(DT)                                             \
+    "cmp w12, #6\n\t"                                                              \
+    "b.lt 15b\n\t"                                                                 \
+    DSTEP_E(T0, T1, T2, T3) DDRAIN(DT) PFL PFX                                     \
+    DSTEP_O_LAST(T0, T1, T2, T3) DDRAIN(DT)
 #define DBLOCK4(DT, BASE, T0, T1, T2, T3)                                          \
     "mov w12, #0\n\t"                                                              \
     "mov %[xd], " BASE "\n\t"                                                      \
@@ -1635,16 +1649,25 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
     DSTEP_O(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT)                                  \
     "cmp w12, #8\n\t"                                                              \
     "b.lt 12b\n\t"
-// 余下 K-32 步（偶数）只算
+#define DBLOCK4_LAST(DT, BASE, T0, T1, T2, T3)                                     \
+    "mov w12, #0\n\t"                                                              \
+    "mov %[xd], " BASE "\n\t"                                                      \
+    DSTEP_E(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT) PFL PFX                          \
+    DSTEP_O(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT)                                  \
+    DSTEP_E(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT) PFL PFX                          \
+    DSTEP_O_LAST(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT)
+// 余下 K-32 步（≥16，偶数）只算：前 K-34 步成对预读，最后一对末步不预读
 #define DREST(T0, T1, T2, T3)                                                      \
-    "cbz %[k], 14f\n\t"                                                            \
     "13:\n\t"                                                                      \
     DSTEP_E(T0, T1, T2, T3) PFL PFX                                                \
     DSTEP_O(T0, T1, T2, T3)                                                        \
     "subs %[k], %[k], #2\n\t"                                                      \
     "b.gt 13b\n\t"                                                                 \
-    "14:\n\t"
+    DSTEP_E(T0, T1, T2, T3) PFL PFX                                                \
+    DSTEP_O_LAST(T0, T1, T2, T3)
 // D0..D3：被排水 bank 的 4 个 tile；目标：ct（行 0..7 列 0..7）、ct+64（列 8..15）、cb=ct+8cs（行 8..15）、cb+64
+#define DSET_OPS_IO [a] "+&r"(a), [b] "+&r"(b), [xd] "+&r"(xd), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2)
+#define DSET_OPS_IN [bs] "r"(bs), [cs] "r"(cs), [ct] "r"(ct), [ct64] "r"(ct64), [cb] "r"(cb), [cb64] "r"(cb64), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj)
 #define DEF_DSET(NAME, ZERO_OWN, T0, T1, T2, T3, D0, D1, D2, D3)                                                   \
 static inline void NAME(const double* a, const double* b, double* c, long bs, long cs, long K, const pf_t* pf)   \
 {                                                                                                                 \
@@ -1653,32 +1676,38 @@ static inline void NAME(const double* a, const double* b, double* c, long bs, lo
     char* ct64 = ct + 64;                                                                                         \
     char* cb64 = cb + 64;                                                                                         \
     char* xd = ct;                                                                                                \
-    long k = K - 32;                                                                                              \
+    long k = K - 34;   /* DREST 成对循环次数×2 */                                                                  \
     const char* xpf = pf->p;                                                                                      \
     const char* xpf2 = pf->p2;                                                                                    \
     long pfc = pf->pfn;                                                                                           \
     if (K == 16) {                                                                                                \
         asm volatile(                                                                                             \
-            "ptrue p0.d\n\t" ZERO_OWN                                                                             \
+            "ptrue p0.d\n\t" ZERO_OWN DLOAD("z0", "z1", "z4", "z5")                                               \
             DBLOCK4(D0, "%[ct]", T0, T1, T2, T3)                                                                  \
             DBLOCK4(D1, "%[ct64]", T0, T1, T2, T3)                                                                \
             DBLOCK4(D2, "%[cb]", T0, T1, T2, T3)                                                                  \
-            DBLOCK4(D3, "%[cb64]", T0, T1, T2, T3)                                                                \
-            : [a] "+&r"(a), [b] "+&r"(b), [xd] "+&r"(xd), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2)  \
-            : [bs] "r"(bs), [cs] "r"(cs), [ct] "r"(ct), [ct64] "r"(ct64), [cb] "r"(cb), [cb64] "r"(cb64), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
-            : "memory", "cc", "x12", VCLOB, PCLOB);                                                               \
+            DBLOCK4_LAST(D3, "%[cb64]", T0, T1, T2, T3)                                                           \
+            : DSET_OPS_IO : DSET_OPS_IN : "memory", "cc", "x12", VCLOB, PCLOB);                                   \
+        return;                                                                                                   \
+    }                                                                                                             \
+    if (K == 32) {                                                                                                \
+        asm volatile(                                                                                             \
+            "ptrue p0.d\n\t" ZERO_OWN DLOAD("z0", "z1", "z4", "z5")                                               \
+            DBLOCK8(D0, "%[ct]", T0, T1, T2, T3)                                                                  \
+            DBLOCK8(D1, "%[ct64]", T0, T1, T2, T3)                                                                \
+            DBLOCK8(D2, "%[cb]", T0, T1, T2, T3)                                                                  \
+            DBLOCK8_LAST(D3, "%[cb64]", T0, T1, T2, T3)                                                           \
+            : DSET_OPS_IO : DSET_OPS_IN : "memory", "cc", "x12", VCLOB, PCLOB);                                   \
         return;                                                                                                   \
     }                                                                                                             \
     asm volatile(                                                                                                 \
-        "ptrue p0.d\n\t" ZERO_OWN                                                                                 \
+        "ptrue p0.d\n\t" ZERO_OWN DLOAD("z0", "z1", "z4", "z5")                                                   \
         DBLOCK8(D0, "%[ct]", T0, T1, T2, T3)                                                                      \
         DBLOCK8(D1, "%[ct64]", T0, T1, T2, T3)                                                                    \
         DBLOCK8(D2, "%[cb]", T0, T1, T2, T3)                                                                      \
         DBLOCK8(D3, "%[cb64]", T0, T1, T2, T3)                                                                    \
         DREST(T0, T1, T2, T3)                                                                                     \
-        : [a] "+&r"(a), [b] "+&r"(b), [xd] "+&r"(xd), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2) \
-        : [bs] "r"(bs), [cs] "r"(cs), [ct] "r"(ct), [ct64] "r"(ct64), [cb] "r"(cb), [cb64] "r"(cb64), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
-        : "memory", "cc", "x12", VCLOB, PCLOB);                                                                   \
+        : DSET_OPS_IO : DSET_OPS_IN : "memory", "cc", "x12", VCLOB, PCLOB);                                       \
 }
 DEF_DSET(kloop_dset_bank0, "zero {za0.d, za1.d, za2.d, za3.d}\n\t", "za0", "za1", "za2", "za3", "za4", "za5", "za6", "za7")
 DEF_DSET(kloop_dset_bank4, "zero {za4.d, za5.d, za6.d, za7.d}\n\t", "za4", "za5", "za6", "za7", "za0", "za1", "za2", "za3")
