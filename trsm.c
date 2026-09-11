@@ -2442,6 +2442,13 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
  "add %[ct], %[ct], #" #CS "\n\t" \
  "add %[cb], %[cb], #" #CS "\n\t"
+// 专用路径 bank4 是同一条 A 的第二次（最后一次）读取：-DTRSM_A4NT 用 ldnt1d，让用完的 A 行不被 RRIP 命中提升、
+// 不占 L2 高优先级（zgemm 的缓存提示卫生结论：死数据被提升后会把预取行挤掉）
+#ifdef TRSM_A4NT
+#define DUP4_ALD "ldnt1d "
+#else
+#define DUP4_ALD "ld1d "
+#endif
 static inline void kloop_duplex_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
@@ -2457,14 +2464,14 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #1\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #2\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #3\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #4\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
- "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 static inline void kloop_owner_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
