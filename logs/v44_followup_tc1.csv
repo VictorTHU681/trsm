@@ -1,0 +1,15 @@
+log,round,variant,printed_ms,GFLOPS,max_error,validation
+344-owner104.sh.log,1,inl-all43,1.88,2787.3172,3.33e-16,PASS
+344-owner104.sh.log,1,owner104,1.94,2700.8444,3.33e-16,PASS
+344-owner104.sh.log,2,inl-all43,1.90,2760.5885,3.33e-16,PASS
+344-owner104.sh.log,2,owner104,2.01,2609.0908,3.33e-16,PASS
+344-owner104.sh.log,3,inl-all43,1.92,2724.8064,3.33e-16,PASS
+344-owner104.sh.log,3,owner104,1.98,2643.2338,3.33e-16,PASS
+346-owner-loadnt.sh.log,1,inl-all43,1.88,2779.7195,3.33e-16,PASS
+346-owner-loadnt.sh.log,1,owner-loadnt44,1.91,2737.6037,3.33e-16,PASS
+346-owner-loadnt.sh.log,2,inl-all43,1.88,2788.3583,3.33e-16,PASS
+346-owner-loadnt.sh.log,2,owner-loadnt44,1.91,2737.8323,3.33e-16,PASS
+346-owner-loadnt.sh.log,3,inl-all43,1.90,2751.7999,3.33e-16,PASS
+346-owner-loadnt.sh.log,3,owner-loadnt44,1.89,2764.3746,3.33e-16,PASS
+346-owner-loadnt.sh.log,4,inl-all43,1.89,2775.4259,3.33e-16,PASS
+346-owner-loadnt.sh.log,4,owner-loadnt44,2.00,2614.9684,3.33e-16,PASS
