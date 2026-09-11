@@ -1245,6 +1245,52 @@ static void pack_strip_ld4(const double* L, long lda, long row0, long k0, long k
         : [lda8] "r"(lda8), [u] "r"(g_unit)
         : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
 }
+// 带软件预取的变体：每行在 ld4d 之后预取本行 1 KB 之后的 4 个 cache 行（16 行交错顺序流，硬件预取器跟不上）
+#define P4_R_PF(zA, zB, zC, zD, T0, T1, T2, T3, E)                                \
+    "ld4d {" zA ".d, " zB ".d, " zC ".d, " zD ".d}, p0/z, [x9]\n\t"               \
+    "prfm pldl2keep, [x9, #1024]\n\t"                                             \
+    "prfm pldl2keep, [x9, #1088]\n\t"                                             \
+    "fmopa " T0 ".d, p0/m, p0/m, " zA ".d, " E ".d\n\t"                           \
+    "prfm pldl2keep, [x9, #1152]\n\t"                                             \
+    "prfm pldl2keep, [x9, #1216]\n\t"                                             \
+    "add x9, x9, %[lda8]\n\t"                                                     \
+    "fmopa " T1 ".d, p0/m, p0/m, " zB ".d, " E ".d\n\t"                           \
+    "fmopa " T2 ".d, p0/m, p0/m, " zC ".d, " E ".d\n\t"                           \
+    "fmopa " T3 ".d, p0/m, p0/m, " zD ".d, " E ".d\n\t"
+#define P4_EVEN_PF(E) P4_R_PF("z0", "z1", "z2", "z3", "za0", "za2", "za4", "za6", E)
+#define P4_ODD_PF(E)  P4_R_PF("z4", "z5", "z6", "z7", "za0", "za2", "za4", "za6", E)
+#define P4_EVEN_H_PF(E) P4_R_PF("z0", "z1", "z2", "z3", "za1", "za3", "za5", "za7", E)
+#define P4_ODD_H_PF(E)  P4_R_PF("z4", "z5", "z6", "z7", "za1", "za3", "za5", "za7", E)
+static void pack_strip_ld4_pf(const double* L, long lda, long row0, long k0, long kk, double* dst)
+{
+    const char* xl = (const char*)(L + row0 * lda + k0);
+    char* xd = (char*)dst;
+    long n = kk / 32, lda8 = lda * 8;
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "ld1d z16.d, p0/z, [%[u]]\n\t"
+        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
+        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
+        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
+        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
+        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
+        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
+        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
+        "1:\n\t"
+        "zero {za}\n\t"
+        "mov x9, %[xl]\n\t"
+        P4_EVEN_PF("z16") P4_ODD_PF("z17") P4_EVEN_PF("z18") P4_ODD_PF("z19")
+        P4_EVEN_PF("z20") P4_ODD_PF("z21") P4_EVEN_PF("z22") P4_ODD_PF("z23")
+        P4_EVEN_H_PF("z16") P4_ODD_H_PF("z17") P4_EVEN_H_PF("z18") P4_ODD_H_PF("z19")
+        P4_EVEN_H_PF("z20") P4_ODD_H_PF("z21") P4_EVEN_H_PF("z22") P4_ODD_H_PF("z23")
+        ZA_DUMP_GROUP(0) ZA_DUMP_GROUP(16) ZA_DUMP_GROUP(32) ZA_DUMP_GROUP(48)
+        "add %[xl], %[xl], #256\n\t"
+        "subs %[n], %[n], #1\n\t"
+        "b.ne 1b\n\t"
+        : [xl] "+&r"(xl), [b] "+&r"(xd), [n] "+&r"(n)
+        : [lda8] "r"(lda8), [u] "r"(g_unit)
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
+}
 
 // 变体 B：ld2d + 4 tile，两组交替（za0-3 / za4-7），使 str za 与下一组的 fmopa 有机会重叠。
 // 16 个 k 一组：z_q[j] = L[r][k0+2j+q]，tile (2q + [r≥8]) (+4 奇数组)。布局：k 偶 → 256(k-k0)，k 奇 → 256(k-k0)-128，
@@ -1462,6 +1508,7 @@ typedef struct {
     int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
     int dant;               // 专用双 bank GEMM 内核的 A 条用 ldnt1d（TRSM_DANT）
     int pair;               // 专用路径条带按两条×4微块交错（TRSM_PAIR）
+    int packpf;             // 流水打包 ld4d 转置里加软件预取（TRSM_PACKPF）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -1757,7 +1804,7 @@ static void pack_l_chunked(const ctx_t* c, long g) {
     for(long k=0;k<kk;k+=c->kc) {
         double* dst=c->pp[0]+packed_l_offset(c,g,k);
         // The initial OpenMP packing stage has not enabled ZA; only task packing may use it.
-        if(c->ppmode==1 && rows==16 && (c->kc&31)==0)pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst);
+        if(c->ppmode==1 && rows==16 && (c->kc&31)==0){ if(c->packpf)pack_strip_ld4_pf(c->L,c->lda,row0,k,c->kc,dst); else pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst); }
         else pack_strip(c->L,c->lda,c->m,row0,k,c->kc,dst);
         if(c->pp[1])memcpy(c->pp[1]+packed_l_offset(c,g,k),dst,(size_t)c->kc*16*8);
     }
@@ -3099,6 +3146,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
         c.dant = env_int("TRSM_DANT", 0);
         c.pair = env_int("TRSM_PAIR", 0);
+        c.packpf = env_int("TRSM_PACKPF", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
