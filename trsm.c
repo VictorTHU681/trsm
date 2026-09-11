@@ -3072,10 +3072,10 @@ static void* pool_worker(void* p)
     pin_self(tid);
     long seen = 0;
     for (;;) {
-        long g; unsigned long sp = 0;
-        while ((g = __atomic_load_n(&g_pool_gen, __ATOMIC_ACQUIRE)) == seen) {
-            if ((++sp & 0xfff) == 0) sched_yield(); else asm volatile("yield");
-        }
+        long g;
+        // 纯忙等（不 sched_yield）：kblas 的工作线程在 domatcopy 之后会在同一批核上自旋一段时间，sched_yield 会把核让给它
+        // 并被 CFS 记为"已用完份额"，实测唤醒延迟 8 ms、整体慢 5 倍；忙等时对方的 yield 让我们立即拿回核
+        while ((g = __atomic_load_n(&g_pool_gen, __ATOMIC_ACQUIRE)) == seen) asm volatile("yield");
         seen = g;
         if (tid < g_pool_job.nth) g_pool_job.fn(tid, g_pool_job.arg);
         __atomic_fetch_add(&g_pool_done, 1, __ATOMIC_ACQ_REL);
