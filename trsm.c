@@ -1472,6 +1472,7 @@ typedef struct {
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
+    int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -2853,6 +2854,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 svst1_f64(pg,dj,svld1_f64(pg,s+j));
             }
         }
+        // 专用路径的消费者只读 Xp（列块主序副本），不读 X：Xp 写完就发布 flag，X 的回写放到 flag 之后——
+        // 缩短行块间依赖链（case3 每环 ≈ 最后一段 GEMM + 归约 + 对角 + 回写，89 环串行），下游任务少等一次 X 回写的时间
+        if (c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
         // The specialized Xp layout is tiled; copy final output from C below.
@@ -2899,7 +2903,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (!c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
@@ -2978,6 +2982,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
+        c.eflag = env_int("TRSM_EFLAG", 1);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     {
