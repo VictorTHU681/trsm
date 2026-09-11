@@ -9,7 +9,7 @@
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
 static const long K = 64;
 
-typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT; long cs; int ah; int fixed; } cfg_t;
+typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT; long cs; int ah; int fixed; int torder; int apf; } cfg_t;
 
 static void kcall(const cfg_t* g, const double* A, const double* B, double* Cprev, double* C, const char* ap, const char* bp, long apoff4)
 {
@@ -71,6 +71,40 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
     return (double)(t1 - t0) / (nchunk * calls) / K * (1.55e9 / (double)cyc_hz());
 }
 
+
+// 列块外层：for t: for s。A 段在 t=0 时按顺序流过（硬件预取器可跟的连续流；apf=1 时再加软件预取 apf KB 之前），t≥1 从 L2 复用；
+// B 微面板 t 在 16 条间常驻 L1/L2；下一段的 B 用 bp 在最后一个 t 里预取。
+static double run_torder(const cfg_t* g, long nchunk, char* dummy)
+{
+    const long S = g->S, NT = g->NT, ncp = g->cs / 8;
+    const size_t achunk = S * 1024 * 8, bchunk = NT * 2048 * 8;
+    const long na = g->abytes / achunk, nb = g->bbytes / bchunk;
+    uint64_t t0 = cyc();
+    double* pend_c = NULL;
+    for (long k = 0; k < nchunk; k++) {
+        const double* Ach = g->A + (k % na) * (achunk / 8);
+        const double* Bch = g->B + (k % nb) * (bchunk / 8);
+        const double* Bnext = g->B + ((k + 1) % nb) * (bchunk / 8);
+        for (long t = 0; t < NT; t++) {
+            const double* B = Bch + t * 2048;
+            for (long s = 0; s < S; s++) {
+                const double* A = Ach + s * 1024;
+                double* C = g->C + 16 * s * ncp + 32 * t;
+                const char* ap = dummy;
+                if (t == 0 && g->apf) ap = (const char*)A + g->apf * 1024;   // 顺着 A 流提前 apf KB（每调用 2 KB）
+                const char* bp = dummy;
+                if (t == NT - 1 && s < 8) bp = (const char*)Bnext + (size_t)s * 8192;   // 下一段 B：8 条 × 8 KB… 每调用只覆盖 2 KB，故按 4 条覆盖一个微面板
+                if (t == NT - 1) bp = (const char*)Bnext + (size_t)s * 2048 * 2;         // 16 调用 × 2 KB = 32 KB：先覆盖下一段前 2 个微面板
+                cfg_t gg = *g; gg.ah = 0;
+                kcall(&gg, A, B, pend_c, C, ap, bp, 1024);
+                pend_c = C;
+            }
+        }
+    }
+    uint64_t t1 = cyc();
+    return (double)(t1 - t0) / (nchunk * S * NT) / K * (1.55e9 / (double)cyc_hz());
+}
+
 static const char* names[32]; static double vals[32]; static int nres = 0;
 static void show(const char* name, double r) { names[nres] = name; vals[nres++] = r; }   // 流式模式下不能 printf
 
@@ -94,6 +128,11 @@ int main(void)
     v = cur; v.S = 8; v.NT = 7; v.cs = 1792; v.ah = 1; show("S8 NT7 cs1792 ah（C 224 KB）", run(&v, n, dummy));
     v = cur; v.S = 12; v.NT = 7; v.cs = 1792; v.ah = 1; show("S12 NT7 cs1792 ah（重复）", run(&v, n, dummy));
     v = cur; show("S16 NT4 cs1024（当前，重复）", run(&v, n, dummy));
+    v = cur; v.torder = 1; v.apf = 0; show("列块外层 S16 NT4，A 仅硬件预取", run_torder(&v, n, dummy));
+    v = cur; v.torder = 1; v.apf = 8; show("列块外层 S16 NT4，A 软件预取 +8 KB", run_torder(&v, n, dummy));
+    v = cur; v.torder = 1; v.apf = 16; show("列块外层 S16 NT4，A 软件预取 +16 KB", run_torder(&v, n, dummy));
+    v = cur; v.torder = 1; v.apf = 0; v.S = 8; show("列块外层 S8 NT4（A 段 64 KB）", run_torder(&v, n, dummy));
+    v = cur; v.torder = 1; v.apf = 8; v.S = 8; show("列块外层 S8 NT4 +8 KB", run_torder(&v, n, dummy));
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
