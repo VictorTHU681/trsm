@@ -3057,8 +3057,54 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node) { HBM_MAKE_ROOM(xbytes); if (HBM_ROOM(xbytes)) target = g_hbm_node; }
             } else if (xn == -2) target = g_cpu_node;
             else target = xn;
+            // 重铺大页（TRSM_REHUGE）：bench 的 X 是 malloc 的，THP 覆盖率实测只有 21–68%（defrag=never，碎片时退 4 KB 页）；
+            // 4 KB 页下 load/store 跨行扫 X 每行一次页表遍历（行距 >64 KB，L2 TLB 1024 项装不下）。
+            // 只在首次（校验调用，不计时）做：拷出 → MADV_DONTNEED 丢旧页 → 绑 HBM → 拷回时按 2 MiB 大页重新缺页。数据逐字节保留。
+            if (target >= 0 && env_int("TRSM_REHUGE", 1)) {
+                const size_t al = (size_t)2 << 20;
+                uintptr_t lo = ((uintptr_t)B + al - 1) & ~(al - 1);
+                uintptr_t hi = ((uintptr_t)B + xbytes) & ~(al - 1);
+                if (hi > lo + al) {
+                    size_t bytes = hi - lo;
+                    void* tmp = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                    if (tmp != MAP_FAILED) {
+                        memcpy(tmp, (void*)lo, bytes);
+                        int r1 = madvise((void*)lo, bytes, MADV_DONTNEED);
+                        unsigned long mask[16] = {0};
+                        mask[target / 64] |= 1UL << (target % 64);
+                        long r2 = syscall(SYS_mbind, (void*)lo, bytes, MPOL_PREFERRED_, mask, (unsigned long)(sizeof(mask) * 8), 0);
+                        int r3 = madvise((void*)lo, bytes, MADV_HUGEPAGE);
+                        memcpy((void*)lo, tmp, bytes);
+                        munmap(tmp, bytes);
+                        if (env_int("TRSM_SMAPS", 0))
+                            fprintf(stderr, "[trsm rehuge] lo=%lx bytes=%zu MB dontneed=%d mbind=%ld hugepage_adv=%d target=%d\n",
+                                    lo, bytes >> 20, r1, r2, r3, target);
+                    }
+                } else if (env_int("TRSM_SMAPS", 0)) fprintf(stderr, "[trsm rehuge] skip: range too small\n");
+            } else if (env_int("TRSM_SMAPS", 0)) fprintf(stderr, "[trsm rehuge] skip: target=%d rehuge=%d first=%d node(B)=%d\n", target, env_int("TRSM_REHUGE", 1), first_here, page_node_of(B));
             if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
             xmig_ptr = B; xmig_bytes = xbytes;
+        }
+    }
+    if (env_int("TRSM_SMAPS", 0)) {   // 诊断：X / L / 打包缓冲所在 VMA 的透明大页覆盖率（每次调用打印）
+        const void* tgt[4] = { B, L, g_pp[0], (const char*)B + (4 << 20) };
+        const char* nm[4] = { "X", "L", "pp0", "X+4M" };
+        FILE* f = fopen("/proc/self/smaps", "r");
+        if (f) {
+            char line[256]; uintptr_t lo = 0, hi = 0; long huge = -1;
+            int in[4] = {0,0,0,0};
+            while (fgets(line, sizeof line, f)) {
+                uintptr_t a, b2;
+                if (sscanf(line, "%lx-%lx", &a, &b2) == 2) {
+                    lo = a; hi = b2;
+                    for (int k = 0; k < 4; k++) in[k] = tgt[k] && (uintptr_t)tgt[k] >= a && (uintptr_t)tgt[k] < b2;
+                } else if (sscanf(line, "AnonHugePages: %ld", &huge) == 1) {
+                    for (int k = 0; k < 4; k++)
+                        if (in[k]) fprintf(stderr, "[trsm smaps] %s vma %ld MB, anonhuge %ld MB (%.0f%%)\n",
+                                           nm[k], (long)((hi - lo) >> 20), huge >> 10, (hi - lo) ? 100.0 * (huge << 10) / (double)(hi - lo) : 0);
+                }
+            }
+            fclose(f);
         }
     }
 
