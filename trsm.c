@@ -2276,6 +2276,114 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
  "add %[ct], %[ct], #" #CS "\n\t" \
  "add %[cb], %[cb], #" #CS "\n\t"
+
+// KC128 变体：每组 = 排水 BODY(7)+NEXT(1) + 纯算 PURE8(8)，16 行排水摊到 128 步（KC64 是 64 步），
+// 排水/装载指令密度减半；游标槽速率与 BODY 相同（每 8 步 2 个 ap/bp 槽 + 1 个 pc 槽）。
+#define DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa " T0 ".d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa " T1 ".d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa " T2 ".d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa " T3 ".d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+#define DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa " T0 ".d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa " T1 ".d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa " T2 ".d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa " T3 ".d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+#define DUP_PURE_PF1 \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t"
+#define DUP_PURE_PFC(CS, C8, C864) \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t"
+#define DUP_PURE8(T0, T1, T2, T3, BS, CS, C8, C864, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_PF1 \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_PFC(CS, C8, C864) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_PF1 \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD)
+#define DUP_PURE8_LAST(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_PF1 \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP8(T0, T1, T2, T3, BS, ALD) \
+ DUP_PURE_STEP0(T0, T1, T2, T3, BS, ALD) \
+ "fmopa " T0 ".d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa " T1 ".d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa " T2 ".d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa " T3 ".d, p0/m, p0/m, z9.d, z13.d\n\t"
+
+#define DUP_K128_GROUP0(W) \
+ "mov w12, #" #W "\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024) \
+ DUP_PURE8("za0", "za1", "za2", "za3", 128, 1024, 8192, 8256, "ld1d ")
+static inline __attribute__((always_inline)) void kloop_duplex_bank0_k128(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ DUP_K128_GROUP0(0) DUP_K128_GROUP0(1) DUP_K128_GROUP0(2) DUP_K128_GROUP0(3)
+ DUP_K128_GROUP0(4) DUP_K128_GROUP0(5) DUP_K128_GROUP0(6)
+ "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ DUP_PURE8_LAST("za0", "za1", "za2", "za3", 128, "ld1d ")
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+#define DUP_K128_GROUP4(W) \
+ "mov w12, #" #W "\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024) \
+ DUP_PURE8("za4", "za5", "za6", "za7", 128, 1024, 8192, 8256, "ld1d ")
+static inline __attribute__((always_inline)) void kloop_duplex_bank4_k128(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ DUP_K128_GROUP4(0) DUP_K128_GROUP4(1) DUP_K128_GROUP4(2) DUP_K128_GROUP4(3)
+ DUP_K128_GROUP4(4) DUP_K128_GROUP4(5) DUP_K128_GROUP4(6)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ DUP_PURE8_LAST("za4", "za5", "za6", "za7", 128, "ld1d ")
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
 static inline __attribute__((always_inline)) void kloop_duplex_bank0(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {

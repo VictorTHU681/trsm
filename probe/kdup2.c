@@ -9,11 +9,13 @@
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
 static const long K = 64;
 
-typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT, cS; int pfa, pfb, bspread, adist, blate; } cfg_t;
+typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT, cS; int pfa, pfb, bspread, adist, blate, k128; } cfg_t;
 static double run(const cfg_t* g, long nchunk, char* dummy)
 {
     const long S = g->S, NT = g->NT;
-    const size_t achunk = S * 1024 * 8, bchunk = NT * 2048 * 8;
+    const long kk = g->k128 ? 128 : 64;
+    const long astr = kk * 16, btile = kk * 32;   // 每条 A / 每对 B 微面板的 double 数
+    const size_t achunk = S * astr * 8, bchunk = NT * btile * 8;
     const long na = g->abytes / achunk, nb = g->bbytes / bchunk;
     const long calls = S * NT;
     const long bcalls = g->bspread ? calls : (bchunk / 2048);   // 预取下一 B 段所需的调用数（每调用 2 KB）
@@ -26,11 +28,11 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
         const double* Bnext = g->B + ((k + 1) % nb) * (bchunk / 8);
         long call = 0;
         for (long s = 0; s < S; s++) {
-            const double* A = Ach + s * 1024;
+            const double* A = Ach + s * astr;
             const long ad = g->adist ? g->adist : 1;
-            const double* An = (s + ad < S) ? Ach + (s + ad) * 1024 : Anext + (s + ad - S) * 1024;
+            const double* An = (s + ad < S) ? Ach + (s + ad) * astr : Anext + (s + ad - S) * astr;
             for (long t = 0; t < NT; t++, call++) {
-                const double* B = Bch + t * 2048;
+                const double* B = Bch + t * btile;
                 double* C = g->C + 16 * (s % g->cS) * 128 + 32 * t;
                 const char* ap = g->pfa ? (const char*)An + t * (8192 / NT) : dummy;
                 const char* bp = dummy;
@@ -40,14 +42,19 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
                     bp = (const char*)Bnext + off;
                 }
                 const char* pc = (const char*)C;
-                kloop_duplex_bank0(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
-                kloop_duplex_bank4(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                if (g->k128) {
+                    kloop_duplex_bank0_k128(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
+                    kloop_duplex_bank4_k128(A, B + 2048, C, ap + 2048, bp + 2048, pc + 128);
+                } else {
+                    kloop_duplex_bank0(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
+                    kloop_duplex_bank4(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                }
                 pend_c = C;
             }
         }
     }
     uint64_t t1 = cyc();
-    return (double)(t1 - t0) / (nchunk * calls) / K * (1.55e9 / (double)cyc_hz());
+    return (double)(t1 - t0) / (nchunk * calls) / kk * (1.55e9 / (double)cyc_hz());
 }
 
 static const char* names[32]; static double vals[32]; static int nres = 0;
@@ -96,6 +103,19 @@ int main(void)
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.NT = 8; show("v4t8 A、B 流式 NT=8（C 512K）", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.S = 32; v.cS = 32; show("v4s32 A、B 流式 S=32（C 512K）", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.S = 8; v.NT = 8; v.cS = 8; show("v4s8t8 S=8 NT=8（C 256K, B 段 128K）", run(&v, n, dummy));
+    {   // KC128 L1 驻留天花板
+        uint64_t t0 = cyc();
+        for (long r = 0; r < 10000; r++) {
+            kloop_duplex_bank0_k128(Abig, Bbig, Cbig + 16, dummy, dummy, dummy);
+            kloop_duplex_bank4_k128(Abig, Bbig + 2048, Cbig, dummy + 2048, dummy + 2048, dummy + 128);
+        }
+        show("k128 L1 驻留（同 A/B/C）", (double)(cyc() - t0) / 10000 / 128 * (1.55e9 / (double)cyc_hz()));
+    }
+    v = base; v.k128 = 1; run(&v, 8, dummy); show("k128 L2 驻留（A256K+B128K+C256K）", run(&v, n, dummy));
+    v = base; v.k128 = 1; v.S = 8; run(&v, 8, dummy); show("k128s8 L2 驻留（A128K+B128K+C128K）", run(&v, n, dummy));
+    v = base; v.k128 = 1; v.S = 8; v.cS = 8; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; show("k128 双流 S8（A 段 128K，同 v4bl 足迹）", run(&v, n, dummy));
+    v = base; v.k128 = 1; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; show("k128 双流 S16（A 段 256K）", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; show("KC64 双流基线（v4bl 复测）", run(&v, n, dummy));
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
