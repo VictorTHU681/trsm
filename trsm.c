@@ -2180,7 +2180,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 // Constant block configurations let the compiler remove generic index and mode work.
 // Keep the general task independent; it handles all unmatched settings and layouts.
 static inline size_t special_l_offset(const ctx_t* c,int mode,long g,long k0) {
- long mb=mode==2?256:192;
+ long mb=(mode==2||mode==5)?256:192;
  long i=16*g/mb,g0=i*mb/16;
  return c->pp_off[g0]+(size_t)(k0/64)*c->S_of[i]*1024+(g-g0)*1024+(k0%64)*16;
 }
@@ -2546,7 +2546,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
     const task_t* tkn = tkn_guess;
-    const long mb = (mode==2?256:192), nc = 128, kc = 64, ncp = 128;
+    const long mb = ((mode==2||mode==5)?256:192), nc = 128, kc = 64, ncp = 128;
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
@@ -2606,7 +2606,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!0 && c->pp[1]) cpy = (int)((i + p) & 1);
     // FP64 narrow panels consume asynchronously packed L strips.
-    if(mode==4 && i0>0) {
+    if((mode==4 || mode==5) && i0>0) {
         uint64_t t0=c->prof>=2?cyc():0;
         for(int r=0;r<S;r++)
             while(__atomic_load_n(&c->pflags[i0/16+r],__ATOMIC_ACQUIRE)==0) asm volatile("yield");
@@ -2631,7 +2631,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     // Prepacked traversal advances one strip at a time; no division by S is needed.
     // The first previous bank is zero; later kernels consume the preceding output.
-    if((mode==2 || mode==4))sme_zero_za();
+    if((mode==2 || mode==4 || mode==5))sme_zero_za();
     long strip_ch = chfirst;
     int strip_r = 0;
     for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
@@ -2667,7 +2667,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             A = Acur;
         } else {
             // Each full KC chunk contains S strips of 1024 doubles.
-            A = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
+            A = c->pp[cpy] + ((mode==2 || mode==4 || mode==5) ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
                     : special_l_offset(c,mode,i0/16+r,k0));
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
@@ -2700,7 +2700,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
+                    const double* An = c->pp[cpy] + ((mode==2 || mode==4 || mode==5) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
                     pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
@@ -2725,7 +2725,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
             if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
-            if((mode==2 || mode==4)) {
+            if((mode==2 || mode==4 || mode==5)) {
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
@@ -2778,7 +2778,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
-    if((mode==2 || mode==4) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
+    if((mode==2 || mode==4 || mode==5) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
@@ -2890,7 +2890,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         double* Bout=Bblk;
 
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb && (mode==2 || mode==4) && c->xptm) {
+        if (!last_rb && (mode==2 || mode==4 || mode==5) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
@@ -2909,12 +2909,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
             if (c->xpnt) for (long j = 0; j < nc; j += 8) {
-                double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                double* dj=((mode==2 || mode==4 || mode==5))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svstnt1_f64(pg,dj,svld1_f64(pg,s+j));
             }
             else for (long j = 0; j < nc; j += 8) {
                 // Duplex modes pack Kx16 X tiles for the shared FP64 kernels.
-                double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                double* dj=((mode==2 || mode==4 || mode==5))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svst1_f64(pg,dj,svld1_f64(pg,s+j));
             }
         }
@@ -2973,6 +2973,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
 static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1);}
 static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2);}
 static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4);}
+static long run_task_special5(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,5);}
 // ---------------------------------------------------------------- 主流程
 static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
 {
@@ -3056,9 +3057,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && c.ntstore && c.ant) {   // xpnt 在专用实现里已按开关处理
       if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
       if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
-      if(mb==192 && !c.direct && c.ppmode==1 && c.npan<=8 &&
+      if((mb==192 || mb==256) && !c.direct && c.ppmode==1 && c.npan<=8 &&
          (!c.swhost || env_int("TRSM_SWHOST",-1)<0)) {
-        c.special=4;
+        c.special = mb==192 ? 4 : 5;   // 模式 5：mb=256 的流水打包专用路径（依赖链短 25%，Xp 行数少 25%）
         c.swhost=0; // Kx16 Xp is copied to B directly after the diagonal solve.
       }
     }
@@ -3387,6 +3388,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if(c.special==1)taskfn=run_task_special1;
         if(c.special==2)taskfn=run_task_special2;
         if(c.special==4)taskfn=run_task_special4;
+        if(c.special==5)taskfn=run_task_special5;
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
