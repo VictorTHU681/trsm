@@ -2824,6 +2824,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             if (c->prof >= 2) tb->n_kstep += kk;
         }
+      }
     }
     if((mode==2 || mode==4) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
