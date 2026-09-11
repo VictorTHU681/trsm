@@ -3325,6 +3325,24 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
             }
         }
+        // 波前顺序（TRSM_WAVE=W，仅非 owner 且无流水打包任务时）：面板按 W 个一组，波 w 派发 {(i, 组 g): g = w − i}、
+        // 波内 i 大的在前。行块主序把最后行块的 133 个最长任务（~1.3 ms）全堆在末尾，尾部不均衡 ~0.6 ms；
+        // 波前把它们摊到全程，依赖 (i−1,p) 在上一波派发，正常已完成（有 flag 等待兜底，正确性不变）。
+        if (!c.owner && c.ppmode == 0 && env_int("TRSM_WAVE", 0) > 0 && nitems == q) {
+            long W = env_int("TRSM_WAVE", 0);
+            long ng = (c.npan + W - 1) / W;
+            task_t* tmp = malloc(sizeof(task_t) * q);
+            long qq = 0;
+            for (long w = 0; w < ng + c.nrb && qq < q; w++)
+                for (long i = c.nrb - 1; i >= 0; i--) {
+                    long g = w - i;
+                    if (g < 0 || g >= ng) continue;
+                    for (long qi = 0; qi < q; qi++)
+                        if (g_tasks[qi].kind == 0 && g_tasks[qi].i == i && g_tasks[qi].p / W == g) tmp[qq++] = g_tasks[qi];
+                }
+            if (qq == q) memcpy(g_tasks, tmp, sizeof(task_t) * q);
+            free(tmp);
+        }
         nitems = q;
         c.tasks = g_tasks;
         c.ntask_items = nitems;
