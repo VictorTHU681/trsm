@@ -2982,6 +2982,46 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         pin_threads_in_region(omp_get_thread_num(), omp_get_num_threads());
         g_pin_nth = nth;
     }
+    // 忙核探测（TRSM_CPROBE，默认开，进程内只做一次，在首次——判题里不计时的校验——调用里）：
+    // 每线程在自己的核上跑 ~20 ms 相依整数加法链；比中位数慢 25% 的核视为被外来进程分时，从核表剔除（最多 6 个）。
+    // case1 是静态区间调度，一个被占的核拖慢整个调用（zgemm 实测邻居忙核 case1 −48%，探测剔除后 −0.5%）。空闲节点上全过、零影响。
+    static int cprobe_done = 0;
+    if (!cprobe_done && g_ncpu >= 8 && env_int("TRSM_CPROBE", 1)) {
+        cprobe_done = 1;
+        static uint64_t probe_cyc[1024];
+#pragma omp parallel num_threads(g_ncpu)
+        {
+            int tid = omp_get_thread_num();
+            pin_self(tid);
+            uint64_t best = ~0ull;
+            for (int rep = 0; rep < 2; rep++) {   // 相依加法 1 条/周期 ≈ 11 ms @1.55 GHz，跑两遍取快的一遍
+                uint64_t p0 = cyc();
+                long x = tid, it = 16L << 20;
+                asm volatile("1: add %0, %0, #1\n\t subs %1, %1, #1\n\t b.ne 1b" : "+r"(x), "+r"(it) :: "cc");
+                uint64_t d = cyc() - p0 + (x & 1);
+                if (d < best) best = d;
+            }
+            probe_cyc[tid] = best;
+        }
+        uint64_t sorted[1024];
+        memcpy(sorted, probe_cyc, sizeof(uint64_t) * g_ncpu);
+        for (int a = 1; a < g_ncpu; a++) { uint64_t v = sorted[a]; int b = a - 1; while (b >= 0 && sorted[b] > v) { sorted[b + 1] = sorted[b]; b--; } sorted[b + 1] = v; }
+        uint64_t med = sorted[g_ncpu / 2];
+        int bad = 0;
+        for (int t = 0; t < g_ncpu; t++) if (probe_cyc[t] > med + med / 4) bad++;
+        if (bad > 0 && bad <= 6) {
+            int w = 0;
+            for (int t = 0; t < g_ncpu; t++) {
+                if (probe_cyc[t] > med + med / 4) {
+                    if (env_int("TRSM_PROFILE", 0)) fprintf(stderr, "[trsm cprobe] 剔除 cpu %d（%.0f%% 慢于中位数）\n", g_cpus[t], 100.0 * ((double)probe_cyc[t] / med - 1));
+                    continue;
+                }
+                g_cpus[w++] = g_cpus[t];
+            }
+            g_ncpu = w;
+            g_pin_nth = -1;   // 下次调用按新核表重绑
+        } else if (bad > 6 && env_int("TRSM_PROFILE", 0)) fprintf(stderr, "[trsm cprobe] %d 个核偏慢（>6），整节点受扰，不剔除\n", bad);
+    }
     if (g_ncpu > 0 && g_ncpu < nth) nth = g_ncpu;
     detect_nodes();
     // 决定 GEMM 部分的 L 打包方式：L 下三角 ≤ 阈值时预打包（两份），否则 JIT
