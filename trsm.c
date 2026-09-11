@@ -1245,52 +1245,6 @@ static void pack_strip_ld4(const double* L, long lda, long row0, long k0, long k
         : [lda8] "r"(lda8), [u] "r"(g_unit)
         : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
 }
-// 带软件预取的变体：每行在 ld4d 之后预取本行 1 KB 之后的 4 个 cache 行（16 行交错顺序流，硬件预取器跟不上）
-#define P4_R_PF(zA, zB, zC, zD, T0, T1, T2, T3, E)                                \
-    "ld4d {" zA ".d, " zB ".d, " zC ".d, " zD ".d}, p0/z, [x9]\n\t"               \
-    "prfm pldl2keep, [x9, #1024]\n\t"                                             \
-    "prfm pldl2keep, [x9, #1088]\n\t"                                             \
-    "fmopa " T0 ".d, p0/m, p0/m, " zA ".d, " E ".d\n\t"                           \
-    "prfm pldl2keep, [x9, #1152]\n\t"                                             \
-    "prfm pldl2keep, [x9, #1216]\n\t"                                             \
-    "add x9, x9, %[lda8]\n\t"                                                     \
-    "fmopa " T1 ".d, p0/m, p0/m, " zB ".d, " E ".d\n\t"                           \
-    "fmopa " T2 ".d, p0/m, p0/m, " zC ".d, " E ".d\n\t"                           \
-    "fmopa " T3 ".d, p0/m, p0/m, " zD ".d, " E ".d\n\t"
-#define P4_EVEN_PF(E) P4_R_PF("z0", "z1", "z2", "z3", "za0", "za2", "za4", "za6", E)
-#define P4_ODD_PF(E)  P4_R_PF("z4", "z5", "z6", "z7", "za0", "za2", "za4", "za6", E)
-#define P4_EVEN_H_PF(E) P4_R_PF("z0", "z1", "z2", "z3", "za1", "za3", "za5", "za7", E)
-#define P4_ODD_H_PF(E)  P4_R_PF("z4", "z5", "z6", "z7", "za1", "za3", "za5", "za7", E)
-static void pack_strip_ld4_pf(const double* L, long lda, long row0, long k0, long kk, double* dst)
-{
-    const char* xl = (const char*)(L + row0 * lda + k0);
-    char* xd = (char*)dst;
-    long n = kk / 32, lda8 = lda * 8;
-    asm volatile(
-        "ptrue p0.d\n\t"
-        "ld1d z16.d, p0/z, [%[u]]\n\t"
-        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
-        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
-        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
-        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
-        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
-        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
-        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
-        "1:\n\t"
-        "zero {za}\n\t"
-        "mov x9, %[xl]\n\t"
-        P4_EVEN_PF("z16") P4_ODD_PF("z17") P4_EVEN_PF("z18") P4_ODD_PF("z19")
-        P4_EVEN_PF("z20") P4_ODD_PF("z21") P4_EVEN_PF("z22") P4_ODD_PF("z23")
-        P4_EVEN_H_PF("z16") P4_ODD_H_PF("z17") P4_EVEN_H_PF("z18") P4_ODD_H_PF("z19")
-        P4_EVEN_H_PF("z20") P4_ODD_H_PF("z21") P4_EVEN_H_PF("z22") P4_ODD_H_PF("z23")
-        ZA_DUMP_GROUP(0) ZA_DUMP_GROUP(16) ZA_DUMP_GROUP(32) ZA_DUMP_GROUP(48)
-        "add %[xl], %[xl], #256\n\t"
-        "subs %[n], %[n], #1\n\t"
-        "b.ne 1b\n\t"
-        : [xl] "+&r"(xl), [b] "+&r"(xd), [n] "+&r"(n)
-        : [lda8] "r"(lda8), [u] "r"(g_unit)
-        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
-}
 
 // 变体 B：ld2d + 4 tile，两组交替（za0-3 / za4-7），使 str za 与下一组的 fmopa 有机会重叠。
 // 16 个 k 一组：z_q[j] = L[r][k0+2j+q]，tile (2q + [r≥8]) (+4 奇数组)。布局：k 偶 → 256(k-k0)，k 奇 → 256(k-k0)-128，
@@ -1506,9 +1460,6 @@ typedef struct {
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
-    int dant;               // 专用双 bank GEMM 内核的 A 条用 ldnt1d（TRSM_DANT）
-    int pair;               // 专用路径条带按两条×4微块交错（TRSM_PAIR）
-    int packpf;             // 流水打包 ld4d 转置里加软件预取（TRSM_PACKPF）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -1804,7 +1755,7 @@ static void pack_l_chunked(const ctx_t* c, long g) {
     for(long k=0;k<kk;k+=c->kc) {
         double* dst=c->pp[0]+packed_l_offset(c,g,k);
         // The initial OpenMP packing stage has not enabled ZA; only task packing may use it.
-        if(c->ppmode==1 && rows==16 && (c->kc&31)==0){ if(c->packpf)pack_strip_ld4_pf(c->L,c->lda,row0,k,c->kc,dst); else pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst); }
+        if(c->ppmode==1 && rows==16 && (c->kc&31)==0)pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst);
         else pack_strip(c->L,c->lda,c->m,row0,k,c->kc,dst);
         if(c->pp[1])memcpy(c->pp[1]+packed_l_offset(c,g,k),dst,(size_t)c->kc*16*8);
     }
@@ -2274,13 +2225,12 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 : [ct] "+&r"(ct),[cb] "+&r"(cb):[bs] "r"(bs): "memory","cc","x12",VCLOB,PCLOB);}
 // Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
 // Expand all eight output rows; the final K step never loads another operand.
+// 双 bank 内核按“变体”生成：DUP_LDA（A 装载指令）、DUP_PF1/2（两个预取槽）、DUP_CS（C 行距字节）、DUP_CB8*（第 8 行偏移）
+// 由 DUP_DEFINE_KERNELS(SUF) 实例化 kloop_duplex_bank0##SUF / bank4##SUF。
+#define DUP_NAME_(a, b) a##b
+#define DUP_NAME(a, b) DUP_NAME_(a, b)
 #define DUP_PF_FULL "prfm pldl2keep, [%[ap]]\n\t" "prfm pldl2keep, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
-#define DUP_PF_A1 "prfm pldl1keep, [%[ap]]\n\t" "prfm pldl2keep, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
-#define DUP_PF_STRM "prfm pldl2strm, [%[ap]]\n\t" "prfm pldl2strm, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
-#define DUP_PF_ADDONLY "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
-#define DUP_PF1 DUP_PF_FULL
-#define DUP_PF2 DUP_PF_FULL
-#define DUP_LDA "ld1d "
+#define DUP_PF_BONLY "prfm pldl2keep, [%[bp]]\n\t" "add %[bp], %[bp], #64\n\t"
 #define DUPLEX0_U_BODY \
  "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
@@ -2337,9 +2287,9 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
  "prfm pldl2keep, [%[pc]]\n\t" \
  "prfm pldl2keep, [%[pc], #64]\n\t" \
- "prfm pldl2keep, [%[pc], #8192]\n\t" \
- "prfm pldl2keep, [%[pc], #8256]\n\t" \
- "add %[pc], %[pc], #1024\n\t" \
+ "prfm pldl2keep, [%[pc], #" DUP_CB8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" DUP_CB8B "]\n\t" \
+ "add %[pc], %[pc], #" DUP_CS "\n\t" \
  DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2373,6 +2323,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t"
+
 #define DUPLEX0_U_NEXT \
  DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
@@ -2384,171 +2335,19 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t"
+
 #define DUPLEX0_U_LAST \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+
 #define DUPLEX0_U_TAIL \
  "fsub z23.d, z23.d, z22.d\n\t" \
  "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
- "add %[ct], %[ct], #1024\n\t" \
- "add %[cb], %[cb], #1024\n\t"
-static inline void kloop_duplex_bank0(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_LDA
-#define DUP_LDA "ldnt1d "
-// A 条 ldnt1d 版本（TRSM_DANT）：GEMM 的 A 流不在 L2 滞留
-static inline void kloop_duplex_bank0_nt(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_LDA
-#define DUP_LDA "ld1d "
-#undef DUP_PF2
-#define DUP_PF2 DUP_PF_ADDONLY
-// 半预取版本：第二槽不发 prfm，只推游标（测硬件相邻行预取能否补全）
-static inline void kloop_duplex_bank0_h(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_PF1
-#undef DUP_PF2
-#define DUP_PF1 DUP_PF_A1
-#define DUP_PF2 DUP_PF_A1
-// A 预取进 L1（pldl1keep）版本
-static inline void kloop_duplex_bank0_a1(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_PF1
-#undef DUP_PF2
-#define DUP_PF1 DUP_PF_STRM
-#define DUP_PF2 DUP_PF_STRM
-// 流式提示（pldl2strm）版本
-static inline void kloop_duplex_bank0_strm(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
- "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_PF1
-#undef DUP_PF2
-#define DUP_PF1 DUP_PF_FULL
-#define DUP_PF2 DUP_PF_FULL
+ "add %[ct], %[ct], #" DUP_CS "\n\t" \
+ "add %[cb], %[cb], #" DUP_CS "\n\t"
 
-#undef DUP_PF2
-#define DUP_PF2 DUP_PF_FULL
-
-#undef DUP_LDA
-#undef DUPLEX0_U_BODY
-#undef DUPLEX0_U_NEXT
-#undef DUPLEX0_U_LAST
-#undef DUPLEX0_U_TAIL
-
-// Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
-// Expand all eight output rows; the final K step never loads another operand.
-#define DUP_LDA "ld1d "
 #define DUPLEX4_U_BODY \
  "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
@@ -2605,9 +2404,9 @@ static inline void kloop_duplex_bank0_strm(const double* a, const double* b, dou
  "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
  "prfm pldl2keep, [%[pc]]\n\t" \
  "prfm pldl2keep, [%[pc], #64]\n\t" \
- "prfm pldl2keep, [%[pc], #8192]\n\t" \
- "prfm pldl2keep, [%[pc], #8256]\n\t" \
- "add %[pc], %[pc], #1024\n\t" \
+ "prfm pldl2keep, [%[pc], #" DUP_CB8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" DUP_CB8B "]\n\t" \
+ "add %[pc], %[pc], #" DUP_CS "\n\t" \
  DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2641,6 +2440,7 @@ static inline void kloop_duplex_bank0_strm(const double* a, const double* b, dou
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t"
+
 #define DUPLEX4_U_NEXT \
  DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
@@ -2652,163 +2452,107 @@ static inline void kloop_duplex_bank0_strm(const double* a, const double* b, dou
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
  "add %[b], %[b], #128\n\t"
+
 #define DUPLEX4_U_LAST \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
  "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+
 #define DUPLEX4_U_TAIL \
  "fsub z23.d, z23.d, z22.d\n\t" \
  "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
- "add %[ct], %[ct], #1024\n\t" \
- "add %[cb], %[cb], #1024\n\t"
-static inline void kloop_duplex_bank4(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
+ "add %[ct], %[ct], #" DUP_CS "\n\t" \
+ "add %[cb], %[cb], #" DUP_CS "\n\t"
+
+#define DUP_DEFINE_KERNELS(SUF) \
+static inline void DUP_NAME(kloop_duplex_bank0, SUF)(const double* a, const double* b, double* c, \
+                                      const char* ap, const char* bp, const char* pc) \
+{ \
+    char* ct = (char*)c; \
+    char* cb = ct + DUP_CB8_INT; \
+    asm volatile( \
+ "ptrue p0.d\n\t" \
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t" \
+ "mov w12, #0\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
+ "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL \
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);} \
+static inline void DUP_NAME(kloop_duplex_bank4, SUF)(const double* a, const double* b, double* c, \
+                                      const char* ap, const char* bp, const char* pc) \
+{ \
+    char* ct = (char*)c; \
+    char* cb = ct + DUP_CB8_INT; \
+    asm volatile( \
+ "ptrue p0.d\n\t" \
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t" \
+ "mov w12, #0\n\t" \
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t" \
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
+ "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL \
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_LDA
-#define DUP_LDA "ldnt1d "
-// A 条 ldnt1d 版本（TRSM_DANT）：GEMM 的 A 流不在 L2 滞留
-static inline void kloop_duplex_bank4_nt(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_LDA
+// 默认变体：C 行距 1024 B（ncp=128），两槽都预取 A、B
 #define DUP_LDA "ld1d "
-#undef DUP_PF2
-#define DUP_PF2 DUP_PF_ADDONLY
-// 半预取版本：第二槽不发 prfm，只推游标（测硬件相邻行预取能否补全）
-static inline void kloop_duplex_bank4_h(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_PF1
-#undef DUP_PF2
-#define DUP_PF1 DUP_PF_A1
-#define DUP_PF2 DUP_PF_A1
-// A 预取进 L1（pldl1keep）版本
-static inline void kloop_duplex_bank4_a1(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_PF1
-#undef DUP_PF2
-#define DUP_PF1 DUP_PF_STRM
-#define DUP_PF2 DUP_PF_STRM
-// 流式提示（pldl2strm）版本
-static inline void kloop_duplex_bank4_strm(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
- DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
- "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-#undef DUP_PF1
-#undef DUP_PF2
 #define DUP_PF1 DUP_PF_FULL
 #define DUP_PF2 DUP_PF_FULL
-
+#define DUP_CS "1024"
+#define DUP_CB8 "8192"
+#define DUP_CB8B "8256"
+#define DUP_CB8_INT 8192
+DUP_DEFINE_KERNELS()
+// A 半预取（第二槽只预取 B）：一条 A 被 7 个微块共享时，用它把 A 预取量压回每条 8 KB
+#undef DUP_PF2
+#define DUP_PF2 DUP_PF_BONLY
+DUP_DEFINE_KERNELS(_ah)
 #undef DUP_PF2
 #define DUP_PF2 DUP_PF_FULL
-
+// C 行距 1792 B（ncp=224，nc=224 面板）
+#undef DUP_CS
+#undef DUP_CB8
+#undef DUP_CB8B
+#undef DUP_CB8_INT
+#define DUP_CS "1792"
+#define DUP_CB8 "14336"
+#define DUP_CB8B "14400"
+#define DUP_CB8_INT 14336
+DUP_DEFINE_KERNELS(_c224)
+#undef DUP_PF2
+#define DUP_PF2 DUP_PF_BONLY
+DUP_DEFINE_KERNELS(_c224_ah)
+#undef DUP_PF2
+#undef DUP_PF1
 #undef DUP_LDA
+#undef DUP_CS
+#undef DUP_CB8
+#undef DUP_CB8B
+#undef DUP_CB8_INT
+#undef DUPLEX0_U_BODY
+#undef DUPLEX0_U_NEXT
+#undef DUPLEX0_U_LAST
+#undef DUPLEX0_U_TAIL
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
 #undef DUPLEX4_U_LAST
@@ -2903,21 +2647,16 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     // Prepacked traversal advances one strip at a time; no division by S is needed.
     // The first previous bank is zero; later kernels consume the preceding output.
     if((mode==2 || mode==4))sme_zero_za();
-    // 条带遍历：pair 模式（TRSM_PAIR，双 bank 专用路径）按"两条 × 4 微块"交错——同一 B 微块面板（16 KB）连续服务两条 A，
-    // L1 里 B 的重填减半；A 的预取目标相应改为 q+2（两条 A 共 16 KB，仍在 L1 内）。
-    const int pair = (mode==2 || mode==4) && c->pair && (S % 2 == 0) && (nstrips % 2 == 0);
-    const long qstep = pair ? 2 : 1;
-    for (long qp = 0; qp < nstrips; qp += qstep) {
-      for (long tt = 0; tt < ntile * qstep; tt++) {
-        const long t = pair ? (tt >> 1) : tt;
-        const long q = qp + (pair ? (tt & 1) : 0);
-        const long ch = chfirst + q / S;
-        const int r = (int)(q % S);
+    long strip_ch = chfirst;
+    int strip_r = 0;
+    for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
+        const long ch = strip_ch;
+        const int r = strip_r;
         const long k0 = ch * kc;
         long kk = i0 - k0; if (kk > kc) kk = kc;
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
-        if (r == 0 && tt == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+        if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
         const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
         const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
         (void)xlines;
@@ -2958,14 +2697,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         hosted_next = host_now;
         // 2 条之后（预取目标）：转置读的是 q+1 的行，因此预取 q+2；不托管时预取 q+1
-        long pfq = q + (pair ? 2 : (host_now ? 2 : 1));
-        {
+        long pfq = q + (host_now ? 2 : 1);
+        for (long t = 0; t < ntile; t++) {
             pf_t pf = pf_dummy;
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
-            long pfr = r + (pfq - q), pfch = ch + pfr / S; pfr %= S;   // 条 pfq 所在的 (段, 条)
             if (pf_on && pfq < nstrips) {
-                long pr0 = i0 + 16 * pfr;
-                long pk0 = pfch * kc;
+                long pr0 = i0 + 16 * (r + 1 == S ? 0 : r + 1);
+                long pk0 = (ch + (r + 1 == S)) * kc;
                 long pkk = i0 - pk0; if (pkk > kc) pkk = kc;
                 long lines_per_row = (pkk * 8 + 63) / 64;
                 long rows_per_tile = (kk / 2) / lines_per_row; if (rows_per_tile < 1) rows_per_tile = 1;
@@ -2977,7 +2715,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)pfch*S+pfr)*1024)
+                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
                     pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
@@ -3006,13 +2744,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
-                if (c->dant) {
-                    PROF_T(c,kloop_duplex_bank0_nt(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
-                    PROF_T(c,kloop_duplex_bank4_nt(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
-                } else {
                 PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
                 PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
-                }
                 pend=1;pend_c=cur;pend_cols=cols;
                 if(c->prof>=2)tb->n_kstep+=kk;
                 continue;
@@ -3055,7 +2788,6 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             if (c->prof >= 2) tb->n_kstep += kk;
         }
-      }
     }
     if((mode==2 || mode==4) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
@@ -3328,9 +3060,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.xptm = env_int("TRSM_XPTM", 0);
         c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
-        c.dant = env_int("TRSM_DANT", 0);
-        c.pair = env_int("TRSM_PAIR", 0);
-        c.packpf = env_int("TRSM_PACKPF", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
