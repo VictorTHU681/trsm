@@ -391,6 +391,13 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
     "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
     "st1d " zt ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
 #define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
+// 首段融合装载：C 行 = B 行（原始右端项，行距 bss，来自 X 缓冲）− 暂存；省掉任务开头把 B 子块拷进 C 块的装载阶段
+#define EV_SUBB(j, pj, zt, zu)                                                    \
+    "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
+    "ld1d " zu ".d, " pj "/z, [%[xbs], #" #j ", mul vl]\n\t"                      \
+    "fsub " zu ".d, " zu ".d, " zt ".d\n\t"                                       \
+    "st1d " zu ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
+#define EV_ROW_ADV_B "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t add %[xbs], %[xbs], %[bss]\n\t"
 // 一行回写 = 4 个 k 步（E O E O）各带一个向量
 // 回写阶段不发预取：hosted epilogue 的 C 行 load/store 会让同期发出的预取大半丢失（kbench 第 9/10 节）
 #define KROW(EV)                                                                  \
@@ -534,8 +541,21 @@ DEF_KLOOP_PLAIN(kloop_plain)
     EV_ROW_ADV
 #define HPF1 PFL PFX
 #define HPF2 PFC
+// 带独立源指针的一行回写（首段融合装载：C = B 行 − 暂存，B 行距 bss）
+#define KROWP_B(EV)                                                               \
+    KS_EVEN EV(0, "p1", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
+    KS_ODD  EV(1, "p2", "z18", "z19") PFC                                         \
+    KS_EVEN EV(2, "p3", "z16", "z17") PFL PFX SWS_GATE_R SWS                      \
+    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
+    EV_ROW_ADV_B
 #else
 #define KROWP(EV) KROW(EV)
+#define KROWP_B(EV)                                                               \
+    KS_EVEN EV(0, "p1", "z16", "z17") SWS_GATE_R SWS                              \
+    KS_ODD  EV(1, "p2", "z18", "z19")                                             \
+    KS_EVEN EV(2, "p3", "z16", "z17") SWS_GATE_R SWS                              \
+    KS_ODD  EV(3, "p4", "z18", "z19")                                             \
+    EV_ROW_ADV_B
 #define HPF1
 #define HPF2
 #endif
@@ -620,9 +640,85 @@ static inline void NAME(const double* pa, long ase, long aso, const double* pb, 
         : "memory", "cc", "x9", "x10", SWCLOB, VCLOB, PCLOB);                                                     \
 }
 DEF_KLOOP_EPI64(kloop_epi64_set, EV_SET)
+// 首段融合装载版本：回写源是 B 行（bsrc，行距 bss 字节），目标是 C 行；其余与 DEF_KLOOP_EPI64 / DEF_KLOOP_EPI 相同
+#define DEF_KLOOP_EPI64_B(NAME)                                                                                   \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols, const double* bsrc, long bss)      \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    const char* xbs = (const char*)bsrc;                                                                          \
+    long pfc = pf->pfn;                                                                                           \
+    sw_t* sw = pf->sw ? pf->sw : &g_sw_none;                                                                      \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        SW_LOAD                                                                                                   \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP_B(EV_SUBB)                                                                                 \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #7\n\t"                                                                                         \
+        "3:\n\t" KROWP_B(EV_SUBB)                                                                                 \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KS_EVEN EV_SUBB(0, "p1", "z16", "z17") HPF1                                                               \
+        KS_ODD  EV_SUBB(1, "p2", "z18", "z19") HPF2                                                               \
+        KS_EVEN EV_SUBB(2, "p3", "z16", "z17") HPF1                                                               \
+        FM_ODD  EV_SUBB(3, "p4", "z18", "z19")                                                                    \
+        SW_SAVE                                                                                                   \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc), [xbs] "+&r"(xbs) \
+        : [ase] "r"(ase), [aso] "r"(aso), [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [sw] "r"(sw), [bss] "r"(bss) \
+        : "memory", "cc", "x9", "x10", SWCLOB, VCLOB, PCLOB);                                                     \
+}
+#define DEF_KLOOP_EPI_B(NAME)                                                                                     \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols, const double* bsrc, long bss)      \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    const char* xbs = (const char*)bsrc;                                                                          \
+    long k = K - 65, pfc = pf->pfn;                                                                                \
+    sw_t* sw = pf->sw ? pf->sw : &g_sw_none;                                                                      \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        SW_LOAD                                                                                                   \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP_B(EV_SUBB)                                                                                 \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #8\n\t"                                                                                         \
+        "3:\n\t" KROWP_B(EV_SUBB)                                                                                 \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KLOOP_REST                                                                                                \
+        SW_SAVE                                                                                                   \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc), [xbs] "+&r"(xbs) \
+        : [ase] "r"(ase), [aso] "r"(aso), [bs] "r"(bs), [cs] "r"(cs), [ecols] "r"(ecols), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [sw] "r"(sw), [bss] "r"(bss) \
+        : "memory", "cc", "x9", "x10", SWCLOB, VCLOB, PCLOB);                                                     \
+}
+DEF_KLOOP_EPI64_B(kloop_epi64_subb_t)
+DEF_KLOOP_EPI_B(kloop_epi_subb_t)
 #undef LDA_CUR
 #define LDA_CUR LDA_NT_INSN
 DEF_KLOOP_EPI64(kloop_epi64_sub, EV_SUB)
+DEF_KLOOP_EPI64_B(kloop_epi64_subb)
+DEF_KLOOP_EPI_B(kloop_epi_subb)
 // 对角内核的 ldnt1d 版本：面板驻留模式下对角条每个面板只用一遍，不该挤占 L2 里的面板缓冲
 DEF_KLOOP_EPI(kloop_epi_set_nt, EV_SET)
 DEF_KLOOP_EPI64(kloop_epi64_set_nt, EV_SET)
@@ -1033,6 +1129,41 @@ static inline void NAME(const double* scratch, double* c, long cs, long cols)   
 }
 DEF_EPI_STD(epi_sub_std, EPI_SUB_ROW)
 DEF_EPI_STD(epi_set_std, EPI_SET_ROW)
+// 首段融合装载的同步版：C 行 = B 行（行距 bss）− 暂存
+#define EPI_SUBB_ROW                                                              \
+    "ld1d z0.d, p0/z, [%[xs]]\n\t"                                                \
+    "ld1d z1.d, p0/z, [%[xs], #1, mul vl]\n\t"                                    \
+    "ld1d z2.d, p0/z, [%[xs], #2, mul vl]\n\t"                                    \
+    "ld1d z3.d, p0/z, [%[xs], #3, mul vl]\n\t"                                    \
+    "ld1d z4.d, p1/z, [%[xbs]]\n\t"                                               \
+    "ld1d z5.d, p2/z, [%[xbs], #1, mul vl]\n\t"                                   \
+    "ld1d z6.d, p3/z, [%[xbs], #2, mul vl]\n\t"                                   \
+    "ld1d z7.d, p4/z, [%[xbs], #3, mul vl]\n\t"                                   \
+    "fsub z4.d, z4.d, z0.d\n\t"                                                   \
+    "fsub z5.d, z5.d, z1.d\n\t"                                                   \
+    "fsub z6.d, z6.d, z2.d\n\t"                                                   \
+    "fsub z7.d, z7.d, z3.d\n\t"                                                   \
+    "st1d z4.d, p1, [%[xc]]\n\t"                                                  \
+    "st1d z5.d, p2, [%[xc], #1, mul vl]\n\t"                                      \
+    "st1d z6.d, p3, [%[xc], #2, mul vl]\n\t"                                      \
+    "st1d z7.d, p4, [%[xc], #3, mul vl]\n\t"                                      \
+    "add %[xs], %[xs], #512\n\t"                                                  \
+    "add %[xc], %[xc], %[cs]\n\t"                                                 \
+    "add %[xbs], %[xbs], %[bss]\n\t"
+static inline void epi_subb_std(const double* scratch, double* c, long cs, long cols, const double* bsrc, long bss)
+{
+    const char* xs = (const char*)scratch;
+    char* xc = (char*)c;
+    const char* xbs = (const char*)bsrc;
+    asm volatile(
+        SET_COL_PREDS
+        ROWS8(EPI_SUBB_ROW)
+        "sub %[xs], %[xs], #3840\n\t"
+        ROWS8(EPI_SUBB_ROW)
+        : [xs] "+&r"(xs), [xc] "+&r"(xc), [xbs] "+&r"(xbs)
+        : [cs] "r"(cs), [cols] "r"(cols), [bss] "r"(bss)
+        : "memory", "cc", "x9", VCLOB, PCLOB);
+}
 
 // Small row dimensions benefit from loading C into ZA and applying FMOPS directly.
 // Expand every row explicitly: the looped transfer variant was slower on this CPU.
@@ -1457,6 +1588,7 @@ typedef struct {
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
+    int fuse;               // 首段融合装载（TRSM_FUSE）：整块任务不做装载阶段，首段托管回写改为 C = B 行 − 暂存
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1662,9 +1794,13 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     // 分裂段：部分和写到专用缓冲（从 0 开始累加），普通任务直接用 C 块
     const int split = tk->nseg > 1;
     double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : cb;
+    // 首段融合装载：整块整面板、非分裂、非直接 ZA、非 JIT 且有 GEMM 段时，不做装载阶段，
+    // 首段各微块的托管回写改为 C = B 行 − 暂存（B 行直接从 X 缓冲读，跨行 ldb），装载流量并入 K 循环
+    const int fuse = c->fuse && !split && !c->direct && !c->jit && i0 > 0 && mbi == mb && nci == nc;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
-    if (split) {
+    if (fuse) {
+    } else if (split) {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
@@ -1704,6 +1840,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     int pend = 0;            // 有待回写的上一微块（暂存中）
     double* pend_c = NULL;
     long pend_cols = 0;
+    int pend_first = 0;      // 待回写微块属于首段（融合装载：C = B 行 − 暂存）
+    const double* pend_b = NULL;
     const long xlines = ((nci * 8 + 63) / 64 + 1) & ~1L;   // X 面板每行预取的 cache 行数（偶数）
     const long chfirst = split ? tk->ch0 : 0;
     const long kend = split ? tk->ch1 * kc : i0;
@@ -1821,6 +1959,12 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 else
                     PROF_T(c, kloop_tr_noepi(A, Xk + 32 * t, cs, kk, &pf,
                                              c->L + nrow0 * lda + nk0 + kb0, lda * 8, Abuf[(q + 1) & 1] + kb0 * 16), t_kloop);
+            } else if (pend && pend_first && kk >= 65) {
+                if (c->ant) PROF_T(c, kloop_epi_subb(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_kloop);
+                else PROF_T(c, kloop_epi_subb_t(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_kloop);
+            } else if (pend && pend_first && kk == 64) {
+                if (c->ant) PROF_T(c, kloop_epi64_subb(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_kloop);
+                else PROF_T(c, kloop_epi64_subb_t(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_kloop);
             } else if (pend && kk >= 65) {
                 if (c->ant) PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 else PROF_T(c, kloop_epi_sub_t(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
@@ -1828,7 +1972,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 if (c->ant) PROF_T(c, kloop_epi64_sub(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 else PROF_T(c, kloop_epi64_sub_t(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else {
-                if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
+                if (pend && pend_first) PROF_T(c, epi_subb_std(scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_epi);
+                else if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
                 if (c->ant) PROF_T(c, kloop_plain_nt(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
                 else PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
@@ -1838,11 +1983,16 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             } else {
                 PROF_T(c, za_dump(scratch), t_dump);
                 pend = 1; pend_c = acc + 16L * r * ncp + 32 * t; pend_cols = cols;
+                pend_first = fuse && ch == chfirst; pend_b = Bblk + 16L * r * ldb + 32 * t;
             }
             if (c->prof >= 2) tb->n_kstep += kk;
         }
     }
-    if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
+    if (pend) {
+        if (pend_first) PROF_T(c, epi_subb_std(scratch, pend_c, cs, pend_cols, pend_b, ldb * 8), t_epi);
+        else PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
+        pend = 0;
+    }
 
     if (split) {
         // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
@@ -2784,6 +2934,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
     }
+    c.fuse = env_int("TRSM_FUSE", 1);
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
