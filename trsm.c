@@ -3151,7 +3151,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 宽 n（面板数 ≥ 线程数）时最后 tailrows_w 个行块也分裂成 tailseg_w 段：最后一个行块的任务最长（case2 约 1.7 ms），
         // 不分裂时尾部平均空闲约半个任务
         int tailrows_w = env_int("TRSM_TAILW_ROWS", 1);
-        int tailseg_w = env_int("TRSM_TAILW_SEG", 2);
+        int tailseg_w = env_int("TRSM_TAILW_SEG", 1);   // 实测 case2 分裂最后行块：尾部空闲 0.36→0.26 ms 但归约与部分和流量多 0.6 ms，净负，默认关
         long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
         double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
         long nitems = 0;
