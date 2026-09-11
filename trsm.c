@@ -1486,7 +1486,6 @@ typedef struct {
     volatile int* pflags;   // 每条的打包完成标志（ppmode=1；nobar 时 ppmode=0 也用）
     volatile int* dcnt;     // 每个行块已完成的对角条数（nobar：任务对角阶段前等它等于 S_of[i]）
     int nobar;              // 预处理阶段不设全局 barrier：预处理项按行块顺序动态领取，消费者用 pflags/dcnt 等（TRSM_NOBAR）
-    int xdirect;            // 专用路径 B 操作数直接读行主序 X（行距 ldb），不写 Xp 副本（TRSM_XDIRECT）
     double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
@@ -2158,11 +2157,6 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 : [ct] "+&r"(ct),[cb] "+&r"(cb):[bs] "r"(bs): "memory","cc","x12",VCLOB,PCLOB);}
 // Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
 // Expand all eight output rows; the final K step never loads another operand.
-// B 指针步进：立即数（列块主序 Xp：128 / 面板驻留：768）或寄存器（REG：直接读行主序 X，步长 ldb*8）
-#define BSTEP(BS) BSTEP_##BS
-#define BSTEP_128 "add %[b], %[b], #128\n\t"
-#define BSTEP_768 "add %[b], %[b], #768\n\t"
-#define BSTEP_REG "add %[b], %[b], %[bs]\n\t"
 #define DUPLEX0_U_BODY(BS, CS, C8, C864, ALD) \
  "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
@@ -2181,7 +2175,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2191,7 +2185,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  "fsub z17.d, z17.d, z16.d\n\t" \
  "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
  "prfm pldl2keep, [%[ap]]\n\t" \
@@ -2207,7 +2201,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2217,7 +2211,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  "fsub z19.d, z19.d, z18.d\n\t" \
  "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
  "prfm pldl2keep, [%[pc]]\n\t" \
@@ -2234,7 +2228,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2244,7 +2238,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
  "prfm pldl2keep, [%[ap]]\n\t" \
@@ -2260,7 +2254,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS)
+ "add %[b], %[b], #" #BS "\n\t"
 #define DUPLEX0_U_NEXT(BS, ALD) \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
@@ -2271,7 +2265,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS)
+ "add %[b], %[b], #" #BS "\n\t"
 #define DUPLEX0_U_LAST \
  "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
@@ -2306,31 +2300,6 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
  "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-// 直接读行主序 X 作 B 操作数的变体（B 行距寄存器 bs，TRSM_XDIRECT）
-static inline void kloop_duplex_bank0_sb(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc, long bs)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], %[bs]\n\t"
- "mov w12, #0\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #1\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #2\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #3\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #4\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #5\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #6\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(REG, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #7\n\t" DUPLEX0_U_BODY(REG, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc): [bs] "r"(bs) : "memory","cc","x12",VCLOB,PCLOB);}
 static inline void kloop_owner_bank0(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
@@ -2380,7 +2349,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2390,7 +2359,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  "fsub z17.d, z17.d, z16.d\n\t" \
  "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
  "prfm pldl2keep, [%[ap]]\n\t" \
@@ -2406,7 +2375,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2416,7 +2385,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  "fsub z19.d, z19.d, z18.d\n\t" \
  "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
  "prfm pldl2keep, [%[pc]]\n\t" \
@@ -2433,7 +2402,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2443,7 +2412,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS) \
+ "add %[b], %[b], #" #BS "\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
  "prfm pldl2keep, [%[ap]]\n\t" \
@@ -2459,7 +2428,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS)
+ "add %[b], %[b], #" #BS "\n\t"
 #define DUPLEX4_U_NEXT(BS, ALD) \
  ALD "z0.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
@@ -2470,7 +2439,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
  "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
  "add %[a], %[a], #128\n\t" \
- BSTEP(BS)
+ "add %[b], %[b], #" #BS "\n\t"
 #define DUPLEX4_U_LAST \
  "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
  "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
@@ -2515,31 +2484,6 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-// 直接读行主序 X 作 B 操作数的变体（B 行距寄存器 bs，TRSM_XDIRECT）
-static inline void kloop_duplex_bank4_sb(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc, long bs)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 8192;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], %[bs]\n\t"
- "mov w12, #0\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #1\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #2\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #3\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #4\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #5\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #6\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(REG, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #7\n\t" DUPLEX4_U_BODY(REG, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc): [bs] "r"(bs) : "memory","cc","x12",VCLOB,PCLOB);}
 static inline void kloop_owner_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
@@ -2668,9 +2612,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
         if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        // 本段 B 面板：Xp（列块主序副本，连续）或直接读行主序 X（TRSM_XDIRECT：行距 ldb，省掉每任务 mb×nc×8 B 的 Xp 写）
-        const double* Xk = c->xdirect ? c->B + (size_t)k0 * ldb + c0 : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
-        const double* Xkn = c->xdirect ? c->B + (size_t)k0n * ldb + c0 : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段（预取目标）
+        const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
+        const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
         (void)xlines;
         // 本条 A
         const double* A;
@@ -2736,21 +2679,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
             int p2_used = 0;
-            const char* p2b = NULL;   // XDIRECT：bank4 的游标 2 单独给（下一段的下一行）
             if (pf_on && k0n < kend) {
                 long slots_needed = (kk * ncp * 8 + kk * 32 - 1) / (kk * 32);  // 每槽 kk/2 行
                 long strips_needed = (slots_needed + ntile - 1) / ntile;
                 long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
                 if (r >= xstart) {
                     long slot = (r - xstart) * ntile + t;
-                    if (slot < slots_needed) {
-                        if (c->xdirect) {   // 每槽 2 行：bank0 预取行 2*slot、bank4 预取行 2*slot+1（各 16 个 cache 行 = 1 KB 整行）
-                            long rr = 2 * slot;
-                            pf.p2 = (const char*)(Xkn + (size_t)rr * ldb);
-                            p2b = (rr + 1 < kc && k0n + rr + 1 < c->m) ? (const char*)(Xkn + (size_t)(rr + 1) * ldb) : (const char*)tb->scratch2;
-                        } else pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64;
-                        p2_used = 1;
-                    }
+                    if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
             if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
@@ -2764,13 +2699,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
-                if (c->xdirect) {
-                    PROF_T(c,kloop_duplex_bank0_sb(A,Xk+32*t,(pend?pend_c:cur)+16,ap,bp,pf.pc,ldb*8),t_kloop);
-                    PROF_T(c,kloop_duplex_bank4_sb(A,Xk+32*t+16,cur,ap+1024,p2b?p2b:bp+1024,pf.pc+128,ldb*8),t_kloop);
-                } else {
                 PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
                 PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
-                }
                 pend=1;pend_c=cur;pend_cols=cols;
                 if(c->prof>=2)tb->n_kstep+=kk;
                 continue;
@@ -2919,7 +2849,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         double* Bout=Bblk;
 
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb && !c->xdirect && (mode==2 || mode==4) && c->xptm) {
+        if (!last_rb && (mode==2 || mode==4) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
@@ -2933,7 +2863,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     }
                 }
             }
-        } else if (!last_rb && !c->xdirect) for (long r = 0; r < mbi; r++) {
+        } else if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
@@ -2949,7 +2879,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         // 专用路径的消费者只读 Xp（列块主序副本），不读 X：Xp 写完就发布 flag，X 的回写放到 flag 之后——
         // 缩短行块间依赖链（case3 每环 ≈ 最后一段 GEMM + 归约 + 对角 + 回写，89 环串行），下游任务少等一次 X 回写的时间
-        if (c->eflag && !c->xdirect) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);   // XDIRECT：消费者读 X，flag 必须在 X 回写之后
+        if (c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
         // The specialized Xp layout is tiled; copy final output from C below.
@@ -2996,7 +2926,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    if (!c->eflag || c->xdirect) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (!c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
@@ -3185,7 +3115,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.pp_off[c.nstrip] = off;
 
         // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本；流水式打包只有一份
-        int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", 1);
+        int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", c.owner ? 0 : 1);   // 面板驻留模式（case1）不做 DDR 第二份：实测 2.00→1.92 ms（一半任务从 DDR 读 A 更慢 + 省 memcpy）；case2 持平
         if (c.ppmode == 1 && g_pp[1]) { trsm_free_buffer(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
@@ -3227,7 +3157,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     memset(g_dcnt, 0, c.nrb * sizeof(int));
     c.dcnt = g_dcnt;
     c.nobar = env_int("TRSM_NOBAR", 1);
-    c.xdirect = env_int("TRSM_XDIRECT", 1);
 
     // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
     // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)
