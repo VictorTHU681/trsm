@@ -2513,7 +2513,532 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4(const double
 #undef DUPLEX4_U_LAST
 #undef DUPLEX4_U_TAIL
 
-static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode)
+// Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
+// Expand all eight output rows; the final K step never loads another operand.
+#define DUPLEX0_U_BODY(BS, CS, C8, C864, ALD) \
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za5h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za6h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za7h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+#define DUPLEX0_U_NEXT(BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+#define DUPLEX0_U_LAST \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define DUPLEX0_U_TAIL(CS) \
+ "fsub z23.d, z23.d, z22.d\n\t" \
+ "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #" #CS "\n\t" \
+ "add %[cb], %[cb], #" #CS "\n\t"
+// Fixed KC64: address K rows around the middle of each eight-row group.
+// Keep the operand/read order and C/prefetch schedule unchanged.
+#define HDUPLEX0_BODY \
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za5h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za6h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za7h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ "ld1d z8.d, p0/z, [%[a], #-6, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #-5, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #-6, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #-5, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "ld1d z0.d, p0/z, [%[a], #-4, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #-3, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #-4, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #-3, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ "ld1d z8.d, p0/z, [%[a], #-2, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #-1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #-2, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #-1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "ld1d z0.d, p0/z, [%[a], #0, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #0, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #8192]\n\t" \
+ "prfm pldl2keep, [%[pc], #8256]\n\t" \
+ "add %[pc], %[pc], #1024\n\t" \
+ "ld1d z8.d, p0/z, [%[a], #2, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #3, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #2, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #3, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "ld1d z0.d, p0/z, [%[a], #4, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #5, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #4, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #5, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ "ld1d z8.d, p0/z, [%[a], #6, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #7, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #6, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #7, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
+#define HDUPLEX0_NEXT \
+ "add %[a], %[a], #1024\n\t" \
+ "ld1d z0.d, p0/z, [%[a], #-8, mul vl]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #-7, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "add %[b], %[b], #1024\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #-8, mul vl]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #-7, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define HDUPLEX0_LAST \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define HDUPLEX0_TAIL \
+ "fsub z23.d, z23.d, z22.d\n\t" \
+ "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #1024\n\t" \
+ "add %[cb], %[cb], #1024\n\t"
+static inline __attribute__((always_inline)) void kloop_hoist_bank0(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "add %[a], %[a], #512\n\t"
+ "ld1d z0.d, p0/z, [%[a], #-8, mul vl]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #-7, mul vl]\n\t"
+ "add %[b], %[b], #512\n\t"
+ "ld1d z4.d, p0/z, [%[b], #-8, mul vl]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #-7, mul vl]\n\t"
+ "mov w12, #0\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #1\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #2\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #3\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #4\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #5\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #6\n\t" HDUPLEX0_BODY HDUPLEX0_NEXT HDUPLEX0_TAIL
+ "mov w12, #7\n\t" HDUPLEX0_BODY HDUPLEX0_LAST HDUPLEX0_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef HDUPLEX0_BODY
+#undef HDUPLEX0_NEXT
+#undef HDUPLEX0_LAST
+#undef HDUPLEX0_TAIL
+// Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
+// Expand all eight output rows; the final K step never loads another operand.
+#define DUPLEX4_U_BODY(BS, CS, C8, C864, ALD) \
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+#define DUPLEX4_U_NEXT(BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+#define DUPLEX4_U_LAST \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define DUPLEX4_U_TAIL(CS) \
+ "fsub z23.d, z23.d, z22.d\n\t" \
+ "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #" #CS "\n\t" \
+ "add %[cb], %[cb], #" #CS "\n\t"
+// 专用路径 bank4 是同一条 A 的第二次（最后一次）读取：-DTRSM_A4NT 用 ldnt1d，让用完的 A 行不被 RRIP 命中提升、
+// 不占 L2 高优先级（zgemm 的缓存提示卫生结论：死数据被提升后会把预取行挤掉）
+#ifndef TRSM_A4NT
+#define TRSM_A4NT 1     // 实测 case2 −0.1 ms、case3 −0.15 ms（4 轮交错）
+#endif
+#if TRSM_A4NT
+#define DUP4_ALD "ldnt1d "
+#else
+#define DUP4_ALD "ld1d "
+#endif
+// Fixed KC64: address K rows around the middle of each eight-row group.
+// Keep the operand/read order and C/prefetch schedule unchanged.
+#define HDUPLEX4_BODY \
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ DUP4_ALD "z8.d, p0/z, [%[a], #-6, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ DUP4_ALD "z9.d, p0/z, [%[a], #-5, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #-6, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #-5, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ DUP4_ALD "z0.d, p0/z, [%[a], #-4, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ DUP4_ALD "z1.d, p0/z, [%[a], #-3, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #-4, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #-3, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ DUP4_ALD "z8.d, p0/z, [%[a], #-2, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ DUP4_ALD "z9.d, p0/z, [%[a], #-1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #-2, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #-1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ DUP4_ALD "z0.d, p0/z, [%[a], #0, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ DUP4_ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #0, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #8192]\n\t" \
+ "prfm pldl2keep, [%[pc], #8256]\n\t" \
+ "add %[pc], %[pc], #1024\n\t" \
+ DUP4_ALD "z8.d, p0/z, [%[a], #2, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ DUP4_ALD "z9.d, p0/z, [%[a], #3, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #2, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #3, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ DUP4_ALD "z0.d, p0/z, [%[a], #4, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ DUP4_ALD "z1.d, p0/z, [%[a], #5, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #4, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #5, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ DUP4_ALD "z8.d, p0/z, [%[a], #6, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ DUP4_ALD "z9.d, p0/z, [%[a], #7, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b], #6, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #7, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
+#define HDUPLEX4_NEXT \
+ "add %[a], %[a], #1024\n\t" \
+ DUP4_ALD "z0.d, p0/z, [%[a], #-8, mul vl]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ DUP4_ALD "z1.d, p0/z, [%[a], #-7, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "add %[b], %[b], #1024\n\t" \
+ "ld1d z4.d, p0/z, [%[b], #-8, mul vl]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #-7, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define HDUPLEX4_LAST \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define HDUPLEX4_TAIL \
+ "fsub z23.d, z23.d, z22.d\n\t" \
+ "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #1024\n\t" \
+ "add %[cb], %[cb], #1024\n\t"
+static inline __attribute__((always_inline)) void kloop_hoist_bank4(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "add %[a], %[a], #512\n\t"
+ "ld1d z0.d, p0/z, [%[a], #-8, mul vl]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #-7, mul vl]\n\t"
+ "add %[b], %[b], #512\n\t"
+ "ld1d z4.d, p0/z, [%[b], #-8, mul vl]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #-7, mul vl]\n\t"
+ "mov w12, #0\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #1\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #2\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #3\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #4\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #5\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #6\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #7\n\t" HDUPLEX4_BODY HDUPLEX4_LAST HDUPLEX4_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef HDUPLEX4_BODY
+#undef HDUPLEX4_NEXT
+#undef HDUPLEX4_LAST
+#undef HDUPLEX4_TAIL
+// Select the address-hoisted KC64 kernels once per solve. Keeping both task
+// versions permits same-binary profiling without changing the owner path.
+static int g_abhoist;
+static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
@@ -2699,8 +3224,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
+                if (hoist) {
+                PROF_T(c,kloop_hoist_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
+                PROF_T(c,kloop_hoist_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                } else {
                 PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
                 PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                }
                 pend=1;pend_c=cur;pend_cols=cols;
                 if(c->prof>=2)tb->n_kstep+=kk;
                 continue;
@@ -2932,9 +3462,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     return tnext;
 }
 
-static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1);}
-static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2);}
-static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4);}
+static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1,0);}
+static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,0);}
+static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0);}
+static long run_task_hoist2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,1);}
+static long run_task_hoist4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1);}
 // ---------------------------------------------------------------- 主流程
 static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
 {
@@ -2942,6 +3474,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     memset(&c, 0, sizeof(c));
     c.m = m; c.n = n; c.lda = lda; c.ldb = ldb; c.L = L; c.B = B;
     c.prof = env_int("TRSM_PROFILE", 0);
+    g_abhoist = env_int("TRSM_ABHOIST", 1); // 0 retains the original duplex kernels for comparisons
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
     c.ntstore = env_int("TRSM_NT", 1);
@@ -3502,8 +4035,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
-        if(c.special==2)taskfn=run_task_special2;
-        if(c.special==4)taskfn=run_task_special4;
+        if(c.special==2)taskfn=g_abhoist ? run_task_hoist2 : run_task_special2;
+        if(c.special==4)taskfn=g_abhoist ? run_task_hoist4 : run_task_special4;
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
