@@ -1589,6 +1589,7 @@ typedef struct {
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int fuse;               // 首段融合装载（TRSM_FUSE）：整块任务不做装载阶段，首段托管回写改为 C = B 行 − 暂存
+    int torder;             // GEMM 段内循环顺序：0 条→列块（B 段常驻 L2），1 列块→条（B 子段留 L1，A 条常驻 L2）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1853,14 +1854,25 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !c->direct && c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
-    for (long q = 0; q < nstrips; q++) {
+    // 循环顺序（TRSM_TORDER=1，非 JIT）：段 → 列块 t → 条 r，即每个 32 列的 B 子段（K×32，16 KB）在 L1 里被 S 个条复用，
+    // 段内 S 个 A 条（S×8 KB）在 L2 里被 ntile 个列块复用；B 段不必整块常驻 L2，给更宽的 nc 腾 L2 空间
+    const int torder = c->torder && !c->jit;
+    const long nouter = torder ? nstrips * ntile : nstrips;
+    for (long qq = 0; qq < nouter; qq++) {
+        long q; int t0, t1;
+        if (torder) {
+            long per_ch = (long)S * ntile;
+            long chi = qq / per_ch, rem = qq % per_ch;
+            t0 = (int)(rem / S); t1 = t0 + 1;
+            q = chi * S + rem % S;
+        } else { q = qq; t0 = 0; t1 = (int)ntile; }
         const long ch = chfirst + q / S;
         const int r = (int)(q % S);
         const long k0 = ch * kc;
         long kk = i0 - k0; if (kk > kc) kk = kc;
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
-        if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+        if (r == 0 && t0 == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
         // 本段 B 面板（连续，行距 ncp）与下一段面板（预取目标）：面板驻留模式直接取本线程面板缓冲的第 ch 段
         const double* Xk = c->owner ? tb->cbuf + (size_t)ch * kc * ncp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
         const double* Xkn = c->owner ? tb->cbuf + (size_t)(ch + 1) * kc * ncp : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;
@@ -1901,7 +1913,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         hosted_next = host_now;
         // 2 条之后（预取目标）：转置读的是 q+1 的行，因此预取 q+2；不托管时预取 q+1
         long pfq = q + (host_now ? 2 : 1);
-        for (long t = 0; t < ntile; t++) {
+        for (long t = t0; t < t1; t++) {
             pf_t pf = pf_dummy;
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
             if (pf_on && pfq < nstrips) {
@@ -2944,6 +2956,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dnt = env_int("TRSM_DNT", c.owner);
     }
     c.fuse = env_int("TRSM_FUSE", 0);   // 首段融合装载：实测 case1 2.42→2.49、case2 通用路径持平（装载字节并入 K 循环只是把停顿搬了位置），默认关
+    c.torder = env_int("TRSM_TORDER", 0);
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
