@@ -1461,6 +1461,7 @@ typedef struct {
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
     int dant;               // 专用双 bank GEMM 内核的 A 条用 ldnt1d（TRSM_DANT）
+    int pair;               // 专用路径条带按两条×4微块交错（TRSM_PAIR）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -2671,16 +2672,21 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     // Prepacked traversal advances one strip at a time; no division by S is needed.
     // The first previous bank is zero; later kernels consume the preceding output.
     if((mode==2 || mode==4))sme_zero_za();
-    long strip_ch = chfirst;
-    int strip_r = 0;
-    for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
-        const long ch = strip_ch;
-        const int r = strip_r;
+    // 条带遍历：pair 模式（TRSM_PAIR，双 bank 专用路径）按"两条 × 4 微块"交错——同一 B 微块面板（16 KB）连续服务两条 A，
+    // L1 里 B 的重填减半；A 的预取目标相应改为 q+2（两条 A 共 16 KB，仍在 L1 内）。
+    const int pair = (mode==2 || mode==4) && c->pair && (S % 2 == 0) && (nstrips % 2 == 0);
+    const long qstep = pair ? 2 : 1;
+    for (long qp = 0; qp < nstrips; qp += qstep) {
+      for (long tt = 0; tt < ntile * qstep; tt++) {
+        const long t = pair ? (tt >> 1) : tt;
+        const long q = qp + (pair ? (tt & 1) : 0);
+        const long ch = chfirst + q / S;
+        const int r = (int)(q % S);
         const long k0 = ch * kc;
         long kk = i0 - k0; if (kk > kc) kk = kc;
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
-        if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+        if (r == 0 && tt == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
         const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
         const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
         (void)xlines;
@@ -2721,13 +2727,14 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         hosted_next = host_now;
         // 2 条之后（预取目标）：转置读的是 q+1 的行，因此预取 q+2；不托管时预取 q+1
-        long pfq = q + (host_now ? 2 : 1);
-        for (long t = 0; t < ntile; t++) {
+        long pfq = q + (pair ? 2 : (host_now ? 2 : 1));
+        {
             pf_t pf = pf_dummy;
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
+            long pfr = r + (pfq - q), pfch = ch + pfr / S; pfr %= S;   // 条 pfq 所在的 (段, 条)
             if (pf_on && pfq < nstrips) {
-                long pr0 = i0 + 16 * (r + 1 == S ? 0 : r + 1);
-                long pk0 = (ch + (r + 1 == S)) * kc;
+                long pr0 = i0 + 16 * pfr;
+                long pk0 = pfch * kc;
                 long pkk = i0 - pk0; if (pkk > kc) pkk = kc;
                 long lines_per_row = (pkk * 8 + 63) / 64;
                 long rows_per_tile = (kk / 2) / lines_per_row; if (rows_per_tile < 1) rows_per_tile = 1;
@@ -2739,7 +2746,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
+                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)pfch*S+pfr)*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
                     pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
@@ -3090,6 +3097,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xptm = env_int("TRSM_XPTM", 0);
         c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
         c.dant = env_int("TRSM_DANT", 0);
+        c.pair = env_int("TRSM_PAIR", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
