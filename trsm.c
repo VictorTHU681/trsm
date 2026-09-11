@@ -1474,6 +1474,7 @@ typedef struct {
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int fstore;             // 专用路径 mode2：Xp 与 X 融合成单遍回写（cbuf 每行只读一次，两条写流交错；TRSM_FSTORE）
+    int dpfch;              // 专用路径对角条预取窗口（最后几段的空闲槽；TRSM_DPFCH）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -2696,7 +2697,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
-            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
+            // 空闲槽（每段前半、以及最后 dpfch 段）指向本行块对角条：这些槽本来 prfm 打在哑地址上，改指向有用地址零成本；
+            // 对角阶段每任务 ~278 KB 条带冷读约 35 µs，占 dkloop 的一半（TRSM_DPFCH：窗口段数，1 = 旧行为只在最后两段）
+            if (pf_on && !p2_used && !split && kend - k0n <= (long)c->dpfch * kc && dpf < dend) {
                 pf.p2 = dpf;
                 dpf += (kk / 2) * 64;
             }
@@ -3039,6 +3042,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.eflag = env_int("TRSM_EFLAG", 1);
         c.fstore = env_int("TRSM_FSTORE", 0);
+        c.dpfch = env_int("TRSM_DPFCH", 1);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     {
