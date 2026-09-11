@@ -1459,6 +1459,7 @@ typedef struct {
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
+    int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -1592,6 +1593,118 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
     }
     if (!t->scratch) { t->scratch = alloc_on(8192, -1); memset(t->scratch, 0, 8192); }
     if (!t->scratch2) { t->scratch2 = alloc_on(65536, -1); memset(t->scratch2, 0, 65536); }
+}
+
+
+// ---------------------------------------------------------------- 对角阶段的双 ZA bank 内核（SET 语义、变 K、行主序 B/C）
+// 对角求解每个 32 列块：bank0 算列 0..15 时把上一块 bank4 的结果直接存进 C（SET，不读旧值），bank4 算列 16..31 时存 bank0。
+// K = 16(s+1)，16 的倍数：K=16 每步排 2 行；K≥32 前 32 步每步排 1 行，其余步只算。每步先装载再 fmopa（不越界预读）。
+// 排水顺序按 tile 主序（tile 的 8 行连续），目标行指针 xd 每行 +cs；C 行距 cs、B 行距 bs 均为字节。
+#define DSTEP(A0, A1, B0, B1, T0, T1, T2, T3)                                     \
+    "ld1d " A0 ".d, p0/z, [%[a]]\n\t"                                              \
+    "ld1d " A1 ".d, p0/z, [%[a], #1, mul vl]\n\t"                                  \
+    "ld1d " B0 ".d, p0/z, [%[b]]\n\t"                                              \
+    "ld1d " B1 ".d, p0/z, [%[b], #1, mul vl]\n\t"                                  \
+    "add %[a], %[a], #128\n\t"                                                     \
+    "add %[b], %[b], %[bs]\n\t"                                                    \
+    "fmopa " T0 ".d, p0/m, p0/m, " A0 ".d, " B0 ".d\n\t"                           \
+    "fmopa " T1 ".d, p0/m, p0/m, " A0 ".d, " B1 ".d\n\t"                           \
+    "fmopa " T2 ".d, p0/m, p0/m, " A1 ".d, " B0 ".d\n\t"                           \
+    "fmopa " T3 ".d, p0/m, p0/m, " A1 ".d, " B1 ".d\n\t"
+#define DSTEP_E(T0, T1, T2, T3) DSTEP("z0", "z1", "z4", "z5", T0, T1, T2, T3)
+#define DSTEP_O(T0, T1, T2, T3) DSTEP("z8", "z9", "z12", "z13", T0, T1, T2, T3)
+#define DDRAIN(DT)                                                                 \
+    "mova z16.d, p0/m, " DT "h.d[w12, 0]\n\t"                                      \
+    "st1d z16.d, p0, [%[xd]]\n\t"                                                  \
+    "add %[xd], %[xd], %[cs]\n\t"                                                  \
+    "add w12, w12, #1\n\t"
+// 一个 tile 的 8 行排水块：K≥32 时 8 步（每步 1 行）；K=16 时 4 步（每步 2 行）
+#define DBLOCK8(DT, BASE, T0, T1, T2, T3)                                          \
+    "mov w12, #0\n\t"                                                              \
+    "mov %[xd], " BASE "\n\t"                                                      \
+    "11:\n\t"                                                                      \
+    DSTEP_E(T0, T1, T2, T3) DDRAIN(DT) PFL PFX                                     \
+    DSTEP_O(T0, T1, T2, T3) DDRAIN(DT)                                             \
+    "cmp w12, #8\n\t"                                                              \
+    "b.lt 11b\n\t"
+#define DBLOCK4(DT, BASE, T0, T1, T2, T3)                                          \
+    "mov w12, #0\n\t"                                                              \
+    "mov %[xd], " BASE "\n\t"                                                      \
+    "12:\n\t"                                                                      \
+    DSTEP_E(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT) PFL PFX                          \
+    DSTEP_O(T0, T1, T2, T3) DDRAIN(DT) DDRAIN(DT)                                  \
+    "cmp w12, #8\n\t"                                                              \
+    "b.lt 12b\n\t"
+// 余下 K-32 步（偶数）只算
+#define DREST(T0, T1, T2, T3)                                                      \
+    "cbz %[k], 14f\n\t"                                                            \
+    "13:\n\t"                                                                      \
+    DSTEP_E(T0, T1, T2, T3) PFL PFX                                                \
+    DSTEP_O(T0, T1, T2, T3)                                                        \
+    "subs %[k], %[k], #2\n\t"                                                      \
+    "b.gt 13b\n\t"                                                                 \
+    "14:\n\t"
+// D0..D3：被排水 bank 的 4 个 tile；目标：ct（行 0..7 列 0..7）、ct+64（列 8..15）、cb=ct+8cs（行 8..15）、cb+64
+#define DEF_DSET(NAME, ZERO_OWN, T0, T1, T2, T3, D0, D1, D2, D3)                                                   \
+static inline void NAME(const double* a, const double* b, double* c, long bs, long cs, long K, const pf_t* pf)   \
+{                                                                                                                 \
+    char* ct = (char*)c;                                                                                          \
+    char* cb = ct + 8 * cs;                                                                                       \
+    char* ct64 = ct + 64;                                                                                         \
+    char* cb64 = cb + 64;                                                                                         \
+    char* xd = ct;                                                                                                \
+    long k = K - 32;                                                                                              \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    long pfc = pf->pfn;                                                                                           \
+    if (K == 16) {                                                                                                \
+        asm volatile(                                                                                             \
+            "ptrue p0.d\n\t" ZERO_OWN                                                                             \
+            DBLOCK4(D0, "%[ct]", T0, T1, T2, T3)                                                                  \
+            DBLOCK4(D1, "%[ct64]", T0, T1, T2, T3)                                                                \
+            DBLOCK4(D2, "%[cb]", T0, T1, T2, T3)                                                                  \
+            DBLOCK4(D3, "%[cb64]", T0, T1, T2, T3)                                                                \
+            : [a] "+&r"(a), [b] "+&r"(b), [xd] "+&r"(xd), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2)  \
+            : [bs] "r"(bs), [cs] "r"(cs), [ct] "r"(ct), [ct64] "r"(ct64), [cb] "r"(cb), [cb64] "r"(cb64), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
+            : "memory", "cc", "x12", VCLOB, PCLOB);                                                               \
+        return;                                                                                                   \
+    }                                                                                                             \
+    asm volatile(                                                                                                 \
+        "ptrue p0.d\n\t" ZERO_OWN                                                                                 \
+        DBLOCK8(D0, "%[ct]", T0, T1, T2, T3)                                                                      \
+        DBLOCK8(D1, "%[ct64]", T0, T1, T2, T3)                                                                    \
+        DBLOCK8(D2, "%[cb]", T0, T1, T2, T3)                                                                      \
+        DBLOCK8(D3, "%[cb64]", T0, T1, T2, T3)                                                                    \
+        DREST(T0, T1, T2, T3)                                                                                     \
+        : [a] "+&r"(a), [b] "+&r"(b), [xd] "+&r"(xd), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2) \
+        : [bs] "r"(bs), [cs] "r"(cs), [ct] "r"(ct), [ct64] "r"(ct64), [cb] "r"(cb), [cb64] "r"(cb64), [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj) \
+        : "memory", "cc", "x12", VCLOB, PCLOB);                                                                   \
+}
+DEF_DSET(kloop_dset_bank0, "zero {za0.d, za1.d, za2.d, za3.d}\n\t", "za0", "za1", "za2", "za3", "za4", "za5", "za6", "za7")
+DEF_DSET(kloop_dset_bank4, "zero {za4.d, za5.d, za6.d, za7.d}\n\t", "za4", "za5", "za6", "za7", "za0", "za1", "za2", "za3")
+// 末尾把最后一个 bank4 直接存进 C（SET）
+static inline void za_flush_dset_bank4(double* c, long cs)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8 * cs;
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "mov w12, #0\n\t"
+        "1:\n\t"
+        "mova z16.d, p0/m, za4h.d[w12, 0]\n\t"
+        "st1d z16.d, p0, [%[ct]]\n\t"
+        "mova z16.d, p0/m, za5h.d[w12, 0]\n\t"
+        "st1d z16.d, p0, [%[ct], #1, mul vl]\n\t"
+        "mova z16.d, p0/m, za6h.d[w12, 0]\n\t"
+        "st1d z16.d, p0, [%[cb]]\n\t"
+        "mova z16.d, p0/m, za7h.d[w12, 0]\n\t"
+        "st1d z16.d, p0, [%[cb], #1, mul vl]\n\t"
+        "add %[ct], %[ct], %[cs]\n\t"
+        "add %[cb], %[cb], %[cs]\n\t"
+        "add w12, w12, #1\n\t"
+        "cmp w12, #8\n\t"
+        "b.lt 1b\n\t"
+        : [ct] "+&r"(ct), [cb] "+&r"(cb) : [cs] "r"(cs) : "memory", "cc", "x12", VCLOB, PCLOB);
 }
 
 // ---------------------------------------------------------------- 任务执行
@@ -1904,6 +2017,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     }
     {
         const double* D = c->diag + c->diag_off[i];
+        const int ddup = c->ddup && nci == nc && (nc & 31) == 0;   // 双 bank 对角求解：整面板（全 32 列块）时可用
+        int dpend = 0; double* dpend_c = NULL;
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
@@ -1931,6 +2046,15 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
+                if (ddup) {
+                    // 双 bank 对角求解（SET）：bank0 算列 0..15 并把上一块 bank4 直接存进 C（首块存到暂存），bank4 算列 16..31 并存 bank0
+                    double* cur = cb + 16L * s * ncp + 32 * t;
+                    PROF_T(c, kloop_dset_bank0(A, cb + 32 * t, dpend ? dpend_c + 16 : scratch, cs, dpend ? cs : 128, K, &pf), t_dkloop);
+                    PROF_T(c, kloop_dset_bank4(A, cb + 32 * t + 16, cur, cs, cs, K, &pf_dummy), t_dkloop);
+                    dpend = 1; dpend_c = cur;
+                    if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
+                    continue;
+                }
                 sme_zero_za();
                 // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
                 const int dnt = c->dnt && K <= 256;
@@ -1949,9 +2073,10 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
                 if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
-            // 条末必须落地：下一条把这些行当 B 操作数
+            // 条末必须落地：下一条把这些行当 B 操作数（双 bank 模式下一条只读别的列块，最后再统一落地）
             if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
         }
+        if (ddup && dpend) { PROF_T(c, za_flush_dset_bank4(dpend_c + 16, cs), t_depi); dpend = 0; }
     }
 
     // 4. C 块 → Xp（同步，消费者要读）→ X（可托管到后续 K 循环），发布 flag
@@ -2645,6 +2770,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     }
     {
         const double* D = c->diag + c->diag_off[i];
+        const int ddup = c->ddup && nci == nc && (nc & 31) == 0;   // 双 bank 对角求解：整面板（全 32 列块）时可用
+        int dpend = 0; double* dpend_c = NULL;
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
@@ -2672,6 +2799,15 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
                 if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
+                if (ddup) {
+                    // 双 bank 对角求解（SET）：bank0 算列 0..15 并把上一块 bank4 直接存进 C（首块存到暂存），bank4 算列 16..31 并存 bank0
+                    double* cur = cb + 16L * s * ncp + 32 * t;
+                    PROF_T(c, kloop_dset_bank0(A, cb + 32 * t, dpend ? dpend_c + 16 : scratch, cs, dpend ? cs : 128, K, &pf), t_dkloop);
+                    PROF_T(c, kloop_dset_bank4(A, cb + 32 * t + 16, cur, cs, cs, K, &pf_dummy), t_dkloop);
+                    dpend = 1; dpend_c = cur;
+                    if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
+                    continue;
+                }
                 sme_zero_za();
                 if (pend && K >= 65) {
                     PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
@@ -2685,9 +2821,10 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
                 if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
-            // 条末必须落地：下一条把这些行当 B 操作数
+            // 条末必须落地：下一条把这些行当 B 操作数（双 bank 模式下一条只读别的列块，最后再统一落地）
             if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
         }
+        if (ddup && dpend) { PROF_T(c, za_flush_dset_bank4(dpend_c + 16, cs), t_depi); dpend = 0; }
     }
 
     // 4. C 块 → Xp（同步，消费者要读）→ X（可托管到后续 K 循环），发布 flag
@@ -2858,6 +2995,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.xptm = env_int("TRSM_XPTM", 0);
+        c.ddup = env_int("TRSM_DDUP", 1);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
