@@ -2274,6 +2274,10 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 : [ct] "+&r"(ct),[cb] "+&r"(cb):[bs] "r"(bs): "memory","cc","x12",VCLOB,PCLOB);}
 // Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
 // Expand all eight output rows; the final K step never loads another operand.
+#define DUP_PF_FULL "prfm pldl2keep, [%[ap]]\n\t" "prfm pldl2keep, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
+#define DUP_PF_ADDONLY "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
+#define DUP_PF1 DUP_PF_FULL
+#define DUP_PF2 DUP_PF_FULL
 #define DUP_LDA "ld1d "
 #define DUPLEX0_U_BODY \
  "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
@@ -2306,10 +2310,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "add %[b], %[b], #128\n\t" \
  "fsub z17.d, z17.d, z16.d\n\t" \
  "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
- "prfm pldl2keep, [%[ap]]\n\t" \
- "prfm pldl2keep, [%[bp]]\n\t" \
- "add %[ap], %[ap], #64\n\t" \
- "add %[bp], %[bp], #64\n\t" \
+ DUP_PF1 \
  DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2359,10 +2360,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "add %[b], %[b], #128\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
- "prfm pldl2keep, [%[ap]]\n\t" \
- "prfm pldl2keep, [%[bp]]\n\t" \
- "add %[ap], %[ap], #64\n\t" \
- "add %[bp], %[bp], #64\n\t" \
+ DUP_PF2 \
  DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2446,6 +2444,38 @@ static inline void kloop_duplex_bank0_nt(const double* a, const double* b, doubl
  "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUP_LDA
+#define DUP_LDA "ld1d "
+#undef DUP_PF2
+#define DUP_PF2 DUP_PF_ADDONLY
+// 半预取版本：第二槽不发 prfm，只推游标（测硬件相邻行预取能否补全）
+static inline void kloop_duplex_bank0_h(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF2
+#define DUP_PF2 DUP_PF_FULL
+
+#undef DUP_LDA
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
 #undef DUPLEX0_U_LAST
@@ -2485,10 +2515,7 @@ static inline void kloop_duplex_bank0_nt(const double* a, const double* b, doubl
  "add %[b], %[b], #128\n\t" \
  "fsub z17.d, z17.d, z16.d\n\t" \
  "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
- "prfm pldl2keep, [%[ap]]\n\t" \
- "prfm pldl2keep, [%[bp]]\n\t" \
- "add %[ap], %[ap], #64\n\t" \
- "add %[bp], %[bp], #64\n\t" \
+ DUP_PF1 \
  DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2538,10 +2565,7 @@ static inline void kloop_duplex_bank0_nt(const double* a, const double* b, doubl
  "add %[b], %[b], #128\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
- "prfm pldl2keep, [%[ap]]\n\t" \
- "prfm pldl2keep, [%[bp]]\n\t" \
- "add %[ap], %[ap], #64\n\t" \
- "add %[bp], %[bp], #64\n\t" \
+ DUP_PF2 \
  DUP_LDA "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  DUP_LDA "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -2624,6 +2648,38 @@ static inline void kloop_duplex_bank4_nt(const double* a, const double* b, doubl
  "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
  "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_LDA
+#define DUP_LDA "ld1d "
+#undef DUP_PF2
+#define DUP_PF2 DUP_PF_ADDONLY
+// 半预取版本：第二槽不发 prfm，只推游标（测硬件相邻行预取能否补全）
+static inline void kloop_duplex_bank4_h(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ DUP_LDA "z0.d, p0/z, [%[a]]\n\t"
+ DUP_LDA "z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUP_PF2
+#define DUP_PF2 DUP_PF_FULL
+
 #undef DUP_LDA
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
