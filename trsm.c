@@ -2736,11 +2736,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
             int p2_used = 0;
+            const char* p2b = NULL;   // XDIRECT：bank4 的游标 2 单独给（下一段的下一行）
             if (pf_on && k0n < kend) {
                 long slots_needed = (kk * ncp * 8 + kk * 32 - 1) / (kk * 32);  // 每槽 kk/2 行
                 long strips_needed = (slots_needed + ntile - 1) / ntile;
                 long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
-                const char* p2b = NULL;   // XDIRECT：bank4 的游标 2 单独给（下一段的下一行）
                 if (r >= xstart) {
                     long slot = (r - xstart) * ntile + t;
                     if (slot < slots_needed) {
