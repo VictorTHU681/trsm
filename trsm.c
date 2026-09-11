@@ -2774,13 +2774,18 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
                 sme_zero_za();
+                // 对角条 ldnt1d（TRSM_DNT）：条带 ≤32 KB 时不在 L2 滞留，给对角阶段里预取的下一任务 B 子块留出 L2
+                const int dnt = c->dnt && K <= 256;
                 if (pend && K >= 65) {
-                    PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    if (dnt) PROF_T(c, kloop_epi_set_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    else PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else if (pend && K == 64) {
-                    PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    if (dnt) PROF_T(c, kloop_epi64_set_nt(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    else PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    if (dnt) PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    else PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
