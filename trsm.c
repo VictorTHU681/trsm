@@ -1660,8 +1660,8 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
 // 返回：对角阶段预占到的下一任务号（未预占为 -1）
 // 驻留面板专用路径：相邻两个 16 行条带复用同一个 16 列 X 微块。
 static inline void za_flush_duplex_bank4(double*, long);
-static inline void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
-static inline void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
 
 // Full 16x32 diagonal results can go straight from ZA to the resident panel.
 // All columns are independent; storing this tile before the next column tile
@@ -2276,7 +2276,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
  "add %[ct], %[ct], #" #CS "\n\t" \
  "add %[cb], %[cb], #" #CS "\n\t"
-static inline void kloop_duplex_bank0(const double* a, const double* b, double* c,
+static inline __attribute__((always_inline)) void kloop_duplex_bank0(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -2300,7 +2300,7 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
  "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-static inline void kloop_owner_bank0(const double* a, const double* b, double* c,
+static inline __attribute__((always_inline)) void kloop_owner_bank0(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -2460,7 +2460,7 @@ static inline void kloop_owner_bank0(const double* a, const double* b, double* c
 #else
 #define DUP4_ALD "ld1d "
 #endif
-static inline void kloop_duplex_bank4(const double* a, const double* b, double* c,
+static inline __attribute__((always_inline)) void kloop_duplex_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -2484,7 +2484,7 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-static inline void kloop_owner_bank4(const double* a, const double* b, double* c,
+static inline __attribute__((always_inline)) void kloop_owner_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
