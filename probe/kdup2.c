@@ -8,7 +8,7 @@
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
 static const long K = 64;
 
-typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT, cS; int pfa, pfb, bspread; } cfg_t;
+typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT, cS; int pfa, pfb, bspread, adist, blate, nt; } cfg_t;
 static double run(const cfg_t* g, long nchunk, char* dummy)
 {
     const long S = g->S, NT = g->NT;
@@ -26,19 +26,26 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
         long call = 0;
         for (long s = 0; s < S; s++) {
             const double* A = Ach + s * 1024;
-            const double* An = (s + 1 < S) ? Ach + (s + 1) * 1024 : Anext;
+            const long ad = g->adist ? g->adist : 1;
+            const double* An = (s + ad < S) ? Ach + (s + ad) * 1024 : Anext + (s + ad - S) * 1024;
             for (long t = 0; t < NT; t++, call++) {
                 const double* B = Bch + t * 2048;
                 double* C = g->C + 16 * (s % g->cS) * 128 + 32 * t;
                 const char* ap = g->pfa ? (const char*)An + t * (8192 / NT) : dummy;
                 const char* bp = dummy;
-                if (g->pfb && call < bcalls) {
-                    size_t off = g->bspread ? (size_t)call * (bchunk / calls) : (size_t)call * 2048;
+                long bc = g->blate ? call - (calls - bcalls) : call;
+                if (g->pfb && bc >= 0 && bc < bcalls) {
+                    size_t off = g->bspread ? (size_t)bc * (bchunk / calls) : (size_t)bc * 2048;
                     bp = (const char*)Bnext + off;
                 }
                 const char* pc = (const char*)C;
-                kloop_duplex_bank0(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
-                kloop_duplex_bank4(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                if (g->nt) {
+                    kloop_duplex_bank0_nt(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
+                    kloop_duplex_bank4_nt(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                } else {
+                    kloop_duplex_bank0(A, B, (pend_c ? pend_c : C) + 16, ap, bp, pc);
+                    kloop_duplex_bank4(A, B + 1024, C, ap + 1024, bp + 1024, pc + 128);
+                }
                 pend_c = C;
             }
         }
@@ -67,7 +74,7 @@ int main(void)
         r1 = (double)(cyc() - t0) / 20000 / K * (1.55e9 / (double)cyc_hz());
     }
     show("v1 L1 驻留（同 A/B/C）", r1);
-    cfg_t base = { Abig, Bbig, Cbig, 16 * 1024 * 8, 4 * 2048 * 8, 16, 4, 16, 0, 0, 0 };
+    cfg_t base = { Abig, Bbig, Cbig, 16 * 1024 * 8, 4 * 2048 * 8, 16, 4, 16, 0, 0, 0, 1, 0, 0 };
     const long n = 400;
     cfg_t v; 
     v = base; run(&v, 8, dummy); show("v2 L2 驻留（A128K+B64K+C256K）", run(&v, n, dummy));
@@ -82,6 +89,13 @@ int main(void)
     v = base; v.abytes = big; v.pfa = 0; v.bbytes = big; v.pfb = 1; show("v4a A 不预取、B 预取", run(&v, n, dummy));
     v = base; v.bbytes = big; v.pfb = 1; show("v5 只 B 流式（A 在 L2）+ bp 预取", run(&v, n, dummy));
     v = base; v.bbytes = big; v.pfb = 0; show("v5n 只 B 流式，不预取", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.adist = 2; show("v4d2 A 预取提前 2 条", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.adist = 4; show("v4d4 A 预取提前 4 条", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; show("v4bl B 预取放在后 32 调用", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.adist = 2; show("v4bl+d2", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.S = 8; v.cS = 1; show("v4tiny S=8, C 16K（活跃集 ~200K）", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.nt = 1; show("v4nt A 用 ldnt1d 内核", run(&v, n, dummy));
+    v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.nt = 1; v.blate = 1; show("v4nt+bl", run(&v, n, dummy));
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
