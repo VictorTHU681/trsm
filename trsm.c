@@ -1489,7 +1489,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     long nb_rows = 0, nb_done = 0, nb_lines = 0;
     const double* nb_base = NULL;
     const long nb_ldb8 = ldb * 8;
-    const int owner_pfb = c->owner && env_int("TRSM_OWNER_PFB", 1);
+    const int owner_pfb = c->owner && env_int("TRSM_OWNER_PFB", 0);   // 实测 K 循环慢 17%、load 只省 0.04 ms：A 流已顶到每核带宽，没有余量重叠；默认关
     if (owner_pfb && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
         long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
         nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
