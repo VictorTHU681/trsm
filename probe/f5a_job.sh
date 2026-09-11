@@ -10,7 +10,7 @@ for i in 1 2 3; do for v in 1 0; do printf "[CPROBE=%s] " $v; TRSM_CPROBE=$v OMP
 echo "--- injected noise: spinner pinned to cpu 45 (node 1)"
 taskset -c 45 bash -c 'while :; do :; done' & SP=$!
 sleep 1
-for i in 1 2 3; do for v in 0 1; do printf "[noise CPROBE=%s] " $v; TRSM_CPROBE=$v TRSM_PROFILE=1 OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 512 19968 1 2>&1 | grep -E "cprobe|PASS|FAIL" | tr '\n' ' '; echo; done; done
+for i in 1 2 3 4; do for v in 0 1; do printf "[noise CPROBE=%s] " $v; TRSM_CPROBE=$v TRSM_PROFILE=1 OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 512 19968 1 2>&1 | grep -E "cprobe|PASS|FAIL|prof] m=" | tr "\n" " "; echo; done; done
 for v in 0 1; do printf "[noise TC3 CPROBE=%s] " $v; TRSM_CPROBE=$v OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 17024 512 1 2>&1 | grep -E "PASS|FAIL"; done
 kill $SP 2>/dev/null
 echo "--- correctness"

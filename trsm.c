@@ -3009,6 +3009,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         uint64_t med = sorted[g_ncpu / 2];
         int bad = 0;
         for (int t = 0; t < g_ncpu; t++) if (probe_cyc[t] > med + med / 4) bad++;
+        if (env_int("TRSM_PROFILE", 0))
+            fprintf(stderr, "[trsm cprobe] 核数 %d 中位 %.1f ms 最快 %.1f 最慢 %.1f（cpu %d），>25%% 慢的 %d 个\n",
+                    g_ncpu, med / (double)cyc_hz() * 1e3, sorted[0] / (double)cyc_hz() * 1e3,
+                    sorted[g_ncpu - 1] / (double)cyc_hz() * 1e3,
+                    ({ int mx = 0; for (int t = 1; t < g_ncpu; t++) if (probe_cyc[t] > probe_cyc[mx]) mx = t; g_cpus[mx]; }), bad);
         if (bad > 0 && bad <= 6) {
             int w = 0;
             for (int t = 0; t < g_ncpu; t++) {
@@ -3019,7 +3024,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 g_cpus[w++] = g_cpus[t];
             }
             g_ncpu = w;
-            g_pin_nth = -1;   // 下次调用按新核表重绑
+            g_pin_nth = nth;   // 不触发重绑：重绑会用线程现有掩码的并集重建核表，把剔掉的核加回来；pin_self 会按压缩后的核表迁移
         } else if (bad > 6 && env_int("TRSM_PROFILE", 0)) fprintf(stderr, "[trsm cprobe] %d 个核偏慢（>6），整节点受扰，不剔除\n", bad);
     }
     if (g_ncpu > 0 && g_ncpu < nth) nth = g_ncpu;
