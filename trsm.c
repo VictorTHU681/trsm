@@ -3397,7 +3397,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             {   // 线程唤醒延迟：各线程进入并行区的时刻相对主线程发起并行区的时刻
                 uint64_t wmax = 0, wsum = 0; int wn = 0;
                 for (int t = 0; t < nth; t++) { uint64_t d = g_wake_cyc[t] > t1 ? g_wake_cyc[t] - t1 : 0; if (d > wmax) wmax = d; wsum += d; wn++; }
-                fprintf(stderr, "[trsm prof]  并行区唤醒：最慢线程 %.1f µs，平均 %.1f µs\n", wmax / hz * 1e6, (double)wsum / wn / hz * 1e6);
+                fprintf(stderr, "[trsm prof]  并行区唤醒：最慢线程 %.1f µs，平均 %.1f µs，主线程 %.1f µs\n", wmax / hz * 1e6, (double)wsum / wn / hz * 1e6, (g_wake_cyc[0] > t1 ? g_wake_cyc[0] - t1 : 0) / hz * 1e6);
             }
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
             long nks = 0, ndks = 0, ntk = 0, nswf = 0, nswq = 0;
