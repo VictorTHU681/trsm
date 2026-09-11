@@ -3106,16 +3106,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     void* tmp = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
                     if (tmp != MAP_FAILED) {
                         memcpy(tmp, (void*)lo, bytes);
-                        madvise((void*)lo, bytes, MADV_DONTNEED);
+                        int r1 = madvise((void*)lo, bytes, MADV_DONTNEED);
                         unsigned long mask[16] = {0};
                         mask[target / 64] |= 1UL << (target % 64);
-                        syscall(SYS_mbind, (void*)lo, bytes, MPOL_PREFERRED_, mask, (unsigned long)(sizeof(mask) * 8), 0);
-                        madvise((void*)lo, bytes, MADV_HUGEPAGE);
+                        long r2 = syscall(SYS_mbind, (void*)lo, bytes, MPOL_PREFERRED_, mask, (unsigned long)(sizeof(mask) * 8), 0);
+                        int r3 = madvise((void*)lo, bytes, MADV_HUGEPAGE);
                         memcpy((void*)lo, tmp, bytes);
                         munmap(tmp, bytes);
+                        if (env_int("TRSM_SMAPS", 0))
+                            fprintf(stderr, "[trsm rehuge] lo=%lx bytes=%zu MB dontneed=%d mbind=%ld hugepage_adv=%d target=%d\n",
+                                    lo, bytes >> 20, r1, r2, r3, target);
                     }
-                }
-            }
+                } else if (env_int("TRSM_SMAPS", 0)) fprintf(stderr, "[trsm rehuge] skip: range too small\n");
+            } else if (env_int("TRSM_SMAPS", 0)) fprintf(stderr, "[trsm rehuge] skip: target=%d rehuge=%d first=%d node(B)=%d\n", target, env_int("TRSM_REHUGE", 1), first_here, page_node_of(B));
             if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
             xmig_ptr = B; xmig_bytes = xbytes;
         }
