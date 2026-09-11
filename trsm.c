@@ -3024,7 +3024,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.xptm = env_int("TRSM_XPTM", 0);
-        c.ddup = env_int("TRSM_DDUP", 1);
+        c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
