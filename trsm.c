@@ -2777,7 +2777,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (c.jit || c.ppmode != 0) owner = 0;
         if (panel_bytes > ((size_t)env_int("TRSM_OWNER_MB", 4) << 20)) owner = 0;
         c.owner = owner;
-        if (c.owner) { c.swhost = 0; if (!getenv("TRSM_ANT")) c.ant = 1; }   // 面板缓冲要常驻 L2：A 条用 ldnt1d 流过
+        if (c.owner) {
+            c.swhost = 0;
+            if (!getenv("TRSM_ANT")) c.ant = 1;          // 面板缓冲要常驻 L2：A 条用 ldnt1d 流过
+            if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
+        }
         c.dnt = env_int("TRSM_DNT", c.owner);
     }
     // Admit a specialization only when every baked-in setting matches this call.

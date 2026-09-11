@@ -20,11 +20,15 @@ rm -f fastbench; gcc $FLAGS probe/fastbench.c trsm.c -o fastbench -lm 2>&1 | gre
 run1() { echo "--- [$*]"; env "$@" OMP_NUM_THREADS=38 numactl -N 1 ./fastbench -r 5 512 19968 2>&1 | grep -vE "^  rep"; }
 run1 A=1
 run1 TRSM_OWNER=0
-run1 TRSM_DIRECT=0
-run1 TRSM_MB=128
-run1 TRSM_NC=128
+run1 A=2
+run1 TRSM_OWNER=0
+run1 TRSM_DIRECT=1
+run1 TRSM_LSPLIT=0
 run1 TRSM_DNT=0
-run1 TRSM_OWNER_C0=90
+run1 TRSM_OWNER_C0=120
+run1 TRSM_OWNER_C0=300
+run1 TRSM_MB=128
+run1 TRSM_LCHUNK=0
 echo "=== TC1 分相 profile（官方 bench，TRSM_PROFILE=2）"
 rm -f trsm_test; gcc $FLAGS bench_trsm.c trsm.c -o trsm_test -lm -lkblas 2>&1 | grep -E "rror" | head -5
 prof1() { echo "--- [$*]"; env "$@" TRSM_PROFILE=2 OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 512 19968 1 2>&1 | grep -E "PASS|FAIL|prof\]" | tail -4; }
