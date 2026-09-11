@@ -11,7 +11,7 @@ static const long K = 64;
 
 typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT; long cs; int ah; int fixed; } cfg_t;
 
-static void call(const cfg_t* g, const double* A, const double* B, double* Cprev, double* C, const char* ap, const char* bp, long apoff4)
+static void kcall(const cfg_t* g, const double* A, const double* B, double* Cprev, double* C, const char* ap, const char* bp, long apoff4)
 {
     const char* pc = (const char*)C;
     if (g->cs == 1792) {
@@ -62,7 +62,7 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
                 const char* bp = dummy;
                 long bc = call - (calls - bwin);
                 if (!g->fixed && bc >= 0) bp = (const char*)Bnext + (size_t)bc * 2048;
-                call(&gg, A, B, pend_c, C, ap, bp, ap4);
+                kcall(&gg, A, B, pend_c, C, ap, bp, ap4);
                 pend_c = C;
             }
         }
