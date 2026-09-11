@@ -2610,7 +2610,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         uint64_t t0=c->prof>=2?cyc():0;
         for(int r=0;r<S;r++)
             while(__atomic_load_n(&c->pflags[i0/16+r],__ATOMIC_ACQUIRE)==0) asm volatile("yield");
-        if(c->prof>=2)tb->t_wait+=cyc()-t0;
+        if(c->prof>=2){tb->t_wait+=cyc()-t0;tb->t_pf+=cyc()-t0;}   // t_pf（打印列 xcopy）= 等打包 flag 的部分
     }
 
     int pend = 0;            // 有待回写的上一微块（暂存中）
