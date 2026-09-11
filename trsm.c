@@ -3458,8 +3458,14 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     fprintf(stderr, "\n");
                 }
                 if (c.owner) {
-                    fprintf(stderr, "[trsm prof]  每线程任务数/ms:");
-                    for (int t = 0; t < nth; t++) fprintf(stderr, " %ld/%.3f", c.owner_bound[t + 1] - c.owner_bound[t], g_tb[t].t_task / hz * 1e3);
+                    fprintf(stderr, "[trsm prof]  每线程 任务数/ms/ia/ib:");
+                    for (int t = 0; t < nth; t++) {
+                        long a = c.owner_bound[t], b = c.owner_bound[t + 1];
+                        fprintf(stderr, " %ld/%.3f/%ld/%ld", b - a, g_tb[t].t_task / hz * 1e3, a % c.nrb, (b - 1) % c.nrb);
+                    }
+                    fprintf(stderr, "\n");
+                    fprintf(stderr, "[trsm prof]  线程 0 按行块 i 的任务耗时 µs:");
+                    for (int q = 0; q < 16 && q < c.nrb; q++) if (g_tb[0].n_by_i[q]) fprintf(stderr, " %d:%.1f(%ld)", q, (double)g_tb[0].t_by_i[q] / g_tb[0].n_by_i[q] / hz * 1e6, g_tb[0].n_by_i[q]);
                     fprintf(stderr, "\n");
                 }
             }
