@@ -1526,6 +1526,7 @@ typedef struct {
     int help_role; long help_ch; const double* help_src; const double* help_partial; volatile int* help_flag; int help_flag_done;
     double* hbuf; size_t hbuf_cap;
     long n_help, n_helped; uint64_t t_hwait;   // 协助次数 / 被协助次数 / owner 等协助者的时间
+    long n_h_novictim, n_h_nocand, n_h_casfail, n_h_otherpanel, n_h_smalli; uint64_t t_hloop;   // 协助循环诊断
     long n_task, n_kstep;
     uint64_t t_dump, t_ddump;
     long n_dkstep;
@@ -3355,7 +3356,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->t_dump = tb->t_ddump = 0;
             tb->n_swflush = tb->n_swq = 0;
             for (int q = 0; q < 16; q++) { tb->t_by_i[q] = 0; tb->n_by_i[q] = 0; }
-            tb->n_help = tb->n_helped = 0; tb->t_hwait = 0;
+            tb->n_help = tb->n_helped = 0; tb->t_hwait = 0; tb->n_h_novictim = tb->n_h_nocand = tb->n_h_casfail = tb->n_h_otherpanel = tb->n_h_smalli = 0; tb->t_hloop = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
         // 阶段 1：对角预处理
@@ -3459,6 +3460,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 const long nrb = c.nrb;
                 int mytag = 2 + 16 * tid;
                 unsigned long hspin = 0;
+                uint64_t th0 = c.prof >= 2 ? cyc() : 0;
                 for (;;) {
                     if (++hspin > (1UL << 26)) { __atomic_fetch_add(&g_wd_fired[3], 1, __ATOMIC_RELAXED); g_wd_info[3] = tid; break; }
                     int best = -1; double bestrem = 0; long bests = -1;
@@ -3474,6 +3476,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         int alive = 0;
                         for (int v = 0; v < nth; v++) if (__atomic_load_n(&g_cur_s[v], __ATOMIC_ACQUIRE) < g_sched_n[v]) alive = 1;
                         if (!alive) break;
+                        tbo->n_h_novictim++;
                         asm volatile("yield");
                         continue;
                     }
@@ -3483,11 +3486,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     int claimed = 0;
                     for (long s2 = bests; s2 < nv && s2 < bests + 3; s2++) {
                         long q2 = vs[s2];
-                        if (q2 / nrb != qcur / nrb) break;              // 只在 owner 当前面板内（其面板缓冲已就位）
+                        if (q2 / nrb != qcur / nrb) { tbo->n_h_otherpanel++; break; }   // 只在 owner 当前面板内（其面板缓冲已就位）
                         long i2 = q2 % nrb;
-                        if (i2 < 2) continue;
+                        if (i2 < 2) { tbo->n_h_smalli++; continue; }
                         int ex = 0;
-                        if (__atomic_compare_exchange_n(&c.seg_cnt[q2], &ex, mytag, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+                        if (!__atomic_compare_exchange_n(&c.seg_cnt[q2], &ex, mytag, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) { tbo->n_h_casfail++; continue; }
+                        {
                             tbo->help_role = 1; tbo->help_ch = i2 - 1; tbo->help_src = g_tb[best].cbuf;
                             tbo->help_flag = &c.seg_cnt[q2]; tbo->help_flag_done = mytag + 1;
                             run_task(&c, tbo, &c.tasks[q2], NULL, tid);
@@ -3498,12 +3502,14 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         }
                     }
                     if (!claimed) {
+                        tbo->n_h_nocand++;
                         for (int w = 0; w < 64; w++) asm volatile("yield");
                         int alive = 0;
                         for (int v = 0; v < nth; v++) if (__atomic_load_n(&g_cur_s[v], __ATOMIC_ACQUIRE) < g_sched_n[v]) alive = 1;
                         if (!alive) break;
                     }
                 }
+                if (c.prof >= 2) tbo->t_hloop += cyc() - th0;
             }
         } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
@@ -3575,7 +3581,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (c.owner) {
                     long nh = 0, nhd = 0; double thw = 0;
                     for (int t = 0; t < nth; t++) { nh += g_tb[t].n_help; nhd += g_tb[t].n_helped; thw += g_tb[t].t_hwait; }
-                    fprintf(stderr, "[trsm prof]  尾部协助：协助 %ld 次，被协助 %ld 次，owner 等协助者合计 %.3f ms\n", nh, nhd, thw / hz * 1e3);
+                    long nnv = 0, nnc = 0, ncf = 0, nop = 0, nsi = 0; double thl = 0;
+                    for (int t = 0; t < nth; t++) { nnv += g_tb[t].n_h_novictim; nnc += g_tb[t].n_h_nocand; ncf += g_tb[t].n_h_casfail; nop += g_tb[t].n_h_otherpanel; nsi += g_tb[t].n_h_smalli; thl += g_tb[t].t_hloop; }
+                    fprintf(stderr, "[trsm prof]  尾部协助：协助 %ld 次，被协助 %ld 次，owner 等协助者合计 %.3f ms；协助循环合计 %.3f ms，无 victim %ld / 无候选 %ld / 他面板 %ld / i<2 %ld / CAS 失败 %ld\n", nh, nhd, thw / hz * 1e3, thl / hz * 1e3, nnv, nnc, nop, nsi, ncf);
                     fprintf(stderr, "[trsm prof]  每线程 任务数/ms/ia/ib:");
                     for (int t = 0; t < nth; t++) {
                         long a = c.owner_bound[t], b = c.owner_bound[t + 1];
