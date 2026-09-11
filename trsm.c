@@ -2938,7 +2938,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
     }
-    c.fuse = env_int("TRSM_FUSE", 1);
+    c.fuse = env_int("TRSM_FUSE", 0);   // 首段融合装载：实测 case1 2.42→2.49、case2 通用路径持平（装载字节并入 K 循环只是把停顿搬了位置），默认关
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
