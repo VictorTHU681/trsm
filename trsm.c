@@ -1750,9 +1750,12 @@ static inline void za_flush_dset_bank4(double* c, long cs)
 }
 
 // ---------------------------------------------------------------- 任务执行
+// 看门狗（诊断死锁）：自旋超过上限就记录现场并放弃等待（结果会错，但进程能结束并打印）
+static long g_wd_fired[8]; static long g_wd_info[8];
+#define WD_SPIN(cond, k, info) do { unsigned long _sp = 0; while (cond) { asm volatile("yield"); if (++_sp > (1UL << 31)) { __atomic_fetch_add(&g_wd_fired[k], 1, __ATOMIC_RELAXED); g_wd_info[k] = (long)(info); break; } } } while (0)
 static inline void wait_flag(const ctx_t* c, long idx)
 {
-    while (__atomic_load_n(&c->flags[idx], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
+    WD_SPIN(__atomic_load_n(&c->flags[idx], __ATOMIC_ACQUIRE) == 0, 0, idx);
 }
 
 // Pack consecutive K chunks in consumption order to reduce L2 set conflicts.
@@ -2027,7 +2030,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     }
     if (helped) {   // 被协助的 owner：等协助者的部分和，加进 C 块
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-        while (__atomic_load_n(tb->help_flag, __ATOMIC_ACQUIRE) != tb->help_flag_done) asm volatile("yield");
+        WD_SPIN(__atomic_load_n(tb->help_flag, __ATOMIC_ACQUIRE) != tb->help_flag_done, 1, *tb->help_flag * 1000 + tb->help_flag_done);
         if (c->prof >= 2) { tb->t_wait += cyc() - t0; t0 = cyc(); }
         const svbool_t pg = svptrue_b64();
         const double* P = tb->help_partial;
@@ -3450,7 +3453,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (c.ohelp) {
                 const long nrb = c.nrb;
                 int mytag = 2 + 16 * tid;
+                unsigned long hspin = 0;
                 for (;;) {
+                    if (++hspin > (1UL << 26)) { __atomic_fetch_add(&g_wd_fired[3], 1, __ATOMIC_RELAXED); g_wd_info[3] = tid; break; }
                     int best = -1; double bestrem = 0; long bests = -1;
                     for (int v = 0; v < nth; v++) {
                         if (v == tid) continue;
@@ -3482,7 +3487,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                             tbo->help_flag = &c.seg_cnt[q2]; tbo->help_flag_done = mytag + 1;
                             run_task(&c, tbo, &c.tasks[q2], NULL, tid);
                             tbo->help_role = 0;
-                            while (__atomic_load_n(&c.seg_cnt[q2], __ATOMIC_ACQUIRE) != mytag + 2) asm volatile("yield");   // owner 消费完 hbuf
+                            WD_SPIN(__atomic_load_n(&c.seg_cnt[q2], __ATOMIC_ACQUIRE) != mytag + 2, 2, c.seg_cnt[q2] * 1000 + mytag);   // owner 消费完 hbuf
                             claimed = 1;
                             break;
                         }
@@ -3517,6 +3522,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
     }
+    for (int k = 0; k < 4; k++) if (g_wd_fired[k]) { fprintf(stderr, "[trsm WD] loop %d fired %ld times, info %ld\n", k, g_wd_fired[k], g_wd_info[k]); g_wd_fired[k] = 0; }
     if (c.prof) {
         uint64_t t2 = cyc();
         double hz = (double)cyc_hz();
