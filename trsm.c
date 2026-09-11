@@ -3639,6 +3639,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         fprintf(stderr, " %ld/%.3f/%ld/%ld", b - a, g_tb[t].t_task / hz * 1e3, a % c.nrb, (b - 1) % c.nrb);
                     }
                     fprintf(stderr, "\n");
+                    fprintf(stderr, "[trsm prof]  每线程 load/kloop/dump/diag/store µs:");
+                    for (int t = 0; t < nth; t++) fprintf(stderr, " %d:%.0f/%.0f/%.0f/%.0f/%.0f", t, g_tb[t].t_load / hz * 1e6, g_tb[t].t_kloop / hz * 1e6, g_tb[t].t_dump / hz * 1e6, (g_tb[t].t_dkloop + g_tb[t].t_ddump + g_tb[t].t_depi) / hz * 1e6, g_tb[t].t_store / hz * 1e6);
+                    fprintf(stderr, "\n");
                     fprintf(stderr, "[trsm prof]  线程 0 按行块 i 的任务耗时 µs:");
                     for (int q = 0; q < 16 && q < c.nrb; q++) if (g_tb[0].n_by_i[q]) fprintf(stderr, " %d:%.1f(%ld)", q, (double)g_tb[0].t_by_i[q] / g_tb[0].n_by_i[q] / hz * 1e6, g_tb[0].n_by_i[q]);
                     fprintf(stderr, "\n");
