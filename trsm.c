@@ -1458,6 +1458,8 @@ typedef struct {
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
+    long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
+    int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1673,8 +1675,13 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
+        const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (lpf > 0 && r + lpf < mbi) {
+                const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
+                for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
+            }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
@@ -1861,8 +1868,13 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         if (done < tk->nseg) { if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; } return -1; }
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
+        const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (lpf > 0 && r + lpf < mbi) {
+                const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
+                for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
+            }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
@@ -2393,8 +2405,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
+        const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (lpf > 0 && r + lpf < mbi) {
+                const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
+                for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
+            }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
@@ -2592,8 +2609,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         if (done < tk->nseg) { if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; } return -1; }
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
+        const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (lpf > 0 && r + lpf < mbi) {
+                const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
+                for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
+            }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
@@ -2678,11 +2700,28 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         double* Bout=Bblk;
 
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb) for (long r = 0; r < mbi; r++) {
+        if (!last_rb && (mode==2 || mode==4) && c->xptm) {
+            // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
+            for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
+                long rows = mbi - ch0; if (rows > kc) rows = kc;
+                double* pan = c->xp + ((size_t)((i0 + ch0) / kc) * c->npan + p) * kc * ncp;
+                for (long j = 0; j < nc; j += 16) {
+                    double* dj = pan + (j / 16) * kc * 16;
+                    const double* sj = cb + ch0 * ncp + j;
+                    for (long r = 0; r < rows; r++) {
+                        svst1_f64(pg, dj + r * 16, svld1_f64(pg, sj + r * ncp));
+                        svst1_f64(pg, dj + r * 16 + 8, svld1_f64(pg, sj + r * ncp + 8));
+                    }
+                }
+            }
+        } else if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
-            if (0) for (long j = 0; j < nc; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
+            if (c->xpnt) for (long j = 0; j < nc; j += 8) {
+                double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                svstnt1_f64(pg,dj,svld1_f64(pg,s+j));
+            }
             else for (long j = 0; j < nc; j += 8) {
                 // Duplex modes pack Kx16 X tiles for the shared FP64 kernels.
                 double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
@@ -2816,9 +2855,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
+    {
+        c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
+        c.xptm = env_int("TRSM_XPTM", 0);
+    }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
-    if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
+    if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && c.ntstore && c.ant) {   // xpnt 在专用实现里已按开关处理
       if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
       if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
       if(mb==192 && !c.direct && c.ppmode==1 && c.npan<=8 &&
