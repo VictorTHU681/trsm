@@ -3506,6 +3506,32 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             fprintf(stderr, "  [%d]\n", nr);
         }
     }
+    if (c.prof >= 3 && env_int("TRSM_CENSUS", 0)) {   // 诊断：并行区开始前，本进程所有线程的状态/所在核/累计 CPU（找出和池线程争核的线程）
+        DIR* d = opendir("/proc/self/task");
+        if (d) {
+            struct dirent* de; int nr = 0; char line[512];
+            fprintf(stderr, "[trsm census] R/D threads:");
+            while ((de = readdir(d))) {
+                if (de->d_name[0] == '.') continue;
+                char path[300]; snprintf(path, sizeof path, "/proc/self/task/%s/stat", de->d_name);
+                FILE* f = fopen(path, "r"); if (!f) continue;
+                if (fgets(line, sizeof line, f)) {
+                    char* rp = strrchr(line, ')'); if (rp) {
+                        char st; unsigned long ut, stt; int cpu;
+                        // fields after ')': state(3) ... utime(14) stime(15) ... processor(39)
+                        char* q = rp + 2; st = *q;
+                        unsigned long v[45]; int k = 0; char* tok = strtok(q + 2, " ");
+                        while (tok && k < 45) { v[k++] = strtoul(tok, NULL, 10); tok = strtok(NULL, " "); }
+                        ut = k > 11 ? v[10] : 0; stt = k > 12 ? v[11] : 0; cpu = k > 36 ? (int)v[35] : -1;
+                        if (st == 'R' || st == 'D') { fprintf(stderr, " %s:%c@%d(%lu+%lu)", de->d_name, st, cpu, ut, stt); nr++; }
+                    }
+                }
+                fclose(f);
+            }
+            closedir(d);
+            fprintf(stderr, "  [%d]\n", nr);
+        }
+    }
     if (env_int("TRSM_POOL", 1) && nth <= 1024 && pool_ready(nth)) {
         pool_run(trsm_region, &ra, nth);
     } else {
