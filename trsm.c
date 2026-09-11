@@ -3145,6 +3145,14 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 #pragma omp parallel num_threads(nth)
         pin_threads_in_region(omp_get_thread_num(), omp_get_num_threads());
         g_pin_nth = nth;
+        if (env_int("TRSM_POOL", 1)) {
+            // 自建线程池与 libgomp 池线程共处一组核：kblas 的多线程 domatcopy 复用 libgomp 池（已被上面绑到同一批核），
+            // 区域结束后这些线程按 GOMP_SPINCOUNT 忙等若干毫秒，会与池线程平分 CPU（实测唤醒延迟 9–16 ms、整体慢 2–20 倍）。
+            // 让 libgomp 一次性超订（管理线程数 > 可用核数），之后它所有等待都走节流自旋（100 次）立刻睡眠，不再与池线程争核。
+            int over = 2 * nth; if (over > 1024) over = 1024;
+#pragma omp parallel num_threads(over)
+            { asm volatile("" ::: "memory"); }
+        }
     }
     if (g_ncpu > 0 && g_ncpu < nth) nth = g_ncpu;
     detect_nodes();
