@@ -1569,7 +1569,7 @@ static inline void sw_advance(tbuf_t* tb)
     } while (0)
 
 static tbuf_t g_tb[1024];
-static uint64_t g_prep_cyc[1024], g_tail_cyc[1024];
+static uint64_t g_prep_cyc[1024], g_tail_cyc[1024], g_wake_cyc[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
 static double* g_pp[2] = {NULL, NULL};
@@ -3274,6 +3274,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 #pragma omp parallel num_threads(nth)
     {
         int tid = omp_get_thread_num();
+        if (c.prof >= 2) g_wake_cyc[tid] = cyc();
         pin_self(tid);
         ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         if (c.prof >= 2) {
@@ -3386,6 +3387,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 g_hbm_node >= 0 ? node_free_bytes(g_hbm_node) >> 20 : 0,
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
         if (c.prof >= 2) {
+            {   // 线程唤醒延迟：各线程进入并行区的时刻相对主线程发起并行区的时刻
+                uint64_t wmax = 0, wsum = 0; int wn = 0;
+                for (int t = 0; t < nth; t++) { uint64_t d = g_wake_cyc[t] > t1 ? g_wake_cyc[t] - t1 : 0; if (d > wmax) wmax = d; wsum += d; wn++; }
+                fprintf(stderr, "[trsm prof]  并行区唤醒：最慢线程 %.1f µs，平均 %.1f µs\n", wmax / hz * 1e6, (double)wsum / wn / hz * 1e6);
+            }
             double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
             long nks = 0, ndks = 0, ntk = 0, nswf = 0, nswq = 0;
             double sdump = 0, sddump = 0;
