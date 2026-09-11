@@ -623,6 +623,31 @@ DEF_KLOOP_EPI64(kloop_epi64_sub, EV_SUB)
 // 对角内核的 ldnt1d 版本：面板驻留模式下对角条每个面板只用一遍，不该挤占 L2 里的面板缓冲
 DEF_KLOOP_EPI(kloop_epi_set_nt, EV_SET)
 DEF_KLOOP_EPI64(kloop_epi64_set_nt, EV_SET)
+// 面板驻留模式 GEMM 内核：游标 1 改为 pldl2keep（只进 L2）——用来在 K 循环里把下一任务的 B 子块行提前拉进 L2，
+// 不污染 L1（pldl1keep 版实测让 K 循环慢 14%）；游标 2 仍进 L1（下一条 A）
+#undef PFL
+#define PFL                                                                       \
+    "prfm pldl2keep, [%[xpf]]\n\t"                                                \
+    "add %[xpf], %[xpf], #64\n\t"                                                 \
+    "tbnz %[pfn], #40, 8f\n\t"                                                   \
+    "subs %[pfc], %[pfc], #1\n\t"                                                 \
+    "b.gt 8f\n\t"                                                                 \
+    "add %[xpf], %[xpf], %[pfj]\n\t"                                              \
+    "mov %[pfc], %[pfn]\n\t"                                                      \
+    "8:\n\t"
+DEF_KLOOP_EPI64(kloop_epi64_sub_l2, EV_SUB)
+DEF_KLOOP_EPI(kloop_epi_sub_l2, EV_SUB)
+DEF_KLOOP_PLAIN(kloop_plain_nt_l2)
+#undef PFL
+#define PFL                                                                       \
+    PF_INSN("%[xpf]")                                                             \
+    "add %[xpf], %[xpf], #64\n\t"                                                 \
+    "tbnz %[pfn], #40, 8f\n\t"                                                   \
+    "subs %[pfc], %[pfc], #1\n\t"                                                 \
+    "b.gt 8f\n\t"                                                                 \
+    "add %[xpf], %[xpf], %[pfj]\n\t"                                              \
+    "mov %[pfc], %[pfn]\n\t"                                                      \
+    "8:\n\t"
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
 DEF_KLOOP_EPI64(kloop_epi64_sub_t, EV_SUB)
@@ -1460,6 +1485,18 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
     const char* dpf = (const char*)(c->diagc[dcpy] + c->diag_off[i]);
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
+    // 面板驻留模式：下一任务已知，其 B 子块行（行距 ldb）在 GEMM 阶段就用游标 1（pldl2keep 版内核）拉进 L2；游标状态跨 GEMM/对角阶段延续
+    long nb_rows = 0, nb_done = 0, nb_lines = 0;
+    const double* nb_base = NULL;
+    const long nb_ldb8 = ldb * 8;
+    const int owner_pfb = c->owner && env_int("TRSM_OWNER_PFB", 1);
+    if (owner_pfb && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
+        nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
+        long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
+        nb_lines = (nnci * 8 + 63) / 64;
+        nb_base = c->B + ni0 * ldb + nc0;
+    }
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     for (long q = 0; q < nstrips; q++) {
@@ -1512,6 +1549,26 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         long pfq = q + (host_now ? 2 : 1);
         for (long t = 0; t < ntile; t++) {
             pf_t pf = pf_dummy;
+            if (owner_pfb) {
+                // 面板驻留模式：B 面板在本线程 L2 里，不用预取。游标 2（连续，L1）→ 下一条 A（预打包连续）；最后一条后 → 对角条；
+                // 游标 1（跨行，L2）→ 下一任务的 B 子块行
+                if (pf_on && pfq < nstrips) {
+                    long pr0 = i0 + 16 * (pfq % S);
+                    long pk0 = (chfirst + pfq / S) * kc;
+                    const double* An = c->pp[cpy] + c->pp_off[pr0 / 16] + (size_t)pk0 * 16;
+                    pf.p2 = (const char*)An + (size_t)t * (kk / 2) * 64;
+                } else if (pf_on && dpf < dend) {
+                    pf.p2 = dpf;
+                    dpf += (kk / 2) * 64;
+                }
+                if (pf_on && nb_base && nb_done < nb_rows) {
+                    long rows_this = (kk / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
+                    pf.p = (const char*)(nb_base + nb_done * ldb);
+                    pf.pfn = nb_lines;
+                    pf.pfj = nb_ldb8 - nb_lines * 64;
+                    nb_done += rows_this;
+                }
+            } else {
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
             if (pf_on && pfq < nstrips) {
                 long pr0 = i0 + 16 * (pfq % S);
@@ -1548,6 +1605,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 pf.p2 = dpf;
                 dpf += (kk / 2) * 64;
             }
+            }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
             if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
@@ -1564,14 +1622,17 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                     PROF_T(c, kloop_tr_noepi(A, Xk + 32 * t, cs, kk, &pf,
                                              c->L + nrow0 * lda + nk0 + kb0, lda * 8, Abuf[(q + 1) & 1] + kb0 * 16), t_kloop);
             } else if (pend && kk >= 65) {
-                if (c->ant) PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                if (owner_pfb) PROF_T(c, kloop_epi_sub_l2(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                else if (c->ant) PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 else PROF_T(c, kloop_epi_sub_t(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else if (pend && kk == 64) {
-                if (c->ant) PROF_T(c, kloop_epi64_sub(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                if (owner_pfb) PROF_T(c, kloop_epi64_sub_l2(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                else if (c->ant) PROF_T(c, kloop_epi64_sub(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
                 else PROF_T(c, kloop_epi64_sub_t(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else {
                 if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
-                if (c->ant) PROF_T(c, kloop_plain_nt(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                if (owner_pfb) PROF_T(c, kloop_plain_nt_l2(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                else if (c->ant) PROF_T(c, kloop_plain_nt(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
                 else PROF_T(c, kloop_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
             PROF_T(c, za_dump(scratch), t_dump);
@@ -1618,11 +1679,8 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     }
     {
         const double* D = c->diagc[dcpy] + c->diag_off[i];
-        // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
-        long nb_rows = 0, nb_done = 0, nb_lines = 0;
-        const double* nb_base = NULL;
-        long nb_ldb8 = ldb * 8;
-        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取（面板驻留模式在 GEMM 阶段已开始走，此处接着走）；对角条带（连续）用游标 2
+        if (!owner_pfb && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
             long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
