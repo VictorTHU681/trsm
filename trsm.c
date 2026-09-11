@@ -1472,7 +1472,6 @@ typedef struct {
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
-    int pfx, pfx_ch;        // 面板驻留专用路径：GEMM 倒数 pfx_ch 段用游标 2 预取下一任务的 X 行、最后一段预取对角条（TRSM_PFX / TRSM_PFX_CH）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
@@ -1779,18 +1778,6 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !(fast_owner ? 0 : c->direct) && (fast_owner ? 0 : c->jit) && (fast_owner ? 1 : c->packmode) != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
-    // 面板驻留模式：下一任务的 B 子块（X 行）与本任务的对角条在 GEMM 最后几段里用游标 2 预取（TRSM_PFX）——
-    // 装载阶段（每任务 48 KB 跨行读，case1 每线程 0.3 ms）和对角条冷读原本都在 K 循环之外串行付
-    long nb_rows = 0, nb_done = 0, nb_lines = 0;
-    const double* nb_base = NULL;
-    if ((fast_owner ? 1 : c->owner) && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
-        long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
-        nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
-        long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
-        nb_lines = (nnci * 8 + 63) / 64;
-        nb_base = c->B + ni0 * ldb + nc0;
-    }
-    const int pfx_on = fast_owner && c->pfx && !split;
     if (fast_owner) sme_zero_za();
     for (long q = 0; q < nstrips; q++) {
         const long ch = chfirst + q / (fast_owner ? S / 2 : S);
@@ -1868,19 +1855,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             // 面板驻留模式（TRSM_OWNER_PF2，默认开）：X 面板在本线程 L2 里不用预取，游标 2 改为把 A 流预取得更深——
             // 预打包 A 按段主序连续，游标 1 的 ntile 个微块只盖住下一条的 ntile×K/2 行，游标 2 从其后接着盖（下一条余下部分 + 下下条）。
             // 官方 bench 交错三轮：2.48/2.49/2.47 → 2.35/2.37/2.44 ms。游标 3 也改预取 A（再深 8 KB/微块）反而慢到 2.6–2.7：突发 prfm 过多
-            const char* p2b = NULL;   // fast_owner：bank4 的游标 2（默认 pf.p2 + 1024）
-            if (pfx_on && ch == nchunks - 1 + chfirst && dpf < dend) {
-                // 最后一段：本任务的对角条（每微块调用 2 KB）
-                pf.p2 = dpf; dpf += 1024; p2b = dpf; dpf += 1024; if (p2b >= dend) p2b = (const char*)tb->scratch2;
-                p2_used = 1;
-            } else if (pfx_on && nb_base && nb_done < nb_rows && ch >= nchunks - 1 + chfirst - c->pfx_ch) {
-                // 倒数几段：下一任务的 B 子块行，bank0/bank4 各预取一行（16 行 cache 行，多出的 4 行落在相邻面板，无害）
-                pf.p2 = (const char*)(nb_base + nb_done * ldb);
-                p2b = nb_done + 1 < nb_rows ? (const char*)(nb_base + (nb_done + 1) * ldb) : (const char*)tb->scratch2;
-                nb_done += 2; if (nb_done > nb_rows) nb_done = nb_rows;
-                p2_used = 1;
-            }
-            if (pf_on && !p2_used && (fast_owner ? 1 : c->owner) && c->pf2 && !(fast_owner ? 0 : c->jit) && pfq < nstrips) {
+            if (pf_on && (fast_owner ? 1 : c->owner) && c->pf2 && !(fast_owner ? 0 : c->jit) && pfq < nstrips) {
                 long pr0 = i0 + (fast_owner ? 32 * (pfq % (S / 2)) : 16 * (pfq % S));
                 long pk0 = (chfirst + pfq / (fast_owner ? S / 2 : S)) * kc;
                 const double* An = c->pp[cpy] + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
@@ -1907,7 +1882,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 // Adjacent row strips share one 16-column X tile in L1.
                 double* cur = acc + 16L * r * ncp + 16 * t;
                 PROF_T(c, kloop_owner_bank0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
-                PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, pf.p + 1024, p2b ? p2b : pf.p2 + 1024,
+                PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, pf.p + 1024, pf.p2 + 1024,
                     (const char*)(cur + 16 * ncp)), t_kloop);
                 pend = 1; pend_c = cur + 16 * ncp; pend_cols = 16;
                 if (c->prof >= 2) tb->n_kstep += kk;
@@ -1997,8 +1972,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     {
         const double* D = c->diag + c->diag_off[i];
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
+        long nb_rows = 0, nb_done = 0, nb_lines = 0;
+        const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
-        if (!nb_base && pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {   // 面板驻留模式已在 GEMM 前算好（并可能已预取了一部分行）
+        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
             long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
@@ -3015,7 +2992,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
-        c.pfx = env_int("TRSM_PFX", 1); c.pfx_ch = env_int("TRSM_PFX_CH", 6);
         c.eflag = env_int("TRSM_EFLAG", 1);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
