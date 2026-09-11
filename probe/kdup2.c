@@ -9,7 +9,7 @@
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
 static const long K = 64;
 
-typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT; long cs; int ah; int fixed; int torder; int apf; } cfg_t;
+typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT; long cs; int ah; int fixed; int torder; int apf; int bmode; } cfg_t;
 
 static void kcall(const cfg_t* g, const double* A, const double* B, double* Cprev, double* C, const char* ap, const char* bp, long apoff4)
 {
@@ -61,7 +61,10 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
                 else { ap = (const char*)An + 2048 + (t - 1) * 1024; ap4 = 512; gg.ah = 1; }
                 const char* bp = dummy;
                 long bc = call - (calls - bwin);
-                if (!g->fixed && bc >= 0) bp = (const char*)Bnext + (size_t)bc * 2048;
+                if (!g->fixed && g->bmode == 0 && bc >= 0) bp = (const char*)Bnext + (size_t)bc * 2048;
+                if (!g->fixed && g->bmode == 1) bp = (const char*)Bnext + ((size_t)call * 2048) % bchunk;          // 铺满整段：前半预取、后半再触碰
+                if (!g->fixed && g->bmode == 2) bp = (const char*)Bnext + ((size_t)call * 1024) % bchunk;          // 半速铺满（每调用 1 KB 有效，后半重复）
+                if (!g->fixed && g->bmode == 3 && bc >= 0) bp = (const char*)Bnext + ((size_t)bc * 4096) % bchunk; // 后半：先 2 KB/调用扫一遍（前 16 调用），再扫一遍
                 kcall(&gg, A, B, pend_c, C, ap, bp, ap4);
                 pend_c = C;
             }
@@ -128,11 +131,10 @@ int main(void)
     v = cur; v.S = 8; v.NT = 7; v.cs = 1792; v.ah = 1; show("S8 NT7 cs1792 ah（C 224 KB）", run(&v, n, dummy));
     v = cur; v.S = 12; v.NT = 7; v.cs = 1792; v.ah = 1; show("S12 NT7 cs1792 ah（重复）", run(&v, n, dummy));
     v = cur; show("S16 NT4 cs1024（当前，重复）", run(&v, n, dummy));
-    v = cur; v.torder = 1; v.apf = 0; show("列块外层 S16 NT4，A 仅硬件预取", run_torder(&v, n, dummy));
-    v = cur; v.torder = 1; v.apf = 8; show("列块外层 S16 NT4，A 软件预取 +8 KB", run_torder(&v, n, dummy));
-    v = cur; v.torder = 1; v.apf = 16; show("列块外层 S16 NT4，A 软件预取 +16 KB", run_torder(&v, n, dummy));
-    v = cur; v.torder = 1; v.apf = 0; v.S = 8; show("列块外层 S8 NT4（A 段 64 KB）", run_torder(&v, n, dummy));
-    v = cur; v.torder = 1; v.apf = 8; v.S = 8; show("列块外层 S8 NT4 +8 KB", run_torder(&v, n, dummy));
+    v = cur; v.bmode = 1; show("S16 NT4 B 铺满整段（前半预取+后半再触碰）", run(&v, n, dummy));
+    v = cur; v.bmode = 2; show("S16 NT4 B 半速铺满", run(&v, n, dummy));
+    v = cur; v.bmode = 3; show("S16 NT4 B 后半扫两遍", run(&v, n, dummy));
+    v = cur; show("S16 NT4 B 后半（当前）", run(&v, n, dummy));
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
