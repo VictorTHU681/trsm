@@ -3270,7 +3270,7 @@ static inline __attribute__((always_inline)) void kloop_duplex_bank0_d2(const do
  "add %[cb], %[cb], #1024\n\t"
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 
-static inline __attribute__((always_inline)) void kloop_duplex_bank1_d2(const double* a, const double* b, double* c,
+static inline __attribute__((always_inline)) void kloop_duplex_bank4_d2(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
