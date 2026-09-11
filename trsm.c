@@ -1460,6 +1460,7 @@ typedef struct {
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
+    int dsweep;             // 专用路径 GEMM 期间循环触碰本行块对角条（TRSM_DSWEEP）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -2230,6 +2231,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 #define DUP_NAME_(a, b) a##b
 #define DUP_NAME(a, b) DUP_NAME_(a, b)
 #define DUP_PF_FULL "prfm pldl2keep, [%[ap]]\n\t" "prfm pldl2keep, [%[bp]]\n\t" "add %[ap], %[ap], #64\n\t" "add %[bp], %[bp], #64\n\t"
+#define DUP_PF_FULL_D DUP_PF_FULL "prfm pldl2keep, [%[dp]]\n\t" "add %[dp], %[dp], #64\n\t"
 #define DUP_PF_BONLY "prfm pldl2keep, [%[bp]]\n\t" "add %[bp], %[bp], #64\n\t"
 #define DUPLEX0_U_BODY \
  "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
@@ -2467,7 +2469,7 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
 
 #define DUP_DEFINE_KERNELS(SUF) \
 static inline void DUP_NAME(kloop_duplex_bank0, SUF)(const double* a, const double* b, double* c, \
-                                      const char* ap, const char* bp, const char* pc) \
+                                      const char* ap, const char* bp, const char* pc, const char* dp) \
 { \
     char* ct = (char*)c; \
     char* cb = ct + DUP_CB8_INT; \
@@ -2489,9 +2491,9 @@ static inline void DUP_NAME(kloop_duplex_bank0, SUF)(const double* a, const doub
  "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
  "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL \
  "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL \
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);} \
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[dp] "+&r"(dp):: "memory","cc","x12",VCLOB,PCLOB);} \
 static inline void DUP_NAME(kloop_duplex_bank4, SUF)(const double* a, const double* b, double* c, \
-                                      const char* ap, const char* bp, const char* pc) \
+                                      const char* ap, const char* bp, const char* pc, const char* dp) \
 { \
     char* ct = (char*)c; \
     char* cb = ct + DUP_CB8_INT; \
@@ -2513,35 +2515,16 @@ static inline void DUP_NAME(kloop_duplex_bank4, SUF)(const double* a, const doub
  "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
  "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL \
  "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL \
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
-// 默认变体：C 行距 1024 B（ncp=128），两槽都预取 A、B
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[dp] "+&r"(dp):: "memory","cc","x12",VCLOB,PCLOB);}
+// 默认变体：C 行距 1024 B（ncp=128）；槽 1 预取 A、B 并触碰游标 4（dp：本行块对角条，保持 L2 常驻），槽 2 预取 A、B
 #define DUP_LDA "ld1d "
-#define DUP_PF1 DUP_PF_FULL
+#define DUP_PF1 DUP_PF_FULL_D
 #define DUP_PF2 DUP_PF_FULL
 #define DUP_CS "1024"
 #define DUP_CB8 "8192"
 #define DUP_CB8B "8256"
 #define DUP_CB8_INT 8192
 DUP_DEFINE_KERNELS()
-// A 半预取（第二槽只预取 B）：一条 A 被 7 个微块共享时，用它把 A 预取量压回每条 8 KB
-#undef DUP_PF2
-#define DUP_PF2 DUP_PF_BONLY
-DUP_DEFINE_KERNELS(_ah)
-#undef DUP_PF2
-#define DUP_PF2 DUP_PF_FULL
-// C 行距 1792 B（ncp=224，nc=224 面板）
-#undef DUP_CS
-#undef DUP_CB8
-#undef DUP_CB8B
-#undef DUP_CB8_INT
-#define DUP_CS "1792"
-#define DUP_CB8 "14336"
-#define DUP_CB8B "14400"
-#define DUP_CB8_INT 14336
-DUP_DEFINE_KERNELS(_c224)
-#undef DUP_PF2
-#define DUP_PF2 DUP_PF_BONLY
-DUP_DEFINE_KERNELS(_c224_ah)
 #undef DUP_PF2
 #undef DUP_PF1
 #undef DUP_LDA
@@ -2642,6 +2625,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
     const char* dpf = (const char*)(c->diag + c->diag_off[i]);
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
+    const char* const dbase = dpf;
+    const char* dsw = (c->dsweep && (size_t)diag_strip_off(S) * 8 >= 2048) ? dpf : NULL;   // 游标 4 起点（TRSM_DSWEEP）
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     // Prepacked traversal advances one strip at a time; no division by S is needed.
@@ -2744,8 +2729,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
-                PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
-                PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                // 游标 4：本行块对角条的循环触碰（每微块调用 1 KB），让对角条在同一行块的连续任务间留在 L2
+                const char* dp0 = dsw; const char* dp4 = dsw + 512;
+                if (dsw) { dsw += 1024; if (dsw + 1024 > dend) dsw = dbase; }
+                else { dp0 = (const char*)tb->scratch2; dp4 = dp0 + 512; }
+                PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc,dp0),t_kloop);
+                PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128,dp4),t_kloop);
                 pend=1;pend_c=cur;pend_cols=cols;
                 if(c->prof>=2)tb->n_kstep+=kk;
                 continue;
@@ -3060,6 +3049,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.xptm = env_int("TRSM_XPTM", 0);
         c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
+        c.dsweep = env_int("TRSM_DSWEEP", 1);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;

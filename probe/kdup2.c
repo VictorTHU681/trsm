@@ -13,24 +13,9 @@ typedef struct { double *A, *B, *C; size_t abytes, bbytes; long S, NT; long cs; 
 
 static void kcall(const cfg_t* g, const double* A, const double* B, double* Cprev, double* C, const char* ap, const char* bp, long apoff4)
 {
-    const char* pc = (const char*)C;
-    if (g->cs == 1792) {
-        if (g->ah) {
-            kloop_duplex_bank0_c224_ah(A, B, (Cprev ? Cprev : C) + 16, ap, bp, pc);
-            kloop_duplex_bank4_c224_ah(A, B + 1024, C, ap + apoff4, bp + 1024, pc + 128);
-        } else {
-            kloop_duplex_bank0_c224(A, B, (Cprev ? Cprev : C) + 16, ap, bp, pc);
-            kloop_duplex_bank4_c224(A, B + 1024, C, ap + apoff4, bp + 1024, pc + 128);
-        }
-    } else {
-        if (g->ah) {
-            kloop_duplex_bank0_ah(A, B, (Cprev ? Cprev : C) + 16, ap, bp, pc);
-            kloop_duplex_bank4_ah(A, B + 1024, C, ap + apoff4, bp + 1024, pc + 128);
-        } else {
-            kloop_duplex_bank0(A, B, (Cprev ? Cprev : C) + 16, ap, bp, pc);
-            kloop_duplex_bank4(A, B + 1024, C, ap + apoff4, bp + 1024, pc + 128);
-        }
-    }
+    const char* pc = (const char*)C; (void)g;
+    kloop_duplex_bank0(A, B, (Cprev ? Cprev : C) + 16, ap, bp, pc, pc);
+    kloop_duplex_bank4(A, B + 1024, C, ap + apoff4, bp + 1024, pc + 128, pc + 128);
 }
 
 static double run(const cfg_t* g, long nchunk, char* dummy)
@@ -124,12 +109,6 @@ int main(void)
     v = cur; v.fixed = 1; run(&v, 4, dummy); show("S16 NT4 cs1024 全 L2 驻留", run(&v, n, dummy));
     v = cur; show("S16 NT4 cs1024（当前 case2）", run(&v, n, dummy));
     v = cur; v.S = 12; show("S12 NT4 cs1024（当前 case3 形状）", run(&v, n, dummy));
-    v = cur; v.S = 12; v.NT = 7; v.cs = 1792; v.ah = 1; v.fixed = 1; run(&v, 4, dummy); show("S12 NT7 cs1792 全 L2 驻留", run(&v, n, dummy));
-    v = cur; v.S = 12; v.NT = 7; v.cs = 1792; v.ah = 1; show("S12 NT7 cs1792 ah（候选 mb192/nc224）", run(&v, n, dummy));
-    v = cur; v.S = 12; v.NT = 7; v.cs = 1792; v.ah = 0; show("S12 NT7 cs1792 全预取（A 超预取）", run(&v, n, dummy));
-    v = cur; v.S = 16; v.NT = 7; v.cs = 1792; v.ah = 1; show("S16 NT7 cs1792 ah（C 448 KB）", run(&v, n, dummy));
-    v = cur; v.S = 8; v.NT = 7; v.cs = 1792; v.ah = 1; show("S8 NT7 cs1792 ah（C 224 KB）", run(&v, n, dummy));
-    v = cur; v.S = 12; v.NT = 7; v.cs = 1792; v.ah = 1; show("S12 NT7 cs1792 ah（重复）", run(&v, n, dummy));
     v = cur; show("S16 NT4 cs1024（当前，重复）", run(&v, n, dummy));
     v = cur; v.bmode = 1; show("S16 NT4 B 铺满整段（前半预取+后半再触碰）", run(&v, n, dummy));
     v = cur; v.bmode = 2; show("S16 NT4 B 半速铺满", run(&v, n, dummy));
