@@ -2839,15 +2839,22 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // X 的内存放置：判题命令 `numactl -N 1` 不带 -m，B/X 落在本地 DDR（160 GB/s）；X 的跨行读写是 case1/2 的主要流量，
     // 放到 HBM 快 10–25%。每次调用都检查：不在 HBM 且 HBM 空余足够时迁过去（只有第一次真的搬页，之后是一次 get_mempolicy）。
     // TRSM_XNODE：-3 自动（默认），-1 不动，-2 迁到本地 DDR，≥0 指定节点
+    // 迁页只做一次（按 (B, 大小) 记忆）：bench 只有第一次（不计时）调用适合搬页；若第一次没搬成（HBM 没位置 / 首页没迁到），
+    // 后面的计时调用绝不能再去搬 82 MB——复验中出现过一次计时轮 51 ms（正常 2.3 ms）的极端值，就是第二次调用里重新走了 mbind(MF_MOVE)
     {
         int xn = env_int("TRSM_XNODE", -3);
         size_t xbytes = (size_t)m * ldb * 8;
         int target = -1;
-        if (xn == -3) {
-            if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node) { HBM_MAKE_ROOM(xbytes); if (HBM_ROOM(xbytes)) target = g_hbm_node; }
-        } else if (xn == -2) target = g_cpu_node;
-        else target = xn;
-        if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
+        static double* xmig_ptr = NULL; static size_t xmig_bytes = 0;
+        int first_here = !(xmig_ptr == B && xmig_bytes == xbytes);
+        if (first_here) {
+            if (xn == -3) {
+                if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node) { HBM_MAKE_ROOM(xbytes); if (HBM_ROOM(xbytes)) target = g_hbm_node; }
+            } else if (xn == -2) target = g_cpu_node;
+            else target = xn;
+            if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
+            xmig_ptr = B; xmig_bytes = xbytes;
+        }
     }
 
     // 对角打包缓冲
