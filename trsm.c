@@ -1591,6 +1591,7 @@ typedef struct {
     int fuse;               // 首段融合装载（TRSM_FUSE）：整块任务不做装载阶段，首段托管回写改为 C = B 行 − 暂存
     int torder;             // GEMM 段内循环顺序：0 条→列块（B 段常驻 L2），1 列块→条（B 子段留 L1，A 条常驻 L2）
     int duplex;             // 面板驻留模式 GEMM 用两组 16×16 ZA bank 流水（行主序 B/C 内核），不经暂存转存
+    int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1948,7 +1949,16 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
             // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
             int p2_used = 0;
-            if (pf_on && k0n < kend) {
+            // 面板驻留模式（TRSM_OWNER_PF2）：X 面板在 L2 里不用预取，游标 2 改为把 A 流预取得更深——
+            // 预打包 A 按段主序连续，游标 1 的 ntile 个微块只盖住下一条的 ntile×K/2 行，游标 2 从其后接着盖（下一条余下部分 + 下下条）
+            if (pf_on && c->owner && c->pf2 && !c->jit && pfq < nstrips) {
+                long pr0 = i0 + 16 * (pfq % S);
+                long pk0 = (chfirst + pfq / S) * kc;
+                const double* An = c->pp[cpy] + packed_l_offset(c, pr0 / 16, pk0);
+                pf.p2 = (const char*)An + (size_t)(ntile + t) * (kk / 2) * 64;
+                p2_used = 1;
+            }
+            if (pf_on && !p2_used && k0n < kend) {
                 long slots_needed = (kk * ncp * 8 + kk * 32 - 1) / (kk * 32);  // 每槽 kk/2 行
                 long strips_needed = (slots_needed + ntile - 1) / ntile;
                 long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
@@ -3255,6 +3265,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.fuse = env_int("TRSM_FUSE", 0);   // 首段融合装载：实测 case1 2.42→2.49、case2 通用路径持平（装载字节并入 K 循环只是把停顿搬了位置），默认关
     c.torder = env_int("TRSM_TORDER", 0);
     c.duplex = env_int("TRSM_DUPLEX", 1);
+    c.pf2 = env_int("TRSM_OWNER_PF2", 0);
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
