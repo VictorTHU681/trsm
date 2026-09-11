@@ -623,6 +623,9 @@ DEF_KLOOP_EPI64(kloop_epi64_set, EV_SET)
 #undef LDA_CUR
 #define LDA_CUR LDA_NT_INSN
 DEF_KLOOP_EPI64(kloop_epi64_sub, EV_SUB)
+// 对角内核的 ldnt1d 版本：面板驻留模式下对角条每个面板只用一遍，不该挤占 L2 里的面板缓冲
+DEF_KLOOP_EPI(kloop_epi_set_nt, EV_SET)
+DEF_KLOOP_EPI64(kloop_epi64_set_nt, EV_SET)
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
 DEF_KLOOP_EPI64(kloop_epi64_sub_t, EV_SUB)
@@ -1451,6 +1454,9 @@ typedef struct {
     double* B;
     int mb, nc, kc;
     int lchunk, direct, special;
+    int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
+    long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
+    int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1647,6 +1653,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     double* scratch = tb->scratch;
     const long ldb = c->ldb, lda = c->lda;
     const long cs = ncp * 8;      // C 块 / X 面板缓冲行距字节（含 64 B 填充，17 个 cache 行）
+    if (c->owner) cb = tb->cbuf + (size_t)i0 * ncp;   // 面板缓冲：全局行 gr 在 cbuf + gr*ncp，本行块的 C 块就是其中 [i0, i0+mb) 行
     double* Bblk = c->B + i0 * ldb + c0;
     const pf_t pf_dummy = { (const char*)tb->scratch2, 1, -64, (const char*)tb->scratch2, (const char*)tb->scratch2, 0, &tb->sw };
     const int pf_on = c->pf;
@@ -1716,8 +1723,9 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
         if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
-        const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
+        // 本段 B 面板（连续，行距 ncp）与下一段面板（预取目标）：面板驻留模式直接取本线程面板缓冲的第 ch 段
+        const double* Xk = c->owner ? tb->cbuf + (size_t)ch * kc * ncp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
+        const double* Xkn = c->owner ? tb->cbuf + (size_t)(ch + 1) * kc * ncp : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;
         (void)xlines;
         // 本条 A
         const double* A;
@@ -1867,7 +1875,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     }
 
     // 3. 对角求解：X[s] = Linv_ss C[s] - Σ (Linv_ss L_ss') X[s']，A = 对角打包条带，B = C 块行 0..16(s+1)
-    if (c->reserve) {   // 此时预占下一任务：提前量只有对角阶段 + 回写，不会明显加深依赖流水
+    if (c->reserve && !c->owner) {   // 此时预占下一任务：提前量只有对角阶段 + 回写，不会明显加深依赖流水（面板驻留模式下一任务已确定，作为 tkn_guess 传入）
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
     }
@@ -1901,13 +1909,18 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
                 if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
                 sme_zero_za();
+                // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
+                const int dnt = c->dnt && K <= 256;
                 if (pend && K >= 65) {
-                    PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    if (dnt) PROF_T(c, kloop_epi_set_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    else PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else if (pend && K == 64) {
-                    PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    if (dnt) PROF_T(c, kloop_epi64_set_nt(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    else PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    if (dnt) PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    else PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
@@ -1928,7 +1941,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         double* Bout=Bblk;
 
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb) for (long r = 0; r < mbi; r++) {
+        if (!last_rb && !c->owner) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
@@ -1937,7 +1950,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         }
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
-        const int can_sw = c->swhost && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
+        const int can_sw = c->swhost && !c->owner && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
         if (can_sw) {
             for (long r0 = 0; r0 < mbi; r0 += kc) {
                 long rows = mbi - r0; if (rows > kc) rows = kc;
@@ -2714,8 +2727,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.ant = env_int("TRSM_ANT", m <= 1024 && !env_int("TRSM_DIRECT", 1) ? 0 : 1);   // 直接 ZA 累加用非临时 A 装载；关闭直接累加的小矩阵仍保留 A 于 L2
     c.reserve = env_int("TRSM_RESERVE", 1);
     c.xpnt = env_int("TRSM_XPNT", 0);
+    // 小 m、宽 X（面板数 ≥ 2×线程数）→ 面板驻留模式（TRSM_OWNER=-1 自动）：默认块 mb64/nc96（面板缓冲 512×96×8 = 393 KB 常驻 L2），见 NOTES §9
+    int nth_hint = omp_get_max_threads(); if (nth_hint < 1) nth_hint = 1;
+    int owner_auto = env_int("TRSM_OWNER", -1);
+    if (owner_auto < 0) owner_auto = (m <= 1024 && n >= 2L * nth_hint * 96);
     // 默认 mb192/nc128/kc64：L2 足迹 cbuf 192K + 2×(A 段 96K + B 段 64K) = 512 KB；kc=64 时回写由 kloop_epi64 全程托管
-    int mb = env_int("TRSM_MB", m > 1024 && n >= 8192 ? 256 : 192), nc = env_int("TRSM_NC", 128), kc = env_int("TRSM_KC", 64);
+    int mb = env_int("TRSM_MB", owner_auto ? 64 : (m > 1024 && n >= 8192 ? 256 : 192)), nc = env_int("TRSM_NC", owner_auto ? 96 : 128), kc = env_int("TRSM_KC", 64);
     if (mb < 32) mb = 32;
     mb = (mb + 31) & ~31;
     if (nc < 32) nc = 32;
@@ -2753,9 +2770,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.ppmode = bigL ? env_int("TRSM_PPMODE", 1) : 0;
     c.jit = (bigL && c.ppmode == 0) ? 1 : 0;
     if (env_int("TRSM_JIT", -1) >= 0) { c.jit = env_int("TRSM_JIT", -1); if (c.jit) c.ppmode = 0; }
+    // 面板驻留模式：只在预打包路径下可用，整列面板 (nrb*mb × ncp) 要能放进线程缓冲（默认上限 4 MB）
+    {
+        int owner = owner_auto;
+        size_t panel_bytes = (size_t)c.nrb * mb * c.ncp * 8;
+        if (c.jit || c.ppmode != 0) owner = 0;
+        if (panel_bytes > ((size_t)env_int("TRSM_OWNER_MB", 4) << 20)) owner = 0;
+        c.owner = owner;
+        if (c.owner) { c.swhost = 0; if (!getenv("TRSM_ANT")) c.ant = 1; }   // 面板缓冲要常驻 L2：A 条用 ldnt1d 流过
+        c.dnt = env_int("TRSM_DNT", c.owner);
+    }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
-    if(env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
+    if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
       if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
       if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
       if(mb==192 && !c.direct && c.ppmode==1 && c.npan<=8 &&
@@ -2805,8 +2832,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     c.diag = g_diag;
 
-    // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定
-    {
+    // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定；面板驻留模式不需要
+    if (!c.owner) {
         c.xp_chunks = (m + kc - 1) / kc;
         size_t need = (size_t)c.xp_chunks * c.npan * kc * c.ncp;
         int xn = env_int("TRSM_XPNODE", -9);
@@ -2890,7 +2917,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             cost[i] = (double)S * (i * mb) + 8.0 * S * (S + 1);   // 每列块的 k 步数 / ntile
             total += cost[i] * c.npan;
         }
-        int splitf = env_int("TRSM_SPLITF", 12);
+        int splitf = c.owner ? 0 : env_int("TRSM_SPLITF", 12);   // 面板驻留模式不分裂 K
         int maxseg = env_int("TRSM_MAXSEG", 8);
         // Narrow RHS panels leave too few long tasks at the end of the solve.
         // Split only the last two row blocks more finely to shorten that tail.
@@ -2925,6 +2952,29 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
             for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
         }
+        if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
+            for (long p = 0; p < c.npan; p++)
+                for (long i = 0; i < c.nrb; i++) {
+                    task_t* t = &g_tasks[q++];
+                    memset(t, 0, sizeof *t);
+                    t->i = (int)i; t->p = (int)p; t->nseg = 1;
+                    t->ch0 = 0; t->ch1 = (i * mb) / kc;
+                }
+            double c0 = env_int("TRSM_OWNER_C0", 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
+            double ototal = 0;
+            for (long i = 0; i < c.nrb; i++) ototal += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+            ototal *= c.npan;
+            c.owner_bound = malloc(sizeof(long) * (nth + 1));
+            double cum = 0;
+            int tb_ = 1;
+            c.owner_bound[0] = 0;
+            for (long qq = 0; qq < q && tb_ < nth; qq++) {
+                long i = qq % c.nrb;
+                cum += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+                while (tb_ < nth && cum >= ototal * tb_ / nth) c.owner_bound[tb_++] = qq + 1;
+            }
+            while (tb_ <= nth) c.owner_bound[tb_++] = q;
+        } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
                 long gend = (long)(i + LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
@@ -2974,7 +3024,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         int tid = omp_get_thread_num();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)mb * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
+        ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
@@ -3006,8 +3056,55 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 #pragma omp barrier
         if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理 + barrier
         // 阶段 2：任务
+        // 面板驻留模式的线程调度表在进入流式模式前建好（流式区内 malloc 等系统调用会清 PSTATE.SM → 后续 SME 指令 SIGILL）：
+        // 线程 tid 的连续区间 [a, b)（面板主序）。区间两端可能各含一个不完整面板：
+        // 尾部不完整面板（行块 0..ib，被下一线程接着算）放到调度最前，头部不完整面板（行块 ia..，依赖上一线程算出的前几块）放到最后，
+        // 这样跨线程依赖在到达时早已满足。完整面板按行块顺序做完，B 操作数来自本线程面板缓冲。
+        long* sched = NULL;
+        long k = 0, khead = -1;   // khead：头部不完整面板在 sched 中的起点（其前几个行块由上一线程算出）
+        long pa = 0, ia = 0;
+        if (c.owner) {
+            long a = c.owner_bound[tid], b = c.owner_bound[tid + 1];
+            long nrb = c.nrb;
+            long cnt = b - a;
+            sched = cnt > 0 ? malloc(sizeof(long) * cnt) : NULL;
+            pa = a / nrb; ia = a % nrb;
+            if (cnt > 0) {
+                long pb = (b - 1) / nrb, ib = (b - 1) % nrb;
+                if (pa == pb) {
+                    if (ia != 0) khead = 0;
+                    for (long qq = a; qq < b; qq++) sched[k++] = qq;
+                } else {
+                    long pfull0 = ia == 0 ? pa : pa + 1;          // 完整面板起点
+                    long pfull1 = ib == nrb - 1 ? pb : pb - 1;    // 完整面板终点（含）
+                    if (ib != nrb - 1) for (long i = 0; i <= ib; i++) sched[k++] = pb * nrb + i;
+                    for (long p = pfull0; p <= pfull1; p++) for (long i = 0; i < nrb; i++) sched[k++] = p * nrb + i;
+                    if (ia != 0) { khead = k; for (long i = ia; i < nrb; i++) sched[k++] = pa * nrb + i; }
+                }
+            }
+        }
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
+        if (c.owner) {
+            for (long s = 0; s < k; s++) {
+                if (s == khead) {
+                    // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
+                    long pc0 = pa * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
+                    for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
+                    double* buf = g_tb[tid].cbuf;
+                    const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
+                    for (long gr = 0; gr < ia * mb; gr++) {
+                        double* d = buf + (size_t)gr * c.ncp;
+                        const double* sp = B + (size_t)gr * ldb + pc0;
+                        long j = 0;
+                        for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
+                        if (j < pnci) { svbool_t pj = svwhilelt_b64(j, pnci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
+                        for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                    }
+                }
+                run_task(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
+            }
+        } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
         if(c.special==2)taskfn=run_task_special2;
@@ -3019,7 +3116,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             long tn = taskfn(&c, &g_tb[tid], &c.tasks[t], tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
             t = tn >= 0 ? tn : __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         }
+        }
         sme_stop();
+        free(sched);
         {   // 遗留的托管回写收尾
             uint64_t t0 = c.prof >= 2 ? cyc() : 0;
             sw_flush(&g_tb[tid]);
@@ -3061,7 +3160,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
     }
     free(ditem_i); free(ditem_s);
-    free(c.S_of); free(c.diag_off); free(c.pp_off);
+    free(c.S_of); free(c.diag_off); free(c.pp_off); free(c.owner_bound);
 }
 #endif // TRSM_NO_SME_ASM
 
