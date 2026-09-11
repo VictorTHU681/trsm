@@ -2046,6 +2046,127 @@ static inline void za_flush_duplex_bank4(double* c, long bs)
  "cmp w12, #8\n\t"
  "b.lt 1b\n\t"
 : [ct] "+&r"(ct),[cb] "+&r"(cb):[bs] "r"(bs): "memory","cc","x12",VCLOB,PCLOB);}
+// Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
+// Expand all eight output rows; the final K step never loads another operand.
+#define DUPLEX0_U_BODY \
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za5h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za6h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za7h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #8192]\n\t" \
+ "prfm pldl2keep, [%[pc], #8256]\n\t" \
+ "add %[pc], %[pc], #1024\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t"
+#define DUPLEX0_U_NEXT \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t"
+#define DUPLEX0_U_LAST \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define DUPLEX0_U_TAIL \
+ "fsub z23.d, z23.d, z22.d\n\t" \
+ "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #1024\n\t" \
+ "add %[cb], %[cb], #1024\n\t"
 static inline void kloop_duplex_bank0(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
@@ -2061,131 +2182,141 @@ static inline void kloop_duplex_bank0(const double* a, const double* b, double* 
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "1:\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za4h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[ap]]\n\t"
- "prfm pldl2keep, [%[bp]]\n\t"
- "add %[ap], %[ap], #64\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za5h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[pc]]\n\t"
- "prfm pldl2keep, [%[pc], #64]\n\t"
- "prfm pldl2keep, [%[pc], #8192]\n\t"
- "prfm pldl2keep, [%[pc], #8256]\n\t"
- "add %[pc], %[pc], #1024\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za6h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[ap]]\n\t"
- "prfm pldl2keep, [%[bp]]\n\t"
- "add %[ap], %[ap], #64\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za7h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
- "cmp w12, #7\n\t"
- "b.eq 2f\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "b 3f\n\t"
- "2:\n\t"
- "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "3:\n\t"
- "add %[ct], %[ct], #1024\n\t"
- "add %[cb], %[cb], #1024\n\t"
- "add w12, w12, #1\n\t"
- "cmp w12, #8\n\t"
- "b.lt 1b\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #1\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #2\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #3\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #4\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #5\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #6\n\t" DUPLEX0_U_BODY DUPLEX0_U_NEXT DUPLEX0_U_TAIL
+ "mov w12, #7\n\t" DUPLEX0_U_BODY DUPLEX0_U_LAST DUPLEX0_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUPLEX0_U_BODY
+#undef DUPLEX0_U_NEXT
+#undef DUPLEX0_U_LAST
+#undef DUPLEX0_U_TAIL
+
+// Fixed KC64: preload prior ZA/C rows, then subtract after independent K work.
+// Expand all eight output rows; the final K step never loads another operand.
+#define DUPLEX4_U_BODY \
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #8192]\n\t" \
+ "prfm pldl2keep, [%[pc], #8256]\n\t" \
+ "add %[pc], %[pc], #1024\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ "ld1d z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t"
+#define DUPLEX4_U_NEXT \
+ "ld1d z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #128\n\t"
+#define DUPLEX4_U_LAST \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+#define DUPLEX4_U_TAIL \
+ "fsub z23.d, z23.d, z22.d\n\t" \
+ "st1d z23.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #1024\n\t" \
+ "add %[cb], %[cb], #1024\n\t"
 static inline void kloop_duplex_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
@@ -2201,131 +2332,20 @@ static inline void kloop_duplex_bank4(const double* a, const double* b, double* 
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "1:\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za0h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[ap]]\n\t"
- "prfm pldl2keep, [%[bp]]\n\t"
- "add %[ap], %[ap], #64\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za1h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[ct], #1, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[ct], #1, mul vl]\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[pc]]\n\t"
- "prfm pldl2keep, [%[pc], #64]\n\t"
- "prfm pldl2keep, [%[pc], #8192]\n\t"
- "prfm pldl2keep, [%[pc], #8256]\n\t"
- "add %[pc], %[pc], #1024\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za2h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #0, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[cb], #0, mul vl]\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "prfm pldl2keep, [%[ap]]\n\t"
- "prfm pldl2keep, [%[bp]]\n\t"
- "add %[ap], %[ap], #64\n\t"
- "add %[bp], %[bp], #64\n\t"
- "ld1d z8.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
- "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
- "ld1d z12.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
- "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "mova z16.d, p0/m, za3h.d[w12, 0]\n\t"
- "ld1d z17.d, p0/z, [%[cb], #1, mul vl]\n\t"
- "fsub z17.d, z17.d, z16.d\n\t"
- "st1d z17.d, p0, [%[cb], #1, mul vl]\n\t"
- "cmp w12, #7\n\t"
- "b.eq 2f\n\t"
- "ld1d z0.d, p0/z, [%[a]]\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #128\n\t"
- "b 3f\n\t"
- "2:\n\t"
- "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
- "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
- "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
- "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
- "3:\n\t"
- "add %[ct], %[ct], #1024\n\t"
- "add %[cb], %[cb], #1024\n\t"
- "add w12, w12, #1\n\t"
- "cmp w12, #8\n\t"
- "b.lt 1b\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #1\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #2\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #3\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #4\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #5\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #6\n\t" DUPLEX4_U_BODY DUPLEX4_U_NEXT DUPLEX4_U_TAIL
+ "mov w12, #7\n\t" DUPLEX4_U_BODY DUPLEX4_U_LAST DUPLEX4_U_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#undef DUPLEX4_U_BODY
+#undef DUPLEX4_U_NEXT
+#undef DUPLEX4_U_LAST
+#undef DUPLEX4_U_TAIL
+
 static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
