@@ -47,7 +47,8 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
     return (double)(t1 - t0) / (nchunk * calls) / K * (1.55e9 / (double)cyc_hz());
 }
 
-static void show(const char* name, double r) { printf("%-44s: %6.2f  效率 %.1f%%\n", name, r, 800 / r); }
+static const char* names[32]; static double vals[32]; static int nres = 0;
+static void show(const char* name, double r) { names[nres] = name; vals[nres++] = r; }   // 流式模式下不能 printf（syscall 清 SM → SIGILL）
 
 int main(void)
 {
@@ -65,7 +66,6 @@ int main(void)
         }
         r1 = (double)(cyc() - t0) / 20000 / K * (1.55e9 / (double)cyc_hz());
     }
-    printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     show("v1 L1 驻留（同 A/B/C）", r1);
     cfg_t base = { Abig, Bbig, Cbig, 16 * 1024 * 8, 4 * 2048 * 8, 16, 4, 16, 0, 0, 0 };
     const long n = 400;
@@ -83,5 +83,7 @@ int main(void)
     v = base; v.bbytes = big; v.pfb = 1; show("v5 只 B 流式（A 在 L2）+ bp 预取", run(&v, n, dummy));
     v = base; v.bbytes = big; v.pfb = 0; show("v5n 只 B 流式，不预取", run(&v, n, dummy));
     sme_stop();
+    printf("每 16×32 等效 k 步周期数（理想 8）：\n");
+    for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
     return 0;
 }
