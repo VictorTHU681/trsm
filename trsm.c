@@ -1659,6 +1659,40 @@ static inline void za_flush_duplex_bank4(double*, long);
 static inline void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
 static inline void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
 
+// Full 16x32 diagonal results can go straight from ZA to the resident panel.
+// All columns are independent; storing this tile before the next column tile
+// also removes the temporary ZA dump and its subsequent SVE reload.
+#define OWNER_DSTORE_ROW(T0, T1, T2, T3, R) \
+    "mov w12, #" #R "\n\t" \
+    "mova z16.d, p0/m, za" #T0 "h.d[w12, 0]\n\t" \
+    "mova z17.d, p0/m, za" #T1 "h.d[w12, 0]\n\t" \
+    "mova z18.d, p0/m, za" #T2 "h.d[w12, 0]\n\t" \
+    "mova z19.d, p0/m, za" #T3 "h.d[w12, 0]\n\t" \
+    "st1d z16.d, p0, [%[c], #0, mul vl]\n\t" \
+    "st1d z17.d, p0, [%[c], #1, mul vl]\n\t" \
+    "st1d z18.d, p0, [%[c], #2, mul vl]\n\t" \
+    "st1d z19.d, p0, [%[c], #3, mul vl]\n\t" \
+    "add %[c], %[c], #768\n\t"
+#define OWNER_DSTORE_ROWS(T0, T1, T2, T3) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 0) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 1) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 2) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 3) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 4) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 5) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 6) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 7)
+static inline void za_owner_dstore(double* c)
+{
+    asm volatile(
+        "ptrue p0.d\n\t"
+        OWNER_DSTORE_ROWS(0, 1, 2, 3)
+        OWNER_DSTORE_ROWS(4, 5, 6, 7)
+        : [c] "+&r"(c) :: "memory", "cc", "x12", VCLOB, PCLOB);
+}
+#undef OWNER_DSTORE_ROW
+#undef OWNER_DSTORE_ROWS
+
 static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int fast_owner)
 {
     if (!fast_owner && tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
@@ -1966,6 +2000,12 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 sme_zero_za();
                 // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
                 const int dnt = (fast_owner ? 1 : c->dnt) && K <= 256;
+                if (fast_owner) {
+                    PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump);
+                    if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
+                    continue;
+                }
                 if (pend && K >= 65) {
                     if (dnt) PROF_T(c, kloop_epi_set_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                     else PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
@@ -3142,16 +3182,26 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
             double c0 = env_int("TRSM_OWNER_C0", c.special == 5 && c.pf2 ? 160 : 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
             double ototal = 0;
-            for (long i = 0; i < c.nrb; i++) ototal += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+            for (long i = 0; i < c.nrb; i++) {
+                cost[i] = ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+                ototal += cost[i];
+            }
             ototal *= c.npan;
             c.owner_bound = malloc(sizeof(long) * (nth + 1));
             double cum = 0;
             int tb_ = 1;
             c.owner_bound[0] = 0;
+            // Each panel repeats the same row costs. Reuse those costs and
+            // update the next boundary only when advancing to another thread.
+            long row = 0;
+            double next_bound = ototal / nth;
             for (long qq = 0; qq < q && tb_ < nth; qq++) {
-                long i = qq % c.nrb;
-                cum += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
-                while (tb_ < nth && cum >= ototal * tb_ / nth) c.owner_bound[tb_++] = qq + 1;
+                cum += cost[row];
+                if (++row == c.nrb) row = 0;
+                while (tb_ < nth && cum >= next_bound) {
+                    c.owner_bound[tb_++] = qq + 1;
+                    next_bound = ototal * tb_ / nth;
+                }
             }
             while (tb_ <= nth) c.owner_bound[tb_++] = q;
         } else
