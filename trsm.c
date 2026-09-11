@@ -85,6 +85,8 @@ static void pin_threads_in_region(int tid, int nt)
         for (int t = 0; t < lim; t++) CPU_OR(&u, &u, &g_thr_mask[t]);
         g_ncpu = 0;
         for (int c = 0; c < CPU_SETSIZE; c++) if (CPU_ISSET(c, &u)) g_cpus[g_ncpu++] = c;
+        int rot = env_int("TRSM_PIN_ROT", 0);   // 诊断：线程→CPU 映射循环移位
+        if (rot > 0 && g_ncpu > 1) { int tmp[CPU_SETSIZE]; for (int k = 0; k < g_ncpu; k++) tmp[k] = g_cpus[(k + rot) % g_ncpu]; for (int k = 0; k < g_ncpu; k++) g_cpus[k] = tmp[k]; }
     }
     if (g_ncpu > 0 && tid < g_ncpu) {
         cpu_set_t s;
