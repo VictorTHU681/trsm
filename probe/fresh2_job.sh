@@ -23,8 +23,8 @@ run "512 19968" A=2
 run "512 19968" TRSM_FUSE=0
 run "2432 17024" TRSM_SPECIAL=0
 run "2432 17024" TRSM_SPECIAL=0 TRSM_FUSE=0
-run "2432 17024" TRSM_SPECIAL=0 TRSM_MB=192
-run "2432 17024" TRSM_SPECIAL=0 TRSM_MB=192 TRSM_FUSE=0
+run "2432 17024" TRSM_SPECIAL=0 TRSM_XNODE=-2
+run "2432 17024" TRSM_SPECIAL=0 TRSM_XNODE=-2 TRSM_FUSE=0
 echo "=== TC1 分相 profile（官方 bench）"
 rm -f trsm_test; gcc $FLAGS bench_trsm.c trsm.c -o trsm_test -lm -lkblas 2>&1 | grep -E "rror" | head -5
 prof1() { echo "--- [$*]"; env "$@" TRSM_PROFILE=2 OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 512 19968 1 2>&1 | grep -E "PASS|FAIL|prof\]" | tail -4; }

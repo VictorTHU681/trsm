@@ -1941,7 +1941,11 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
-            if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
+            // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰；首段融合装载时改触碰对应的 B 行（跨行 ldb）
+            if (pf_on) {
+                if (fuse && ch == chfirst) { pf.pc = (const char*)(Bblk + 16L * r * ldb + 32 * t); pf.pcs = ldb * 8; }
+                else { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
+            }
             sw_advance(tb);
             if(c->direct) {
                 PROF_T(c,za_load_direct(acc+16L*r*ncp+32*t,cs,cols),t_load);
