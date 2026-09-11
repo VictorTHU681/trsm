@@ -3008,7 +3008,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // Tune B prefetch separately for the paired-row owner loop.
     if (c.special == 5) c.loadpf = env_int("TRSM_LOADPF", 0);
 
-    g_align_owner_buffers = c.owner;
+    g_align_owner_buffers = c.owner || env_int("TRSM_ALIGN_ALL", 0);   // 2 MiB 对齐所有缓冲（专用路径线程缓冲 256 KB 否则落在 4 KB 页）
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
     // TRSM_HBM_MARGIN_MB：保留余量（默认 256）
