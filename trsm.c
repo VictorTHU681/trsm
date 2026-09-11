@@ -1457,6 +1457,7 @@ typedef struct {
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
+    int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1788,7 +1789,17 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             }
             // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
             int p2_used = 0;
-            if (pf_on && k0n < kend) {
+            // 面板驻留模式（TRSM_OWNER_PF2，默认开）：X 面板在本线程 L2 里不用预取，游标 2 改为把 A 流预取得更深——
+            // 预打包 A 按段主序连续，游标 1 的 ntile 个微块只盖住下一条的 ntile×K/2 行，游标 2 从其后接着盖（下一条余下部分 + 下下条）。
+            // 官方 bench 交错三轮：2.48/2.49/2.47 → 2.35/2.37/2.44 ms。游标 3 也改预取 A（再深 8 KB/微块）反而慢到 2.6–2.7：突发 prfm 过多
+            if (pf_on && c->owner && c->pf2 && !c->jit && pfq < nstrips) {
+                long pr0 = i0 + 16 * (pfq % S);
+                long pk0 = (chfirst + pfq / S) * kc;
+                const double* An = c->pp[cpy] + packed_l_offset(c, pr0 / 16, pk0);
+                pf.p2 = (const char*)An + (size_t)(ntile + t) * (kk / 2) * 64;
+                p2_used = 1;
+            }
+            if (pf_on && !p2_used && k0n < kend) {
                 long slots_needed = (kk * ncp * 8 + kk * 32 - 1) / (kk * 32);  // 每槽 kk/2 行
                 long strips_needed = (slots_needed + ntile - 1) / ntile;
                 long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
@@ -2803,6 +2814,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
+        c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
