@@ -3239,9 +3239,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     t->i = (int)i; t->p = (int)p; t->nseg = 1;
                     t->ch0 = 0; t->ch1 = (i * mb) / kc;
                 }
-            double c0 = env_int("TRSM_OWNER_C0", 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
+            // 任务代价模型（case1 实测每行块任务 µs：18.9/22.6/29.4/36.7/44.9/54.1/63.7/80.2，i 越大越贵且是凸的——
+            // 面板缓冲 393 KB 不能整体常驻 L2，行块越靠后 B 行的 L2 缺失越多）：cost(i) = (i + 0.5 + c2·i²)·mb²·nc + c0·mb·nc
+            double c0 = env_int("TRSM_OWNER_C0", 371) * (double)mb * nc;
+            double c2 = env_int("TRSM_OWNER_C2", 28) / 100.0;
+#define OWNER_COST(i) ((((double)(i) + 0.5 + c2 * (double)(i) * (double)(i)) * mb * mb) * nc + c0)
             double ototal = 0;
-            for (long i = 0; i < c.nrb; i++) ototal += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+            for (long i = 0; i < c.nrb; i++) ototal += OWNER_COST(i);
             ototal *= c.npan;
             c.owner_bound = malloc(sizeof(long) * (nth + 1));
             double cum = 0;
@@ -3249,10 +3253,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             c.owner_bound[0] = 0;
             for (long qq = 0; qq < q && tb_ < nth; qq++) {
                 long i = qq % c.nrb;
-                cum += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+                cum += OWNER_COST(i);
                 while (tb_ < nth && cum >= ototal * tb_ / nth) c.owner_bound[tb_++] = qq + 1;
             }
             while (tb_ <= nth) c.owner_bound[tb_++] = q;
+#undef OWNER_COST
         } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
