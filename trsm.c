@@ -1329,6 +1329,7 @@ static task_t* g_tasks = NULL;
 static size_t g_tasks_cap = 0;
 static double* g_part = NULL;
 static size_t g_part_cap = 0;
+static int g_part_node = -3;
 static double* g_xp = NULL;
 static size_t g_xp_cap = 0;
 static int g_xp_node = -3;
@@ -1996,7 +1997,21 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         if (c.ppmode == 1) nitems += c.nstrip;   // 打包任务
         if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
-        if (g_part_cap < part_doubles) { trsm_free_buffer(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
+        // 分裂任务的部分和缓冲：TRSM_PARTNODE -3 自动（HBM 有位置就进 HBM，写一遍读一遍归约，延迟敏感）、-1 默认节点、≥0 指定
+        if (part_doubles > 0) {
+            int pn = env_int("TRSM_PARTNODE", -3);
+            int node = -1;
+            if (pn == -3) {
+                if (g_part_cap >= part_doubles && g_part_node == g_hbm_node && g_hbm_node >= 0) node = g_hbm_node;
+                else if (g_hbm_node >= 0) { HBM_MAKE_ROOM(part_doubles * 8 + 4096); node = HBM_ROOM(part_doubles * 8 + 4096) ? g_hbm_node : -1; }
+            } else node = pn;
+            if (g_part_cap < part_doubles || g_part_node != node) {
+                trsm_free_buffer(g_part, g_part_cap * 8);
+                g_part = alloc_on(part_doubles * 8 + 4096, node);
+                g_part_cap = part_doubles;
+                g_part_node = node;
+            }
+        }
         long q = 0;
         size_t poff = 0;
         // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块
