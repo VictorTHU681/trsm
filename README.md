@@ -20,7 +20,7 @@ bash probe/fast.sh "TRSM_KC=96" "TRSM_MB=256 TRSM_KC=128"   # 附带变体（每
 OMP_NUM_THREADS=38 numactl -N 1 ./fastbench -r 5 2432 17024  # 在计算节点上直接跑（-r 轮数，-s 抽样行数，0 关校验）
 ```
 
-调参环境变量（默认已按三用例选好）：`TRSM_MB/NC/KC`（块大小，默认 192/128/64；大宽矩阵 256/128/64；面板驻留模式 64/96/64）、`TRSM_OWNER`（-1 自动 / 0 关 / 1 强制面板驻留，见 NOTES §9）、`TRSM_ANT`（GEMM A 条 ldnt1d）、`TRSM_XNODE/XPNODE/LNODE0`（HBM 放置）、
+调参环境变量（默认已按三用例选好）：`TRSM_MB/NC/KC`（块大小，默认 192/128/64；大宽矩阵 256/128/64；面板驻留模式 64/96/64）、`TRSM_OWNER`（-1 自动 / 0 关 / 1 强制面板驻留）、`TRSM_ANT`（GEMM A 条 ldnt1d）、`TRSM_XNODE/XPNODE/LNODE0`（HBM 放置）、
 `TRSM_SWHOST`（X 回写托管）、`TRSM_RESERVE`（对角阶段预占下一任务）、`TRSM_SPLITF`（K 分裂）、`TRSM_PROFILE=2`（分相计时）。
 
 ## 结构
@@ -30,4 +30,3 @@ OMP_NUM_THREADS=38 numactl -N 1 ./fastbench -r 5 2432 17024  # 在计算节点�
 - `probe/` — 探针与实验：`fastbench.c` + `fast.sh`（快速基准）、`peak.c`（FMOPA 峰值 / 带宽）、`bw_nodes.c`（多节点 / 共享读带宽）、
   `kbench.c`（单线程内核微基准）、`gen_test.c`（随机形状正确性）、`trsm_kblas.c`（KML 基线）、`*_job.sh`（Donau 作业）、`submit.sh`（挑空闲节点提交，候选缓存）。
 - `logs/` — 各实验作业输出。
-- `NOTES.md` — 实测数据、roofline、设计、迭代表、损耗分析、教训。
