@@ -3148,6 +3148,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // Split only the last two row blocks more finely to shorten that tail.
         int tailrows = env_int("TRSM_TAIL_ROWS", 2);
         int tailseg = env_int("TRSM_TAIL_SEG", 6);
+        // 宽 n（面板数 ≥ 线程数）时最后 tailrows_w 个行块也分裂成 tailseg_w 段：最后一个行块的任务最长（case2 约 1.7 ms），
+        // 不分裂时尾部平均空闲约半个任务
+        int tailrows_w = env_int("TRSM_TAILW_ROWS", 1);
+        int tailseg_w = env_int("TRSM_TAILW_SEG", 2);
         long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
         double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
         long nitems = 0;
@@ -3158,6 +3162,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (splitf > 0 && nch >= minch) {
                 nseg = (int)(cost[i] / target + 0.5);
                 if (c.npan < nth && i >= c.nrb - tailrows && nseg < tailseg) nseg = tailseg;
+                if (c.npan >= nth && i >= c.nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;
                 if (nseg < 1) nseg = 1;
@@ -3221,6 +3226,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (splitf > 0 && nch >= minch) {
                 nseg = (int)(cost[i] / target + 0.5);
                 if (c.npan < nth && i >= c.nrb - tailrows && nseg < tailseg) nseg = tailseg;
+                if (c.npan >= nth && i >= c.nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;
                 if (nseg < 1) nseg = 1;
