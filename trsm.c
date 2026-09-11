@@ -3235,7 +3235,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             c.owner_bound = malloc(sizeof(long) * (nth + 1));
             // 自适应权重：同形状的上一次调用量到的相对速度（首次调用等权）
             static double wpre_[1025];
-            const int adapt = env_int("TRSM_ADAPT", 1) && g_ab_valid && g_ab_m == m && g_ab_n == n && g_ab_nth == nth;
+            const int adapt = env_int("TRSM_ADAPT", 0) && g_ab_valid && g_ab_m == m && g_ab_n == n && g_ab_nth == nth;   // 实测全负（见 NOTES §10c）：预热调用的线程耗时被 X 迁移/首触污染，冻结标定 −12%，逐轮重标定 −1.5%
             wpre_[0] = 0;
             for (int t = 0; t < nth; t++) wpre_[t + 1] = wpre_[t] + (adapt ? g_ab_speed[t] : 1.0);
             double cum = 0;
@@ -3449,7 +3449,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
     }
-    if (c.owner) {   // 自适应区间：由实测周期更新相对速度（均值归一 + 限幅，防单次噪声振荡）
+    if (c.owner && env_int("TRSM_ADAPT", 0)) {   // 自适应区间：由实测周期更新相对速度（均值归一 + 限幅，防单次噪声振荡）
         double sp[1024], mean = 0; int ok = 1;
         for (int t = 0; t < nth; t++) {
             if (!g_ab_busy[t] || g_ab_cost[t] <= 0) { ok = 0; break; }
