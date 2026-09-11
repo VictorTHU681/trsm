@@ -1592,6 +1592,7 @@ typedef struct {
     int torder;             // GEMM 段内循环顺序：0 条→列块（B 段常驻 L2），1 列块→条（B 子段留 L1，A 条常驻 L2）
     int duplex;             // 面板驻留模式 GEMM 用两组 16×16 ZA bank 流水（行主序 B/C 内核），不经暂存转存
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
+    int pf3;                // 面板驻留模式：游标 3（C 行触碰）也改为预取 A
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
@@ -1974,8 +1975,13 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰；首段融合装载时改触碰对应的 B 行（跨行 ldb）
+            // 面板驻留模式（TRSM_OWNER_PF3）：C 行在 L2 里不用触碰，游标 3（每 2 步 4 行）改为再往前预取 A 条（列块 t 预取条 pfq+1+t，进 L2）
             if (pf_on) {
-                if (fuse && ch == chfirst) { pf.pc = (const char*)(Bblk + 16L * r * ldb + 32 * t); pf.pcs = ldb * 8; }
+                long pfq3 = pfq + 1 + t;
+                if (c->owner && c->pf3 && !c->jit && pfq3 < nstrips) {
+                    long pr3 = i0 + 16 * (pfq3 % S), pk3 = (chfirst + pfq3 / S) * kc;
+                    pf.pc = (const char*)(c->pp[cpy] + packed_l_offset(c, pr3 / 16, pk3)); pf.pcs = 256;
+                } else if (fuse && ch == chfirst) { pf.pc = (const char*)(Bblk + 16L * r * ldb + 32 * t); pf.pcs = ldb * 8; }
                 else { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             }
             if (duplex) {
@@ -3264,8 +3270,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     c.fuse = env_int("TRSM_FUSE", 0);   // 首段融合装载：实测 case1 2.42→2.49、case2 通用路径持平（装载字节并入 K 循环只是把停顿搬了位置），默认关
     c.torder = env_int("TRSM_TORDER", 0);
-    c.duplex = env_int("TRSM_DUPLEX", 1);
-    c.pf2 = env_int("TRSM_OWNER_PF2", 0);
+    c.duplex = env_int("TRSM_DUPLEX", 0);   // 面板驻留模式双 bank：K 循环受 A 流限制，与托管路径持平（2.43–2.48 vs 2.47–2.49），默认关
+    c.pf2 = env_int("TRSM_OWNER_PF2", 1);   // 官方 bench 交错 3 轮：2.48/2.49/2.47 → 2.35/2.37/2.44
+    c.pf3 = env_int("TRSM_OWNER_PF3", 0);
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && !c.xpnt && c.ntstore && c.ant) {
