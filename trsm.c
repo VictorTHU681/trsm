@@ -85,8 +85,6 @@ static void pin_threads_in_region(int tid, int nt)
         for (int t = 0; t < lim; t++) CPU_OR(&u, &u, &g_thr_mask[t]);
         g_ncpu = 0;
         for (int c = 0; c < CPU_SETSIZE; c++) if (CPU_ISSET(c, &u)) g_cpus[g_ncpu++] = c;
-        int rot = env_int("TRSM_PIN_ROT", 0);   // 诊断：线程→CPU 映射循环移位
-        if (rot > 0 && g_ncpu > 1) { int tmp[CPU_SETSIZE]; for (int k = 0; k < g_ncpu; k++) tmp[k] = g_cpus[(k + rot) % g_ncpu]; for (int k = 0; k < g_ncpu; k++) g_cpus[k] = tmp[k]; }
     }
     if (g_ncpu > 0 && tid < g_ncpu) {
         cpu_set_t s;
@@ -1463,7 +1461,6 @@ typedef struct {
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int ddup;               // 对角阶段用双 ZA bank（SET 排水）代替转存 + 托管回写（TRSM_DDUP）
     int dsweep;             // 专用路径 GEMM 期间循环触碰本行块对角条（TRSM_DSWEEP）
-    int ohelp;              // 面板驻留模式尾部协助：空闲线程算别人下一行块的 K 段前缀部分和（TRSM_OWNER_HELP）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
@@ -1495,7 +1492,6 @@ typedef struct {
     long ntask_items;
     double* part;           // 分裂任务的部分和缓冲池
     volatile int* seg_cnt;  // 每个 (i,p) 的已完成段数
-    volatile int* hstop; volatile int* hprog;   // 尾部协助：owner 叫停协助者 / 协助者已完成的 K 段数（按 q = p*nrb+i 索引）
 } ctx_t;
 
 typedef struct task_s {
@@ -1521,13 +1517,6 @@ typedef struct {
     long n_swflush, n_swq;   // 同步收尾拷的 cache 行数 / 排队的总行数（诊断托管走线器是否生效）
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
-    uint64_t t_by_i[16]; long n_by_i[16];   // prof>=3：按行块号统计任务耗时（前 16 个行块）
-    // 面板驻留模式的尾部协助（TRSM_OWNER_HELP）：help_role 0 无 / 1 本线程是协助者（算别人任务 K 段 [0, help_ch) 的部分和到 hbuf）
-    // / 2 本线程是被协助的 owner（只算 K 段 [help_ch, i)，GEMM 后等协助者的部分和并加进 C 块）
-    int help_role; long help_ch; const double* help_src; const double* help_partial; volatile int* help_flag; int help_flag_done;
-    double* hbuf; size_t hbuf_cap;
-    long n_help, n_helped, n_help_ch; uint64_t t_hwait;   // 协助次数 / 被协助次数 / 协助完成的 K 段数 / owner 等协助者的时间
-    long n_h_novictim, n_h_nocand, n_h_casfail, n_h_otherpanel, n_h_smalli; uint64_t t_hloop;   // 协助循环诊断
     long n_task, n_kstep;
     uint64_t t_dump, t_ddump;
     long n_dkstep;
@@ -1567,9 +1556,6 @@ static inline void sw_advance(tbuf_t* tb)
 
 static tbuf_t g_tb[1024];
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024];
-// 面板驻留模式尾部协助：各线程的静态调度表、当前任务下标（发布给协助者）、剩余代价后缀和
-static long* g_sched_p[1024]; static long g_sched_n[1024]; static long g_cur_s[1024] __attribute__((aligned(128)));
-static double* g_suffix_p[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
 static double* g_pp[2] = {NULL, NULL};
@@ -1580,7 +1566,6 @@ static size_t g_flags_cap = 0;
 static int* g_pflags = NULL;
 static size_t g_pflags_cap = 0;
 static int* g_seg_cnt = NULL;
-static int* g_hstop = NULL; static int* g_hprog = NULL;
 static task_t* g_tasks = NULL;
 static size_t g_tasks_cap = 0;
 static double* g_part = NULL;
@@ -1609,7 +1594,6 @@ static void ensure_tbuf(int tid, size_t cbuf_d, size_t astrip_d, size_t xpan_d)
     }
     if (!t->scratch) { t->scratch = alloc_on(8192, -1); memset(t->scratch, 0, 8192); }
     if (!t->scratch2) { t->scratch2 = alloc_on(65536, -1); memset(t->scratch2, 0, 65536); }
-    if (t->hbuf_cap < (size_t)256 * 136) { trsm_free_buffer(t->hbuf, t->hbuf_cap * 8); t->hbuf = alloc_on((size_t)256 * 136 * 8, -1); t->hbuf_cap = (size_t)256 * 136; }
 }
 
 
@@ -1754,12 +1738,9 @@ static inline void za_flush_dset_bank4(double* c, long cs)
 }
 
 // ---------------------------------------------------------------- 任务执行
-// 看门狗（诊断死锁）：自旋超过上限就记录现场并放弃等待（结果会错，但进程能结束并打印）
-static long g_wd_fired[8]; static long g_wd_info[8];
-#define WD_SPIN(cond, k, info) do { unsigned long _sp = 0; while (cond) { asm volatile("yield"); if (++_sp > (1UL << 31)) { __atomic_fetch_add(&g_wd_fired[k], 1, __ATOMIC_RELAXED); g_wd_info[k] = (long)(info); break; } } } while (0)
 static inline void wait_flag(const ctx_t* c, long idx)
 {
-    WD_SPIN(__atomic_load_n(&c->flags[idx], __ATOMIC_ACQUIRE) == 0, 0, idx);
+    while (__atomic_load_n(&c->flags[idx], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
 }
 
 // Pack consecutive K chunks in consumption order to reduce L2 set conflicts.
@@ -1826,15 +1807,10 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 
     // 分裂段：部分和写到专用缓冲（从 0 开始累加），普通任务直接用 C 块
     const int split = tk->nseg > 1;
-    const int helper = tb->help_role == 1;                       // 协助者：部分和写到 hbuf，K 段 [0, help_ch)，owner 到达时随时可被叫停
-    const int helped = tb->help_role == 2;                       // 被协助的 owner：叫停协助者，算其未完成的 K 段 [P, i)，再加协助者的部分和
-    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : (helper ? tb->hbuf : cb);
-    const double* panel = tb->cbuf;                              // 面板驻留模式 B 操作数来源（协助者把已完成行块的 X 行按段拷进自己的面板缓冲）
-    const long hq = c->owner ? p * c->nrb + i : 0;               // 协助协议用的任务号
-    if (helped) __atomic_store_n(&c->hstop[hq], 1, __ATOMIC_RELEASE);   // 先叫停：装载 C 块期间协助者做完当前 K 段就退出
+    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : cb;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
-    if (split || helper) {
+    if (split) {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
@@ -1880,25 +1856,16 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
     double* pend_c = NULL;
     long pend_cols = 0;
     const long xlines = ((nci * 8 + 63) / 64 + 1) & ~1L;   // X 面板每行预取的 cache 行数（偶数）
-    long hP = 0;   // 协助者完成的 K 段数（被协助时）
-    if (helped) {
-        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-        WD_SPIN(__atomic_load_n(tb->help_flag, __ATOMIC_ACQUIRE) != tb->help_flag_done, 1, *tb->help_flag * 1000 + tb->help_flag_done);
-        hP = __atomic_load_n(&c->hprog[hq], __ATOMIC_ACQUIRE);
-        tb->n_helped++;
-        if (c->prof >= 2) { tb->t_hwait += cyc() - t0; tb->t_wait += cyc() - t0; }
-    }
-    const long chfirst = split ? tk->ch0 : (helped ? hP : 0);
-    const long kend = split ? tk->ch1 * kc : (helper ? tb->help_ch * kc : i0);
+    const long chfirst = split ? tk->ch0 : 0;
+    const long kend = split ? tk->ch1 * kc : i0;
     const long nchunks = (kend - chfirst * kc + kc - 1) / kc;
     const long nstrips = nchunks * S;
     double* Abuf[2] = { tb->astrip, tb->astrip + 64L * kc };
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
     const char* dpf = (const char*)(c->diag + c->diag_off[i]);
-    const char* dend = helper ? dpf : dpf + (size_t)diag_strip_off(S) * 8;   // 协助者不做对角阶段，不预取对角条
+    const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !c->direct && c->jit && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
-    long hdone_ch = chfirst + nchunks;   // 协助者实际完成到的 K 段（被叫停时更小）
     for (long q = 0; q < nstrips; q++) {
         const long ch = chfirst + q / S;
         const int r = (int)(q % S);
@@ -1906,26 +1873,10 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         long kk = i0 - k0; if (kk > kc) kk = kc;
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
-        if (helper && r == 0 && ch > 0 && __atomic_load_n(&c->hstop[hq], __ATOMIC_ACQUIRE)) { hdone_ch = ch; break; }   // owner 已到：停在段边界
         if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
-        if (helper && r == 0 && ch > 0 && __atomic_load_n(&c->hstop[hq], __ATOMIC_ACQUIRE)) { hdone_ch = ch; break; }   // 等 flag 期间 owner 可能已到
-        if (helper && r == 0) {   // 协助者：把该段的 X 行（已由 owner/前一线程写回 X）拷进自己的面板缓冲作 B 操作数（越界列补零）
-            uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-            const svbool_t pg = svptrue_b64();
-            long rows = c->m - k0; if (rows > kc) rows = kc;
-            for (long gr = 0; gr < rows; gr++) {
-                double* d = tb->cbuf + (size_t)(k0 + gr) * ncp;
-                const double* sp = c->B + (size_t)(k0 + gr) * ldb + c0;
-                long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
-                if (j < nci) { svbool_t pj = svwhilelt_b64(j, nci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
-                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
-            }
-            if (c->prof >= 2) tb->t_load += cyc() - t0;
-        }
         // 本段 B 面板（连续，行距 ncp）与下一段面板（预取目标）：面板驻留模式直接取本线程面板缓冲的第 ch 段
-        const double* Xk = c->owner ? panel + (size_t)ch * kc * ncp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
-        const double* Xkn = c->owner ? panel + (size_t)(ch + 1) * kc * ncp : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;
+        const double* Xk = c->owner ? tb->cbuf + (size_t)ch * kc * ncp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
+        const double* Xkn = c->owner ? tb->cbuf + (size_t)(ch + 1) * kc * ncp : c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;
         (void)xlines;
         // 本条 A
         const double* A;
@@ -2053,25 +2004,6 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         }
     }
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
-
-    if (helper) {   // 协助者：部分和（K 段 [0, hdone_ch)）已在 hbuf，发布进度与完成标志后返回（owner 加完后再 +1，表示 hbuf 可复用）
-        __atomic_store_n(&c->hprog[hq], (int)hdone_ch, __ATOMIC_RELEASE);
-        __atomic_store_n(tb->help_flag, tb->help_flag_done, __ATOMIC_RELEASE);
-        tb->n_help++; tb->n_help_ch += hdone_ch;
-        if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
-        return -1;
-    }
-    if (helped) {   // 被协助的 owner：把协助者的部分和（K 段 [0, hP)）加进 C 块
-        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-        if (hP > 0) {
-            const svbool_t pg = svptrue_b64();
-            const double* P = tb->help_partial;
-            for (long q = 0; q < 16L * S * ncp; q += 8)
-                svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
-        }
-        __atomic_store_n(tb->help_flag, tb->help_flag_done + 1, __ATOMIC_RELEASE);
-        if (c->prof >= 2) tb->t_load += cyc() - t0;
-    }
 
     if (split) {
         // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
@@ -2240,7 +2172,7 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
     __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
-    if (c->prof >= 2) { uint64_t dt = cyc() - tt0; tb->t_task += dt; tb->n_task++; if (c->prof >= 3 && tk->i < 16) { tb->t_by_i[tk->i] += dt; tb->n_by_i[tk->i]++; } }
+    if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
 }
@@ -3033,7 +2965,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
     __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
-    if (c->prof >= 2) { uint64_t dt = cyc() - tt0; tb->t_task += dt; tb->n_task++; if (c->prof >= 3 && tk->i < 16) { tb->t_by_i[tk->i] += dt; tb->n_by_i[tk->i]++; } }
+    if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
 }
@@ -3118,7 +3050,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xptm = env_int("TRSM_XPTM", 0);
         c.ddup = env_int("TRSM_DDUP", 0);   // 对角阶段双 bank（SET）实测更慢：case2 dkloop 2.81→2.96 ms、总时 24.5→25.2（短 K 下每步 1 行排水比托管回写重），默认关
         c.dsweep = env_int("TRSM_DSWEEP", 0);   // 实测：对角条常驻触碰使 kloop 17.3→19.0 ms，dkloop 只省 0.6，净负
-        c.ohelp = env_int("TRSM_OWNER_HELP", 1);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
@@ -3239,20 +3170,15 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 
     size_t nflags = (size_t)c.ntask;
     if (g_flags_cap < nflags) {
-        free(g_flags); free(g_seg_cnt); free(g_hstop); free(g_hprog);
+        free(g_flags); free(g_seg_cnt);
         g_flags = calloc(nflags, sizeof(int));
         g_seg_cnt = calloc(nflags, sizeof(int));
-        g_hstop = calloc(nflags, sizeof(int));
-        g_hprog = calloc(nflags, sizeof(int));
         g_flags_cap = nflags;
     }
     memset(g_flags, 0, nflags * sizeof(int));
     memset(g_seg_cnt, 0, nflags * sizeof(int));
-    memset(g_hstop, 0, nflags * sizeof(int));
-    memset(g_hprog, 0, nflags * sizeof(int));
     c.flags = g_flags;
     c.seg_cnt = g_seg_cnt;
-    c.hstop = g_hstop; c.hprog = g_hprog;
     c.next = 0;
     if (g_pflags_cap < (size_t)c.nstrip) { free(g_pflags); g_pflags = calloc(c.nstrip, sizeof(int)); g_pflags_cap = c.nstrip; }
     memset(g_pflags, 0, c.nstrip * sizeof(int));
@@ -3304,33 +3230,17 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
             for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
         }
-        if (c.owner) {   // 面板主序：虚拟面板 v 的行块 0..nrb-1 连续，q = v*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
-            // 虚拟面板 v → 真实面板 p = (v·st) mod npan（st 与 npan 互素、≈0.618·npan）：每个线程的面板散布到整个矩阵，
-            // 抹平按列偏移系统性变化的装载/回写速度（实测同一调度下慢线程集合固定、与核无关）；TRSM_OWNER_PERM=0 关闭
-            long st = 1;
-            if (env_int("TRSM_OWNER_PERM", 1) && c.npan > 3) {
-                st = (long)(c.npan * 0.618 + 0.5);
-                for (long d = 0; d < c.npan; d++) {
-                    long cand = st + d; long a = cand, b = c.npan; while (b) { long tmod = a % b; a = b; b = tmod; }
-                    if (a == 1) { st = cand; break; }
-                }
-            }
-            for (long v = 0; v < c.npan; v++) {
-                long p = (v * st) % c.npan;
+        if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
+            for (long p = 0; p < c.npan; p++)
                 for (long i = 0; i < c.nrb; i++) {
                     task_t* t = &g_tasks[q++];
                     memset(t, 0, sizeof *t);
                     t->i = (int)i; t->p = (int)p; t->nseg = 1;
                     t->ch0 = 0; t->ch1 = (i * mb) / kc;
                 }
-            }
-            // 任务代价模型（case1 实测每行块任务 µs：18.9/22.6/29.4/36.7/44.9/54.1/63.7/80.2，i 越大越贵且是凸的——
-            // 面板缓冲 393 KB 不能整体常驻 L2，行块越靠后 B 行的 L2 缺失越多）：cost(i) = (i + 0.5 + c2·i²)·mb²·nc + c0·mb·nc
-            double c0 = env_int("TRSM_OWNER_C0", 371) * (double)mb * nc;
-            double c2 = env_int("TRSM_OWNER_C2", 28) / 100.0;
-#define OWNER_COST(i) ((((double)(i) + 0.5 + c2 * (double)(i) * (double)(i)) * mb * mb) * nc + c0)
+            double c0 = env_int("TRSM_OWNER_C0", 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
             double ototal = 0;
-            for (long i = 0; i < c.nrb; i++) ototal += OWNER_COST(i);
+            for (long i = 0; i < c.nrb; i++) ototal += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
             ototal *= c.npan;
             c.owner_bound = malloc(sizeof(long) * (nth + 1));
             double cum = 0;
@@ -3338,11 +3248,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             c.owner_bound[0] = 0;
             for (long qq = 0; qq < q && tb_ < nth; qq++) {
                 long i = qq % c.nrb;
-                cum += OWNER_COST(i);
+                cum += ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
                 while (tb_ < nth && cum >= ototal * tb_ / nth) c.owner_bound[tb_++] = qq + 1;
             }
             while (tb_ <= nth) c.owner_bound[tb_++] = q;
-#undef OWNER_COST
         } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
@@ -3401,8 +3310,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->n_task = tb->n_kstep = tb->n_dkstep = 0;
             tb->t_dump = tb->t_ddump = 0;
             tb->n_swflush = tb->n_swq = 0;
-            for (int q = 0; q < 16; q++) { tb->t_by_i[q] = 0; tb->n_by_i[q] = 0; }
-            tb->n_help = tb->n_helped = tb->n_help_ch = 0; tb->t_hwait = 0; tb->n_h_novictim = tb->n_h_nocand = tb->n_h_casfail = tb->n_h_otherpanel = tb->n_h_smalli = 0; tb->t_hloop = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
         // 阶段 1：对角预处理
@@ -3454,26 +3361,14 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
             }
         }
-        double* suffix = NULL;
-        if (c.owner && c.ohelp) {   // 剩余代价后缀和（协助者选 victim 用），与调度表一样在进入流式模式前分配
-            suffix = malloc(sizeof(double) * (k + 1));
-            suffix[k] = 0;
-            for (long s = k - 1; s >= 0; s--) { long i2 = sched[s] % c.nrb; suffix[s] = suffix[s + 1] + (double)i2 + 0.5 + 0.28 * i2 * i2 + 5.8; }
-            g_suffix_p[tid] = suffix;
-        }
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
         if (c.owner) {
-            __atomic_store_n(&g_cur_s[tid], -1L, __ATOMIC_RELEASE);   // 先发布"未开始"，再发布调度表（协助者先读表长再读进度）
-            g_sched_p[tid] = sched;
-            __atomic_store_n(&g_sched_n[tid], k, __ATOMIC_RELEASE);
-            tbuf_t* tbo = &g_tb[tid];
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
-                    const long preal = c.tasks[pa * c.nrb].p;   // 虚拟面板 pa 对应的真实面板
-                    long pc0 = preal * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
-                    for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + preal);
+                    long pc0 = pa * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
+                    for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
                     double* buf = g_tb[tid].cbuf;
                     const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
                     for (long gr = 0; gr < ia * mb; gr++) {
@@ -3485,79 +3380,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
                     }
                 }
-                // 发布进度；认领本任务（协助者可能已认领其 K 段前缀：seg_cnt = 2 + 16*协助者号）
-                __atomic_store_n(&g_cur_s[tid], s, __ATOMIC_RELEASE);
-                tbo->help_role = 0;
-                if (c.ohelp) {
-                    volatile int* hf = &c.seg_cnt[sched[s]];
-                    int ex = 0;
-                    if (!__atomic_compare_exchange_n(hf, &ex, 1, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-                        int hv = (ex - 2) / 16;                        // 协助者线程号（ex 可能已是"已完成"= tag+1）
-                        int tag = 2 + 16 * hv;
-                        tbo->help_role = 2; tbo->help_ch = (long)(sched[s] % c.nrb) - 1;
-                        tbo->help_partial = g_tb[hv].hbuf; tbo->help_flag = hf; tbo->help_flag_done = tag + 1;
-                    }
-                }
                 run_task(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
-                tbo->help_role = 0;
-            }
-            __atomic_store_n(&g_cur_s[tid], k, __ATOMIC_RELEASE);
-            // 尾部协助：本线程的静态区间做完后，给剩余代价最大的线程算其“当前任务的下一个行块”的 K 段前缀 [0, i-1)
-            // （只依赖已完成行块的 X，读 owner 的面板缓冲），部分和写到 hbuf；owner 到该任务时只算最后一段并加上部分和。
-            if (c.ohelp) {
-                const long nrb = c.nrb;
-                int mytag = 2 + 16 * tid;
-                unsigned long hspin = 0;
-                uint64_t th0 = c.prof >= 2 ? cyc() : 0;
-                for (;;) {
-                    if (++hspin > (1UL << 26)) { __atomic_fetch_add(&g_wd_fired[3], 1, __ATOMIC_RELAXED); g_wd_info[3] = tid; break; }
-                    int best = -1; double bestrem = 0; long bests = -1;
-                    for (int v = 0; v < nth; v++) {
-                        if (v == tid) continue;
-                        long nv = __atomic_load_n(&g_sched_n[v], __ATOMIC_ACQUIRE);
-                        long cs_ = __atomic_load_n(&g_cur_s[v], __ATOMIC_ACQUIRE);
-                        if (cs_ < 0 || cs_ + 1 >= nv) continue;
-                        double rem = g_suffix_p[v][cs_ + 1];
-                        if (rem > bestrem) { bestrem = rem; best = v; bests = cs_ + 1; }
-                    }
-                    if (best < 0) {
-                        int alive = 0;
-                        for (int v = 0; v < nth; v++) if (__atomic_load_n(&g_cur_s[v], __ATOMIC_ACQUIRE) < g_sched_n[v]) alive = 1;
-                        if (!alive) break;
-                        tbo->n_h_novictim++;
-                        asm volatile("yield");
-                        continue;
-                    }
-                    // 候选：victim 当前任务之后的行块 i ≥ 2（前缀 [0, i-1) 非空；B 行从 X 拷入，不依赖 victim 的面板缓冲）
-                    long* vs = g_sched_p[best]; long nv = g_sched_n[best];
-                    int claimed = 0;
-                    for (long o2 = 0; o2 < 3; o2++) {
-                        long s2 = bests + (o2 == 0 ? 1 : (o2 == 1 ? 2 : 0));   // 先认领 cur+2（owner 到达前有一整个任务的时间），再 cur+3，最后 cur+1
-                        if (s2 >= nv) continue;
-                        long q2 = vs[s2];
-                        long i2 = q2 % nrb;
-                        if (i2 < 2) { tbo->n_h_smalli++; continue; }
-                        int ex = 0;
-                        if (!__atomic_compare_exchange_n(&c.seg_cnt[q2], &ex, mytag, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) { tbo->n_h_casfail++; continue; }
-                        {
-                            tbo->help_role = 1; tbo->help_ch = i2 - 1; tbo->help_src = NULL;
-                            tbo->help_flag = &c.seg_cnt[q2]; tbo->help_flag_done = mytag + 1;
-                            run_task(&c, tbo, &c.tasks[q2], NULL, tid);
-                            tbo->help_role = 0;
-                            WD_SPIN(__atomic_load_n(&c.seg_cnt[q2], __ATOMIC_ACQUIRE) != mytag + 2, 2, c.seg_cnt[q2] * 1000 + mytag);   // owner 消费完 hbuf
-                            claimed = 1;
-                            break;
-                        }
-                    }
-                    if (!claimed) {
-                        tbo->n_h_nocand++;
-                        for (int w = 0; w < 64; w++) asm volatile("yield");
-                        int alive = 0;
-                        for (int v = 0; v < nth; v++) if (__atomic_load_n(&g_cur_s[v], __ATOMIC_ACQUIRE) < g_sched_n[v]) alive = 1;
-                        if (!alive) break;
-                    }
-                }
-                if (c.prof >= 2) tbo->t_hloop += cyc() - th0;
             }
         } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
@@ -3573,7 +3396,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         }
         sme_stop();
-        free(sched); free(suffix);
+        free(sched);
         {   // 遗留的托管回写收尾
             uint64_t t0 = c.prof >= 2 ? cyc() : 0;
             sw_flush(&g_tb[tid]);
@@ -3581,7 +3404,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
     }
-    for (int k = 0; k < 4; k++) if (g_wd_fired[k]) { fprintf(stderr, "[trsm WD] loop %d fired %ld times, info %ld\n", k, g_wd_fired[k], g_wd_info[k]); g_wd_fired[k] = 0; }
     if (c.prof) {
         uint64_t t2 = cyc();
         double hz = (double)cyc_hz();
@@ -3613,40 +3435,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sdump * f, sepi * f, sdkl * f, sddump * f, sdepi * f, sst * f, stask * f,
                     (tail_max - tail_min) / hz * 1e3, tail_idle * f, nks, ndks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
             fprintf(stderr, "[trsm prof]  托管回写：排队 %ld 行，同步收尾 %ld 行（%.1f%%）\n", nswq, nswf, nswq ? 100.0 * nswf / nswq : 0.0);
-            if (c.prof >= 3) {   // 每线程收尾时刻（相对最早者，µs）与静态区间任务数（面板驻留模式）
-                fprintf(stderr, "[trsm prof]  每线程收尾 µs:");
-                for (int t = 0; t < nth; t++) fprintf(stderr, " %d:%.0f%s", t, (g_tail_cyc[t] - tail_min) / hz * 1e6, c.owner ? "" : "");
-                fprintf(stderr, "\n");
-                {
-                    fprintf(stderr, "[trsm prof]  按行块 i 的平均任务耗时 µs:");
-                    for (int q = 0; q < 16 && q < c.nrb; q++) {
-                        double tt = 0; long nn = 0;
-                        for (int t = 0; t < nth; t++) { tt += g_tb[t].t_by_i[q]; nn += g_tb[t].n_by_i[q]; }
-                        if (nn) fprintf(stderr, " %d:%.1f", q, tt / nn / hz * 1e6);
-                    }
-                    fprintf(stderr, "\n");
-                }
-                if (c.owner) {
-                    long nh = 0, nhd = 0; double thw = 0;
-                    long nhc = 0;
-                    for (int t = 0; t < nth; t++) { nh += g_tb[t].n_help; nhd += g_tb[t].n_helped; thw += g_tb[t].t_hwait; nhc += g_tb[t].n_help_ch; }
-                    long nnv = 0, nnc = 0, ncf = 0, nop = 0, nsi = 0; double thl = 0;
-                    for (int t = 0; t < nth; t++) { nnv += g_tb[t].n_h_novictim; nnc += g_tb[t].n_h_nocand; ncf += g_tb[t].n_h_casfail; nop += g_tb[t].n_h_otherpanel; nsi += g_tb[t].n_h_smalli; thl += g_tb[t].t_hloop; }
-                    fprintf(stderr, "[trsm prof]  尾部协助：协助 %ld 次（完成 %ld 个 K 段），被协助 %ld 次，owner 等协助者合计 %.3f ms；协助循环合计 %.3f ms，无 victim %ld / 无候选 %ld / 他面板 %ld / i<2 %ld / CAS 失败 %ld\n", nh, nhc, nhd, thw / hz * 1e3, thl / hz * 1e3, nnv, nnc, nop, nsi, ncf);
-                    fprintf(stderr, "[trsm prof]  每线程 任务数/ms/ia/ib:");
-                    for (int t = 0; t < nth; t++) {
-                        long a = c.owner_bound[t], b = c.owner_bound[t + 1];
-                        fprintf(stderr, " %ld/%.3f/%ld/%ld", b - a, g_tb[t].t_task / hz * 1e3, a % c.nrb, (b - 1) % c.nrb);
-                    }
-                    fprintf(stderr, "\n");
-                    fprintf(stderr, "[trsm prof]  每线程 load/kloop/dump/diag/store µs:");
-                    for (int t = 0; t < nth; t++) fprintf(stderr, " %d:%.0f/%.0f/%.0f/%.0f/%.0f", t, g_tb[t].t_load / hz * 1e6, g_tb[t].t_kloop / hz * 1e6, g_tb[t].t_dump / hz * 1e6, (g_tb[t].t_dkloop + g_tb[t].t_ddump + g_tb[t].t_depi) / hz * 1e6, g_tb[t].t_store / hz * 1e6);
-                    fprintf(stderr, "\n");
-                    fprintf(stderr, "[trsm prof]  线程 0 按行块 i 的任务耗时 µs:");
-                    for (int q = 0; q < 16 && q < c.nrb; q++) if (g_tb[0].n_by_i[q]) fprintf(stderr, " %d:%.1f(%ld)", q, (double)g_tb[0].t_by_i[q] / g_tb[0].n_by_i[q] / hz * 1e6, g_tb[0].n_by_i[q]);
-                    fprintf(stderr, "\n");
-                }
-            }
         }
     }
     free(ditem_i); free(ditem_s);
