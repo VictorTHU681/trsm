@@ -3173,12 +3173,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
         }
         if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
+            const long chunks_per_block = mb / kc;
             for (long p = 0; p < c.npan; p++)
                 for (long i = 0; i < c.nrb; i++) {
                     task_t* t = &g_tasks[q++];
                     memset(t, 0, sizeof *t);
                     t->i = (int)i; t->p = (int)p; t->nseg = 1;
-                    t->ch0 = 0; t->ch1 = (i * mb) / kc;
+                    t->ch0 = 0; t->ch1 = i * chunks_per_block;
                 }
             double c0 = env_int("TRSM_OWNER_C0", c.special == 5 && c.pf2 ? 160 : 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
             double ototal = 0;
