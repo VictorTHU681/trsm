@@ -1525,6 +1525,7 @@ typedef struct {
     // / 2 本线程是被协助的 owner（只算 K 段 [help_ch, i)，GEMM 后等协助者的部分和并加进 C 块）
     int help_role; long help_ch; const double* help_src; const double* help_partial; volatile int* help_flag; int help_flag_done;
     double* hbuf; size_t hbuf_cap;
+    long n_help, n_helped; uint64_t t_hwait;   // 协助次数 / 被协助次数 / owner 等协助者的时间
     long n_task, n_kstep;
     uint64_t t_dump, t_ddump;
     long n_dkstep;
@@ -2025,13 +2026,15 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 
     if (helper) {   // 协助者：部分和已在 hbuf，发布完成标志后返回（owner 加进 C 块后再 +1，表示 hbuf 可复用）
         __atomic_store_n(tb->help_flag, tb->help_flag_done, __ATOMIC_RELEASE);
+        tb->n_help++;
         if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
         return -1;
     }
     if (helped) {   // 被协助的 owner：等协助者的部分和，加进 C 块
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         WD_SPIN(__atomic_load_n(tb->help_flag, __ATOMIC_ACQUIRE) != tb->help_flag_done, 1, *tb->help_flag * 1000 + tb->help_flag_done);
-        if (c->prof >= 2) { tb->t_wait += cyc() - t0; t0 = cyc(); }
+        tb->n_helped++;
+        if (c->prof >= 2) { tb->t_hwait += cyc() - t0; tb->t_wait += cyc() - t0; t0 = cyc(); }
         const svbool_t pg = svptrue_b64();
         const double* P = tb->help_partial;
         for (long q = 0; q < 16L * S * ncp; q += 8)
@@ -3352,6 +3355,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->t_dump = tb->t_ddump = 0;
             tb->n_swflush = tb->n_swq = 0;
             for (int q = 0; q < 16; q++) { tb->t_by_i[q] = 0; tb->n_by_i[q] = 0; }
+            tb->n_help = tb->n_helped = 0; tb->t_hwait = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
         // 阶段 1：对角预处理
@@ -3569,6 +3573,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     fprintf(stderr, "\n");
                 }
                 if (c.owner) {
+                    long nh = 0, nhd = 0; double thw = 0;
+                    for (int t = 0; t < nth; t++) { nh += g_tb[t].n_help; nhd += g_tb[t].n_helped; thw += g_tb[t].t_hwait; }
+                    fprintf(stderr, "[trsm prof]  尾部协助：协助 %ld 次，被协助 %ld 次，owner 等协助者合计 %.3f ms\n", nh, nhd, thw / hz * 1e3);
                     fprintf(stderr, "[trsm prof]  每线程 任务数/ms/ia/ib:");
                     for (int t = 0; t < nth; t++) {
                         long a = c.owner_bound[t], b = c.owner_bound[t + 1];
