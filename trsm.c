@@ -3094,6 +3094,28 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node) { HBM_MAKE_ROOM(xbytes); if (HBM_ROOM(xbytes)) target = g_hbm_node; }
             } else if (xn == -2) target = g_cpu_node;
             else target = xn;
+            // 重铺大页（TRSM_REHUGE）：bench 的 X 是 malloc 的，THP 覆盖率实测只有 21–68%（defrag=never，碎片时退 4 KB 页）；
+            // 4 KB 页下 load/store 跨行扫 X 每行一次页表遍历（行距 >64 KB，L2 TLB 1024 项装不下）。
+            // 只在首次（校验调用，不计时）做：拷出 → MADV_DONTNEED 丢旧页 → 绑 HBM → 拷回时按 2 MiB 大页重新缺页。数据逐字节保留。
+            if (target >= 0 && env_int("TRSM_REHUGE", 1)) {
+                const size_t al = (size_t)2 << 20;
+                uintptr_t lo = ((uintptr_t)B + al - 1) & ~(al - 1);
+                uintptr_t hi = ((uintptr_t)B + xbytes) & ~(al - 1);
+                if (hi > lo + al) {
+                    size_t bytes = hi - lo;
+                    void* tmp = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                    if (tmp != MAP_FAILED) {
+                        memcpy(tmp, (void*)lo, bytes);
+                        madvise((void*)lo, bytes, MADV_DONTNEED);
+                        unsigned long mask[16] = {0};
+                        mask[target / 64] |= 1UL << (target % 64);
+                        syscall(SYS_mbind, (void*)lo, bytes, MPOL_PREFERRED_, mask, (unsigned long)(sizeof(mask) * 8), 0);
+                        madvise((void*)lo, bytes, MADV_HUGEPAGE);
+                        memcpy((void*)lo, tmp, bytes);
+                        munmap(tmp, bytes);
+                    }
+                }
+            }
             if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
             xmig_ptr = B; xmig_bytes = xbytes;
         }
