@@ -3615,10 +3615,16 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
                     PROF_T(c, wait_flag(c, (ch * kc / mb) * c->npan + p), t_wait);
                     const double* A = c->pp[0] + c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024;
                     const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
+                    // 真游标：ap → 同条带下一 K 段 A（8KB，4 个 t 调用 × 2KB）；
+                    // bp → 下一 K 段 Xk 的第 (r&7) 个 8KB 分片（同块各条带错位合作，8 分片全覆盖 64KB）
+                    const double* An = (ch + 1 < nch) ? A + (size_t)S * 1024 : A;
+                    const char* Xn = (const char*)(c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp) + ((size_t)(r & 7) << 13);
                     for (long t = 0; t < ntile; t++) {
                         double* cur = dst + 32 * t;
-                        PROF_T(c, kloop_duplex_bank0(A, Xk + 32 * t * kc, (pend ? pend_c : cur) + 16, (const char*)tb->scratch2, (const char*)tb->scratch2, (const char*)cur), t_kloop);
-                        PROF_T(c, kloop_duplex_bank4(A, Xk + 32 * t * kc + 1024, cur, (const char*)tb->scratch2 + 1024, (const char*)tb->scratch2 + 1024, (const char*)(cur + 16 * ncp)), t_kloop);
+                        const char* ap = (const char*)An + (size_t)t * 2048;
+                        const char* bp = Xn + (size_t)t * 2048;
+                        PROF_T(c, kloop_duplex_bank0(A, Xk + 32 * t * kc, (pend ? pend_c : cur) + 16, ap, bp, (const char*)cur), t_kloop);
+                        PROF_T(c, kloop_duplex_bank4(A, Xk + 32 * t * kc + 1024, cur, ap + 1024, bp + 1024, (const char*)(cur + 16 * ncp)), t_kloop);
                         pend = 1; pend_c = cur;
                     }
                 }
