@@ -1501,6 +1501,8 @@ typedef struct {
     long ntask_items;
     double* part;           // 分裂任务的部分和缓冲池
     volatile int* seg_cnt;  // 每个 (i,p) 的已完成段数
+    volatile int* acc;      // 增量归约：每 (i,p) 的累加槽段号（-1 空，-2 合并锁；TRSM_IRED）
+    int ired;               // 分裂任务增量归约：段完成即合并部分和，最后完成者只加一次累加槽（缩短行块依赖链）
 } ctx_t;
 
 typedef struct task_s {
@@ -1576,6 +1578,7 @@ static int* g_pflags = NULL;
 static size_t g_pflags_cap = 0;
 static int* g_dcnt = NULL; static size_t g_dcnt_cap = 0;
 static int* g_seg_cnt = NULL;
+static int* g_acc = NULL;      // 增量归约：每 (i,p) 的累加槽段号（-1 空，-2 合并锁）
 static task_t* g_tasks = NULL;
 static size_t g_tasks_cap = 0;
 static double* g_part = NULL;
@@ -1694,6 +1697,36 @@ static inline void za_owner_dstore(double* c)
 }
 #undef OWNER_DSTORE_ROW
 #undef OWNER_DSTORE_ROWS
+
+// 分裂任务增量归约（TRSM_IRED）：段完成即把自己的部分和合并进首个完成段的槽（CAS 锁串行化），
+// 最后完成者只需装载 B 块 + 加一次累加槽——把「装载 + nseg 次加法」从行块依赖链尾部摘掉（case3 有 89 环串行链）。
+// 返回累加槽段号。合并加法计入调用方的 t_load。
+static inline void ired_merge(const ctx_t* c, const task_t* tk, long ip, long len)
+{
+    volatile int* a = &c->acc[ip];
+    const int my = tk->seg;
+    const long slot = (long)c->mb * c->ncp;
+    for (;;) {
+        int cur = __atomic_load_n(a, __ATOMIC_ACQUIRE);
+        if (cur == -1) {
+            int exp = -1;
+            if (__atomic_compare_exchange_n((int*)a, &exp, my, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return;   // 本段成为累加槽
+        } else if (cur == -2) {
+            asm volatile("yield");   // 别的段正在合并，稍候
+        } else {
+            int exp = cur;
+            if (__atomic_compare_exchange_n((int*)a, &exp, -2, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+                double* dst = c->part + tk->part_off + (size_t)cur * slot;
+                const double* src = c->part + tk->part_off + (size_t)my * slot;
+                const svbool_t pg = svptrue_b64();
+                for (long q = 0; q < len; q += 8)
+                    svst1_f64(pg, dst + q, svadd_f64_x(pg, svld1_f64(pg, dst + q), svld1_f64(pg, src + q)));
+                __atomic_store_n(a, cur, __ATOMIC_RELEASE);
+                return;
+            }
+        }
+    }
+}
 
 // 面板列起点/宽度：cshift>0 时内部面板边界按 X 的 64 B cache 行对齐（面板 0 缩为 nc−cshift 列、末面板 cshift 列），
 // X 行段的装载与非临时回写全对齐（无跨行向量、无 partial-line RMW）。cshift=0 时退化为原始等宽划分。
@@ -1947,10 +1980,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
-        // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
+        // 段完成：增量归约（先到先合并部分和），最后完成者装载 B 块 + 加一次累加槽并继续对角求解，其余线程返回
+        uint64_t tm0 = c->prof >= 2 ? cyc() : 0;
+        if (c->ired) ired_merge(c, tk, i * c->npan + p, 16L * S * ncp);
         int done = __atomic_add_fetch(&c->seg_cnt[i * c->npan + p], 1, __ATOMIC_ACQ_REL);
-        if (done < tk->nseg) { if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; } return -1; }
-        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        if (done < tk->nseg) {
+            if (c->prof >= 2) { tb->t_load += cyc() - tm0; tb->t_task += cyc() - tt0; tb->n_task++; }
+            return -1;
+        }
+        uint64_t t0 = c->prof >= 2 ? tm0 : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
         for (long r = 0; r < 16L * S; r++) {
@@ -1973,7 +2011,11 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
         }
-        for (int sg = 0; sg < tk->nseg; sg++) {
+        if (c->ired) {
+            const double* P = c->part + tk->part_off + (size_t)c->acc[i * c->npan + p] * mb * ncp;
+            for (long q = 0; q < 16L * S * ncp; q += 8)
+                svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
+        } else for (int sg = 0; sg < tk->nseg; sg++) {
             const double* P = c->part + tk->part_off + (size_t)sg * mb * ncp;
             for (long q = 0; q < 16L * S * ncp; q += 8)
                 svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
@@ -3312,10 +3354,15 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
-        // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
+        // 段完成：增量归约（先到先合并部分和），最后完成者装载 B 块 + 加一次累加槽并继续对角求解，其余线程返回
+        uint64_t tm0 = c->prof >= 2 ? cyc() : 0;
+        if (c->ired) ired_merge(c, tk, i * c->npan + p, 16L * S * ncp);
         int done = __atomic_add_fetch(&c->seg_cnt[i * c->npan + p], 1, __ATOMIC_ACQ_REL);
-        if (done < tk->nseg) { if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; } return -1; }
-        uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+        if (done < tk->nseg) {
+            if (c->prof >= 2) { tb->t_load += cyc() - tm0; tb->t_task += cyc() - tt0; tb->n_task++; }
+            return -1;
+        }
+        uint64_t t0 = c->prof >= 2 ? tm0 : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
         for (long r = 0; r < 16L * S; r++) {
@@ -3338,7 +3385,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
         }
-        for (int sg = 0; sg < tk->nseg; sg++) {
+        if (c->ired) {
+            const double* P = c->part + tk->part_off + (size_t)c->acc[i * c->npan + p] * mb * ncp;
+            for (long q = 0; q < 16L * S * ncp; q += 8)
+                svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
+        } else for (int sg = 0; sg < tk->nseg; sg++) {
             const double* P = c->part + tk->part_off + (size_t)sg * mb * ncp;
             for (long q = 0; q < 16L * S * ncp; q += 8)
                 svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
@@ -5466,15 +5517,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     TSUB(2);
     size_t nflags = (size_t)c.ntask;
     if (g_flags_cap < nflags) {
-        free(g_flags); free(g_seg_cnt);
+        free(g_flags); free(g_seg_cnt); free(g_acc);
         g_flags = calloc(nflags, sizeof(int));
         g_seg_cnt = calloc(nflags, sizeof(int));
+        g_acc = malloc(nflags * sizeof(int));
         g_flags_cap = nflags;
     }
     memset(g_flags, 0, nflags * sizeof(int));
     memset(g_seg_cnt, 0, nflags * sizeof(int));
+    memset(g_acc, 0xff, nflags * sizeof(int));   // 累加槽全 -1（空）
     c.flags = g_flags;
     c.seg_cnt = g_seg_cnt;
+    c.acc = g_acc;
+    c.ired = env_int("TRSM_IRED", 1);
     c.next = 0;
     if (g_pflags_cap < (size_t)c.nstrip) { free(g_pflags); g_pflags = calloc(c.nstrip, sizeof(int)); g_pflags_cap = c.nstrip; }
     memset(g_pflags, 0, c.nstrip * sizeof(int));
