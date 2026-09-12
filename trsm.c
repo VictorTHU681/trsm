@@ -1470,6 +1470,7 @@ typedef struct {
     int lchunk, direct, special;
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
+    const char* pshared;    // owner：面板是否被线程区间切割（khead 会等 flag 后直接读该面板的 X 行 → 不可托管回写）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
@@ -1532,6 +1533,7 @@ typedef struct {
     sw_t sw;
     sw_t swq[16];
     int swn, swi;
+    int sw_ok;               // owner 托管：当前任务的面板是否可托管（共享面板/khead 依赖面板 = 0，由派发处设置）
     long n_swflush, n_swq;   // 同步收尾拷的 cache 行数 / 排队的总行数（诊断托管走线器是否生效）
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
@@ -2077,12 +2079,18 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         }
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
-        const int can_sw = (fast_owner ? 0 : c->swhost) && !(fast_owner ? 1 : c->owner) && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
+        // owner 托管（TRSM_SWHOST=1 显式开）：源改为面板缓冲 cbuf（本面板期间常驻）；
+        // 共享面板（线程区间切割处，khead 会等 flag 后直接读 X）不托管——flag 先于托管落地发布，读到未写的 X 会错。
+        // 只在下一任务是同面板 i+1 时托管：面板切换后下一任务的装载会覆写 cbuf 行 0..63，若 pending 源在那里会被冲掉。
+        const int sw_owner = !fast_owner && c->owner && c->swhost && tb->sw_ok && ncp == nc
+                             && tkn && tkn->kind == 0 && tkn->p == p && tkn->i == i + 1;
+        const int can_sw = (fast_owner ? 0 : c->swhost) && (sw_owner || !(fast_owner ? 1 : c->owner)) && nci == nc && ((nc * 8) & 63) == 0 && !last_rb;
         if (can_sw) {
             for (long r0 = 0; r0 < mbi; r0 += kc) {
                 long rows = mbi - r0; if (rows > kc) rows = kc;
                 sw_t w;
-                w.src = (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p) * kc * ncp);
+                w.src = sw_owner ? (const char*)(cb + (size_t)r0 * ncp)
+                                 : (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p) * kc * ncp);
                 w.dst = (char*)(Bout + r0 * ldb);
                 w.lpr = nc * 8 / 64; w.cnt = w.lpr;
                 w.dstj = ldb * 8 - nc * 8;
@@ -5332,7 +5340,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (panel_bytes > ((size_t)env_int("TRSM_OWNER_MB", 4) << 20)) owner = 0;
         c.owner = owner;
         if (c.owner) {
-            c.swhost = 0;
+            if (env_int("TRSM_SWHOST", -1) < 0) c.swhost = 0;   // 显式 TRSM_SWHOST=1 时 owner 也托管 X 回写（实验，源=cbuf）
             if (!getenv("TRSM_ANT")) c.ant = 1;          // 面板缓冲要常驻 L2：A 条用 ldnt1d 流过
             if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
         }
@@ -5580,6 +5588,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
             }
             while (tb_ <= nth) c.owner_bound[tb_++] = q;
+            // 共享面板位图（owner 托管回写用）：线程区间边界切在面板中间 → 该面板的 X 行被下一线程 khead 直接读，不可托管
+            char* ps = calloc(c.npan, 1);
+            for (int t2 = 1; t2 < nth; t2++) {
+                long b = c.owner_bound[t2];
+                if (b < q && b % c.nrb != 0) ps[b / c.nrb] = 1;
+            }
+            c.pshared = ps;
         } else
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
@@ -5727,7 +5742,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             }
         }
         sme_start();
-        g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
+        g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0; g_tb[tid].sw_ok = 1;
         if (c.owner) {
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
@@ -5748,6 +5763,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 {   // cshift>0 时首/末奇面板（宽度 ≠ nc 或起点非对齐）路由到通用路径
                     const task_t* tsk = &c.tasks[sched[s]];
                     const int fullpan = !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
+                    g_tb[tid].sw_ok = c.pshared ? !c.pshared[tsk->p] : 1;   // 共享面板不托管回写
                     (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
                 }
             }
@@ -5819,7 +5835,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
     }
     free(ditem_i); free(ditem_s);
-    free(c.S_of); free(c.diag_off); free(c.pp_off); free(c.owner_bound);
+    free(c.S_of); free(c.diag_off); free(c.pp_off); free(c.owner_bound); free((void*)c.pshared);
 }
 #endif // TRSM_NO_SME_ASM
 
