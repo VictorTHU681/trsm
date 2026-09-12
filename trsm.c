@@ -1490,6 +1490,7 @@ typedef struct {
     volatile int* dcnt;     // 每个行块已完成的对角条数（nobar：任务对角阶段前等它等于 S_of[i]）
     int nobar;              // 预处理阶段不设全局 barrier：预处理项按行块顺序动态领取，消费者用 pflags/dcnt 等（TRSM_NOBAR）
     int tbuild;             // 任务表构建推迟到并行区线程 0（与其余线程的对角预处理重叠，TRSM_TBUILD）
+    int extld;              // 装载阶段 EXT 拼接（源非 64B 对齐时对齐装载+svext 移位，TRSM_EXTLD）
     double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
@@ -1707,6 +1708,35 @@ static inline void za_owner_dstore(double* c)
 #undef OWNER_DSTORE_ROW
 #undef OWNER_DSTORE_ROWS
 
+// X 行 → 缓冲行拷贝 [0, nci)：xoff=0 直拷；否则（行距为 64 B 整数倍 → 全矩阵行段偏移恒定为 xoff）
+// 用对齐装载 + svext 拼接，消除每条跨行向量装载的双 L1 访问（TRSM_EXTLD；TC2 内部面板已被 cshift 对齐走直拷）。
+// EXT 主循环只到 nci-16（vb 会越前读 8-xoff 个 double），行末余量用普通装载——避免 ldb==n 时最后一行读越分配尾。
+static inline void copy_row_x(double* d, const double* s, long nci, long xoff)
+{
+    const svbool_t pg = svptrue_b64();
+    long j = 0;
+    if (xoff) {
+        const double* sa = s - xoff;
+        svfloat64_t va = svld1_f64(pg, sa);
+#define CRX_EXT(OFF) for (; j + 16 <= nci; j += 8) { svfloat64_t vb = svld1_f64(pg, sa + j + 8); svst1_f64(pg, d + j, svext_f64(va, vb, OFF)); va = vb; }
+        switch (xoff) {
+        case 1: CRX_EXT(1); break;
+        case 2: CRX_EXT(2); break;
+        case 3: CRX_EXT(3); break;
+        case 4: CRX_EXT(4); break;
+        case 5: CRX_EXT(5); break;
+        case 6: CRX_EXT(6); break;
+        default: CRX_EXT(7); break;
+        }
+#undef CRX_EXT
+    }
+    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+    if (j < nci) {
+        svbool_t pj = svwhilelt_b64(j, nci);
+        svst1_f64(pj, d + j, svld1_f64(pj, s + j));
+    }
+}
+
 // 面板列起点/宽度：cshift>0 时内部面板边界按 X 的 64 B cache 行对齐（面板 0 缩为 nc−cshift 列、末面板 cshift 列），
 // X 行段的装载与非临时回写全对齐（无跨行向量、无 partial-line RMW）。cshift=0 时退化为原始等宽划分。
 static inline long pan_c0(const ctx_t* c, long p) { return p ? p * c->nc - c->cshift : 0; }
@@ -1754,6 +1784,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        // EXT 拼接装载：面板 0 除外（对齐装载会读到 B 基址之前，越 mmap 头）；cshift 对齐的内部面板 xoff=0 自动直拷
+        const long xoff = (c->extld && p > 0 && (((size_t)ldb * 8) & 63) == 0) ? (long)(((uintptr_t)Bblk >> 3) & 7) : 0;
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
             if (lpf > 0 && r + lpf < mbi) {
@@ -1762,14 +1794,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
-                long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
-                    svst1_f64(pj, d + j, svld1_f64(pj, s + j));
-                    j += 8;
-                }
-                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                copy_row_x(d, s, nci, xoff);
+                for (long j = (nci + 7) & ~7L; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             } else {
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
@@ -1965,6 +1991,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        // EXT 拼接装载：面板 0 除外（对齐装载会读到 B 基址之前，越 mmap 头）；cshift 对齐的内部面板 xoff=0 自动直拷
+        const long xoff = (c->extld && p > 0 && (((size_t)ldb * 8) & 63) == 0) ? (long)(((uintptr_t)Bblk >> 3) & 7) : 0;
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
             if (lpf > 0 && r + lpf < mbi) {
@@ -1973,14 +2001,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
-                long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
-                    svst1_f64(pj, d + j, svld1_f64(pj, s + j));
-                    j += 8;
-                }
-                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                copy_row_x(d, s, nci, xoff);
+                for (long j = (nci + 7) & ~7L; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             } else {
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
@@ -3121,6 +3143,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        // EXT 拼接装载：面板 0 除外（对齐装载会读到 B 基址之前，越 mmap 头）；cshift 对齐的内部面板 xoff=0 自动直拷
+        const long xoff = (c->extld && p > 0 && (((size_t)ldb * 8) & 63) == 0) ? (long)(((uintptr_t)Bblk >> 3) & 7) : 0;
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
             if (lpf > 0 && r + lpf < mbi) {
@@ -3129,14 +3153,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
-                long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
-                    svst1_f64(pj, d + j, svld1_f64(pj, s + j));
-                    j += 8;
-                }
-                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                copy_row_x(d, s, nci, xoff);
+                for (long j = (nci + 7) & ~7L; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             } else {
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
@@ -3330,6 +3348,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        // EXT 拼接装载：面板 0 除外（对齐装载会读到 B 基址之前，越 mmap 头）；cshift 对齐的内部面板 xoff=0 自动直拷
+        const long xoff = (c->extld && p > 0 && (((size_t)ldb * 8) & 63) == 0) ? (long)(((uintptr_t)Bblk >> 3) & 7) : 0;
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
             if (lpf > 0 && r + lpf < mbi) {
@@ -3338,14 +3358,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
-                long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
-                    svst1_f64(pj, d + j, svld1_f64(pj, s + j));
-                    j += 8;
-                }
-                for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                copy_row_x(d, s, nci, xoff);
+                for (long j = (nci + 7) & ~7L; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             } else {
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
@@ -5645,6 +5659,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 任务表构建：默认（TRSM_TBUILD=1）推迟到并行区由线程 0 完成，与其余线程的对角预处理重叠
     //（TC1 任务表 ~33 µs ≈ 1.7% 串行时间；其余线程经 g_tables_ready 同步后再进任务阶段）
     c.tbuild = env_int("TRSM_TBUILD", 1);
+    c.extld = env_int("TRSM_EXTLD", 1);
     g_tables_ready = 0;
     if (!c.tbuild) { build_tasks(&c, nth); __atomic_store_n(&g_tables_ready, 1, __ATOMIC_RELEASE); }
     TSUB(4);
