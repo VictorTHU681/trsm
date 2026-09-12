@@ -11,12 +11,13 @@ cands=()
 # dnode 全表要 60 s：先用上次全表扫描缓存的候选（10 分钟内有效）逐个快查，都不空闲再全表扫
 cache="$HOME/.trsm_idle_nodes"
 if [[ -f "$cache" ]] && (( $(date +%s) - $(stat -c %Y "$cache") < 600 )); then
-    for n in $(cat "$cache"); do grep -qx "$n" <<<"$busy" || cands+=("$n"); done
+    for n in $(cat "$cache"); do [[ "$n" == cn20482 ]] && continue; grep -qx "$n" <<<"$busy" || cands+=("$n"); done
     echo "cached candidates: ${cands[*]}" >&2
 fi
 full_scan() {
     cands=()
     for n in $(dnode 2>/dev/null | awk '$1 ~ /^cn204(8[1-9]|9[0-9])$/ && $2=="OK" && $4==608 {print $1}'); do
+        [[ "$n" == cn20482 ]] && continue   # 病节点：频率钉死 1.2 GHz（zgemm 甄别实锤）
         grep -qx "$n" <<<"$busy" || cands+=("$n")
     done
     printf '%s\n' "${cands[@]}" > "$cache"
