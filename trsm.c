@@ -1575,30 +1575,6 @@ static tbuf_t g_tb[1024];
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024], g_wake_cyc[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
-
-// 跨调用预处理缓存（TRSM_PCACHE）：对角包 g_diag 与打包 L g_pp 只由 (L, m, lda, mb, kc, 布局) 决定，
-// bench 的校验调用（不计时）已建好，计时调用键匹配时直接复用（对角线 32 点抽样哈希兜底 L 内容变化）
-static const double* g_pc_L = NULL;
-static long g_pc_m, g_pc_lda;
-static int g_pc_mb, g_pc_kc, g_pc_lchunk, g_pc_ppmode, g_pc_pp1;
-static const double* g_pc_pp0p; static const double* g_pc_diagp;
-static uint64_t g_pc_hash;
-static int g_pc_valid = 0;
-static uint64_t l_diag_hash(const double* L, long m, long lda)
-{
-    uint64_t h = 1469598103934665603ULL;
-    for (int k = 0; k < 32; k++) {
-        long r = (m - 1) * (long)(k + 1) / 32;
-        uint64_t v; memcpy(&v, &L[(size_t)r * lda + r], 8);
-        h ^= v + (uint64_t)k * 0x9E3779B97F4A7C15ULL; h *= 1099511628211ULL;
-    }
-    for (int k = 0; k < 8; k++) {          // 下三角非对角样本：防"对角相同、别处不同"的极端情况
-        long r = (m - 1) * (long)(k + 1) / 8;
-        uint64_t v; memcpy(&v, &L[(size_t)r * lda + r / 2], 8);
-        h ^= v + 0x517CC1B727220A95ULL; h *= 1099511628211ULL;
-    }
-    return h;
-}
 static double* g_pp[2] = {NULL, NULL};
 static size_t g_pp_cap[2] = {0, 0};
 static int g_pp_node[2] = {-3, -3};
@@ -3745,7 +3721,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         trsm_free_buffer(g_diag, g_diag_cap * 8);
         g_diag = alloc_on(doff * 8, -1);
         g_diag_cap = doff;
-        g_pc_valid = 0;   // 缓冲重建（可能拿回同地址、内容已失）：预处理缓存失效
     }
     c.diag = g_diag;
 
@@ -3802,7 +3777,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 g_pp[k] = alloc_on(off * 8 + 4096, node);
                 g_pp_cap[k] = off;
                 g_pp_node[k] = node;
-                g_pc_valid = 0;   // 同上：预打包缓冲重建，缓存失效
             }
             c.pp[k] = g_pp[k];
         }
@@ -3827,25 +3801,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     memset(g_dcnt, 0, c.nrb * sizeof(int));
     c.dcnt = g_dcnt;
     c.nobar = env_int("TRSM_NOBAR", 1);
-    // 预处理缓存命中判定（须在 pp / diag 缓冲最终确定之后）
-    int prep_cached = 0;
-    if (env_int("TRSM_PCACHE", 1) && !c.jit) {
-        uint64_t h = l_diag_hash(L, m, lda);
-        if (g_pc_valid && g_pc_L == L && g_pc_m == m && g_pc_lda == lda && g_pc_mb == mb && g_pc_kc == kc
-            && g_pc_lchunk == c.lchunk && g_pc_ppmode == c.ppmode && g_pc_pp1 == (c.pp[1] != NULL)
-            && g_pc_pp0p == (const double*)c.pp[0] && g_pc_diagp == (const double*)c.diag && g_pc_hash == h)
-            prep_cached = 1;
-        else {
-            g_pc_L = L; g_pc_m = m; g_pc_lda = lda; g_pc_mb = (int)mb; g_pc_kc = (int)kc;
-            g_pc_lchunk = c.lchunk; g_pc_ppmode = c.ppmode; g_pc_pp1 = c.pp[1] != NULL;
-            g_pc_pp0p = (const double*)c.pp[0]; g_pc_diagp = (const double*)c.diag; g_pc_hash = h;
-            g_pc_valid = 1;   // 本次调用会把内容建好
-        }
-    } else g_pc_valid = 0;
-    if (prep_cached) {   // 消费者等的旗子直接置完成态
-        for (long g = 0; g < c.nstrip; g++) g_pflags[g] = 1;
-        for (long i = 0; i < c.nrb; i++) g_dcnt[i] = c.S_of[i];
-    }
 
     // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
     // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)
@@ -3886,7 +3841,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             nitems += (long)nseg * c.npan;
             if (nseg > 1) part_doubles += (size_t)nseg * c.npan * mb * c.ncp;
         }
-        if (c.ppmode == 1 && !prep_cached) nitems += c.nstrip;   // 打包任务（缓存命中则不派）
+        if (c.ppmode == 1) nitems += c.nstrip;   // 打包任务
         if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
         if (g_part_cap < part_doubles) { trsm_free_buffer(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
         long q = 0;
@@ -3894,7 +3849,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块
         int LA = env_int("TRSM_PACK_LA", 2);
         long gnext = 0;   // 下一个待派发的打包条
-        if (c.ppmode == 1 && !prep_cached) {
+        if (c.ppmode == 1) {
             long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
             for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
         }
@@ -3933,7 +3888,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             while (tb_ <= nth) c.owner_bound[tb_++] = q;
         } else
         for (long i = 0; i < c.nrb; i++) {
-            if (c.ppmode == 1 && !prep_cached) {
+            if (c.ppmode == 1) {
                 long gend = (long)(i + LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
                 for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
             }
@@ -3980,10 +3935,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     const int prep_pack = !c.jit && c.ppmode == 0;
     long ndiag_items = 0;
     for (long i = 0; i < c.nrb; i++) ndiag_items += c.S_of[i];
-    long nprep_items = prep_cached ? 0 : ndiag_items + ((c.nobar && prep_pack) ? c.nstrip : 0);
-    long* ditem_i = malloc(sizeof(long) * (nprep_items ? nprep_items : 1));
-    int* ditem_s = malloc(sizeof(int) * (nprep_items ? nprep_items : 1));
-    if (nprep_items) {
+    long nprep_items = ndiag_items + ((c.nobar && prep_pack) ? c.nstrip : 0);
+    long* ditem_i = malloc(sizeof(long) * nprep_items);
+    int* ditem_s = malloc(sizeof(int) * nprep_items);
+    {
         long q = 0;
         for (long i = 0; i < c.nrb; i++) {
             for (int s = 0; s < c.S_of[i]; s++) { ditem_i[q] = i; ditem_s[q] = s; q++; }
@@ -4033,7 +3988,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             }
         }
         // 阶段 1b：预打包（barrier 模式：单独一轮）
-        if (prep_pack && !c.nobar && !prep_cached) {
+        if (prep_pack && !c.nobar) {
 #pragma omp for schedule(dynamic, 1) nowait
             for (long g = 0; g < c.nstrip; g++) {
                 long i = (16 * g) / mb;
