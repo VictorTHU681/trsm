@@ -3154,18 +3154,18 @@ static inline __attribute__((always_inline)) void kloop_hoist_bank4(const double
 // Select the address-hoisted KC64 kernels once per solve. Keeping both task
 // versions permits same-binary profiling without changing the owner path.
 static int g_abhoist;
-static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist)
+static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist, int wnc)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
     const task_t* tkn = tkn_guess;
-    const long mb = (mode==2?256:192), nc = 128, kc = 64, ncp = 128;
+    const long mb = (mode==2?256:192), nc = wnc, kc = 64, ncp = wnc;
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
     const long c0 = p * nc;
-    // The specialization admission check guarantees a complete 128-column panel.
-    long nci=128;
+    // The specialization admission check guarantees a complete wnc-column panel.
+    long nci=wnc;
     const int S = c->S_of[i];
     const long ntile = (nci + 31) / 32;
     double* cb = tb->cbuf;
@@ -3581,11 +3581,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     return tnext;
 }
 
-static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1,0);}
-static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,0);}
-static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0);}
-static long run_task_hoist2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,1);}
-static long run_task_hoist4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1);}
+static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1,0,128);}
+static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,0,128);}
+static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0,128);}
+static long run_task_special4_w256(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0,256);}
+static long run_task_hoist2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,1,128);}
+static long run_task_hoist4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1,128);}
 // KC64 owner kernels: prefetch bases remain fixed and PRFM uses immediate
 // offsets. A/B loads, FP64 FMOPA order and hosted C stores match the old kernels.
 // This removes cursor ADD instructions without changing the addresses prefetched.
@@ -5345,7 +5346,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     int owner_auto = env_int("TRSM_OWNER", -1);
     if (owner_auto < 0) owner_auto = (m <= 1024 && n >= 2L * nth_hint * 96);
     // 默认 mb192/nc128/kc64：L2 足迹 cbuf 192K + 2×(A 段 96K + B 段 64K) = 512 KB；kc=64 时回写由 kloop_epi64 全程托管
-    int mb = env_int("TRSM_MB", owner_auto ? 64 : (m > 1024 && n >= 8192 ? 256 : 192)), nc = env_int("TRSM_NC", owner_auto ? 96 : 128), kc = env_int("TRSM_KC", 64);
+    int mb = env_int("TRSM_MB", owner_auto ? 64 : (m > 1024 && n >= 8192 ? 256 : 192)), nc = env_int("TRSM_NC", owner_auto ? 96 : ((n % 256 == 0 && m >= 4 * n) ? 256 : 128)), kc = env_int("TRSM_KC", 64);
     if (mb < 32) mb = 32;
     mb = (mb + 31) & ~31;
     if (nc < 32) nc = 32;
@@ -5413,8 +5414,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.special=0;
     if(!c.owner && env_int("TRSM_SPECIAL",1) && (nc==128 || nc==256) && n%nc==0 && kc==64 && c.ncp==nc && !c.jit && c.lchunk && c.pf && c.reserve && c.ntstore && c.ant) {   // xpnt 在专用实现里已按开关处理；nc=256 门槛为整除（宽面板减 A 重读）
       if (nc != 128) g_abhoist = 0;   // hoist 内核行距烧死 128 列，宽面板回退 duplex_c256
-      if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
-      if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
+      if(nc==128 && mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
+      if(nc==128 && mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
       if(mb==192 && !c.direct && c.ppmode==1 && c.npan<=8 &&
          (!c.swhost || env_int("TRSM_SWHOST",-1)<0)) {
         c.special=4;
@@ -5807,7 +5808,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
         if(c.special==2)taskfn=g_abhoist ? run_task_hoist2 : run_task_special2;
-        if(c.special==4)taskfn=g_abhoist ? run_task_hoist4 : run_task_special4;
+        if(c.special==4)taskfn=c.nc==256 ? run_task_special4_w256 : (g_abhoist ? run_task_hoist4 : run_task_special4);
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
