@@ -5292,6 +5292,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.nstrip = (m + 15) / 16;
 
     uint64_t t0 = c.prof ? cyc() : 0;
+    uint64_t tsub[6] = {0, 0, 0, 0, 0, 0};   // prof>=3：setup 子阶段（pin/diag/缓冲/flags/任务表/ditem）
+#define TSUB(k) do { if (c.prof >= 3) tsub[k] = cyc(); } while (0)
     int nth = omp_get_max_threads();
     if (nth < 1) nth = 1;
     if (nth > 1024) nth = 1024;
@@ -5302,6 +5304,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     if (g_ncpu > 0 && g_ncpu < nth) nth = g_ncpu;
     detect_nodes();
+    TSUB(0);
     // 决定 GEMM 部分的 L 打包方式：L 下三角 ≤ 阈值时预打包（两份），否则 JIT
     size_t tri_bytes = (size_t)m * (m + 1) / 2 * 8;
     long jit_mb = env_int("TRSM_JIT_MB", 256);
@@ -5396,6 +5399,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         g_diag_cap = doff;
     }
     c.diag = g_diag;
+    TSUB(1);
 
     // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定；面板驻留模式不需要
     if (!c.owner) {
@@ -5454,6 +5458,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
     }
 
+    TSUB(2);
     size_t nflags = (size_t)c.ntask;
     if (g_flags_cap < nflags) {
         free(g_flags); free(g_seg_cnt);
@@ -5472,6 +5477,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (g_dcnt_cap < (size_t)c.nrb) { free(g_dcnt); g_dcnt = calloc(c.nrb, sizeof(int)); g_dcnt_cap = c.nrb; }
     memset(g_dcnt, 0, c.nrb * sizeof(int));
     c.dcnt = g_dcnt;
+    TSUB(3);
     c.nobar = env_int("TRSM_NOBAR", 1);
 
     // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
@@ -5602,6 +5608,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.part = g_part;
         free(cost);
         (void)ntile_full;
+        TSUB(4);
     }
 
     // 预处理工作项：对角子块 (i, s) 与预打包条 g。nobar 时合成一张按行块顺序排列的表（对角项 ditem_s>=0，打包条 ditem_s=-1、ditem_i=g），
@@ -5763,6 +5770,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 c.xp ? page_node_of(c.xp) : -1, c.pp[0] ? page_node_of(c.pp[0]) : -1, c.pp[1] ? page_node_of(c.pp[1]) : -1,
                 g_hbm_node >= 0 ? node_free_bytes(g_hbm_node) >> 20 : 0,
                 (t1 - t0) / hz * 1e3, (t2 - t1) / hz * 1e3);
+        if (c.prof >= 3)
+            fprintf(stderr, "[trsm prof]  setup 分解 µs：pin+探测 %.1f | 准入+对角缓冲 %.1f | xp+pp 缓冲 %.1f | flags %.1f | 任务表 %.1f | ditem %.1f\n",
+                    (tsub[0] - t0) / hz * 1e6, (tsub[1] - tsub[0]) / hz * 1e6, (tsub[2] - tsub[1]) / hz * 1e6,
+                    (tsub[3] - tsub[2]) / hz * 1e6, (tsub[4] - tsub[3]) / hz * 1e6, (t1 - tsub[4]) / hz * 1e6);
         if (c.prof >= 2) {
             {   // 线程唤醒延迟：各线程进入并行区的时刻相对主线程发起并行区的时刻
                 uint64_t wmax = 0, wsum = 0; int wn = 0;
