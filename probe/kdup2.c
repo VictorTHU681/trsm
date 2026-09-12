@@ -59,6 +59,10 @@ int main(void)
     const size_t big = 256UL << 20;
     double* Abig = al(big); double* Bbig = al(big); double* Cbig = al(8UL << 20);
     for (size_t i = 0; i < big / 8; i += 7) Abig[i] = 1.0 / (i + 1), Bbig[i] = 1.0 / (i + 3);
+    double* Ap = al(224 * 1024);          // owner 场景：7 块 × 32KB（HBM，同一面板集重复读）
+    double* CB = al(512 * 96 * 8);        // owner 场景：cbuf 393KB
+    for (long i = 0; i < 224 * 1024 / 8; i += 5) Ap[i] = 1.0 / (i + 2);
+    for (long i = 0; i < 512 * 96; i += 3) CB[i] = 1.0 / (i + 7);
     sme_start();
     double r1;
     {
@@ -100,10 +104,6 @@ int main(void)
     // 访问模式（真实 TC1）：每面板 8 行块任务，任务 i 读 A 块 ch0..ch(i-1)（各 32KB=2 对条带），
     // 每对条带 ×6 个 16 列 t 瓦片重读；B=cbuf（393KB 驻留、行距 768B）；C=cbuf 本行块 16 行瓦片、pend 链回写。
     {
-        double* Ap = al(224 * 1024);          // 7 块 × 32KB（HBM，同一面板集重复读）
-        double* CB = al(512 * 96 * 8);        // cbuf 393KB
-        for (long i = 0; i < 224 * 1024 / 8; i += 5) Ap[i] = 1.0 / (i + 2);
-        for (long i = 0; i < 512 * 96; i += 3) CB[i] = 1.0 / (i + 7);
         // o1: 全驻留地板（固定 16KB A 对 + 单 B/C 瓦片）
         {
             uint64_t t0 = cyc();
