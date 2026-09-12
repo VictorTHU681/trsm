@@ -1,0 +1,378 @@
+SHORTK_CHECK M=64 MB=64 NC=64 KC=64 order=0 outputs=4096 qerror=2.470e-14 PASS
+SHORTK_PERF M=64 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=0 ms=0.48998 equivalent_GFLOPS=34.240
+SHORTK_PERF M=64 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=1 ms=0.51100 equivalent_GFLOPS=32.832
+SHORTK_PERF M=64 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=2 ms=0.49603 equivalent_GFLOPS=33.823
+SHORTK_PERF M=64 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=0 ms=0.57151 equivalent_GFLOPS=29.356
+SHORTK_PERF M=64 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=1 ms=0.54999 equivalent_GFLOPS=30.505
+SHORTK_PERF M=64 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=2 ms=0.56182 equivalent_GFLOPS=29.862
+SHORTK_CHECK M=64 MB=64 NC=64 KC=128 order=0 outputs=4096 qerror=2.470e-14 PASS
+SHORTK_PERF M=64 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=0 ms=0.36085 equivalent_GFLOPS=46.494
+SHORTK_PERF M=64 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=1 ms=0.36160 equivalent_GFLOPS=46.397
+SHORTK_PERF M=64 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=2 ms=0.35774 equivalent_GFLOPS=46.898
+SHORTK_PERF M=64 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=0 ms=0.43832 equivalent_GFLOPS=38.276
+SHORTK_PERF M=64 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=1 ms=0.43591 equivalent_GFLOPS=38.488
+SHORTK_PERF M=64 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=2 ms=0.43314 equivalent_GFLOPS=38.734
+SHORTK_CHECK M=64 MB=64 NC=64 KC=256 order=0 outputs=4096 qerror=2.470e-14 PASS
+SHORTK_PERF M=64 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=0 ms=0.33161 equivalent_GFLOPS=50.593
+SHORTK_PERF M=64 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=1 ms=0.32928 equivalent_GFLOPS=50.951
+SHORTK_PERF M=64 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=2 ms=0.32827 equivalent_GFLOPS=51.108
+SHORTK_PERF M=64 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=0 ms=0.41055 equivalent_GFLOPS=40.865
+SHORTK_PERF M=64 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=1 ms=0.40682 equivalent_GFLOPS=41.240
+SHORTK_PERF M=64 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=2 ms=0.40795 equivalent_GFLOPS=41.126
+SHORTK_CHECK M=64 MB=64 NC=64 KC=512 order=0 outputs=4096 qerror=2.470e-14 PASS
+SHORTK_PERF M=64 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=0 ms=0.30792 equivalent_GFLOPS=54.485
+SHORTK_PERF M=64 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=1 ms=0.30818 equivalent_GFLOPS=54.440
+SHORTK_PERF M=64 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=2 ms=0.30467 equivalent_GFLOPS=55.066
+SHORTK_PERF M=64 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=0 ms=0.38850 equivalent_GFLOPS=43.185
+SHORTK_PERF M=64 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=1 ms=0.38529 equivalent_GFLOPS=43.544
+SHORTK_PERF M=64 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=2 ms=0.38567 equivalent_GFLOPS=43.502
+SHORTK_CHECK M=64 MB=64 NC=64 KC=1024 order=0 outputs=4096 qerror=2.470e-14 PASS
+SHORTK_PERF M=64 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=0 ms=0.32159 equivalent_GFLOPS=52.169
+SHORTK_PERF M=64 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=1 ms=0.31915 equivalent_GFLOPS=52.569
+SHORTK_PERF M=64 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=2 ms=0.31761 equivalent_GFLOPS=52.823
+SHORTK_PERF M=64 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=0 ms=0.40662 equivalent_GFLOPS=41.260
+SHORTK_PERF M=64 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=1 ms=0.40363 equivalent_GFLOPS=41.565
+SHORTK_PERF M=64 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=2 ms=0.40479 equivalent_GFLOPS=41.447
+SHORTK_CHECK M=64 MB=64 NC=64 KC=2048 order=0 outputs=4096 qerror=2.470e-14 PASS
+SHORTK_PERF M=64 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=0 ms=0.34350 equivalent_GFLOPS=48.842
+SHORTK_PERF M=64 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=1 ms=0.34532 equivalent_GFLOPS=48.584
+SHORTK_PERF M=64 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=2 ms=0.34465 equivalent_GFLOPS=48.679
+SHORTK_PERF M=64 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=0 ms=0.43400 equivalent_GFLOPS=38.657
+SHORTK_PERF M=64 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=1 ms=0.43262 equivalent_GFLOPS=38.780
+SHORTK_PERF M=64 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=2 ms=0.43113 equivalent_GFLOPS=38.914
+SHORTK_CHECK M=512 MB=64 NC=64 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=0 ms=47.74866 equivalent_GFLOPS=22.487
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=1 ms=47.58901 equivalent_GFLOPS=22.563
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=2 ms=47.74868 equivalent_GFLOPS=22.487
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=0 ms=52.64976 equivalent_GFLOPS=20.394
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=1 ms=52.72813 equivalent_GFLOPS=20.364
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=2 ms=52.37704 equivalent_GFLOPS=20.500
+SHORTK_CHECK M=512 MB=64 NC=128 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=0 rep=0 ms=39.85761 equivalent_GFLOPS=26.939
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=0 rep=1 ms=39.95701 equivalent_GFLOPS=26.872
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=0 rep=2 ms=39.99067 equivalent_GFLOPS=26.850
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=1 rep=0 ms=44.90779 equivalent_GFLOPS=23.910
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=1 rep=1 ms=44.81584 equivalent_GFLOPS=23.959
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=1 rep=2 ms=44.85708 equivalent_GFLOPS=23.937
+SHORTK_CHECK M=512 MB=128 NC=64 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=0 rep=0 ms=39.20977 equivalent_GFLOPS=27.385
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=0 rep=1 ms=39.02459 equivalent_GFLOPS=27.514
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=0 rep=2 ms=38.53230 equivalent_GFLOPS=27.866
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=1 rep=0 ms=43.94923 equivalent_GFLOPS=24.431
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=1 rep=1 ms=43.91194 equivalent_GFLOPS=24.452
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=1 rep=2 ms=43.92136 equivalent_GFLOPS=24.447
+SHORTK_CHECK M=512 MB=128 NC=128 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=0 rep=0 ms=32.11416 equivalent_GFLOPS=33.435
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=0 rep=1 ms=32.49855 equivalent_GFLOPS=33.040
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=0 rep=2 ms=32.51579 equivalent_GFLOPS=33.022
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=1 rep=0 ms=37.35009 equivalent_GFLOPS=28.748
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=1 rep=1 ms=37.52625 equivalent_GFLOPS=28.613
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=1 rep=2 ms=36.97340 equivalent_GFLOPS=29.041
+SHORTK_CHECK M=512 MB=64 NC=64 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=0 ms=30.42894 equivalent_GFLOPS=35.287
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=1 ms=30.53693 equivalent_GFLOPS=35.162
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=2 ms=30.71269 equivalent_GFLOPS=34.961
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=0 ms=35.79095 equivalent_GFLOPS=30.000
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=1 ms=35.67734 equivalent_GFLOPS=30.096
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=2 ms=35.74438 equivalent_GFLOPS=30.039
+SHORTK_CHECK M=512 MB=64 NC=128 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=0 rep=0 ms=25.67472 equivalent_GFLOPS=41.821
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=0 rep=1 ms=26.03512 equivalent_GFLOPS=41.242
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=0 rep=2 ms=25.91613 equivalent_GFLOPS=41.431
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=1 rep=0 ms=30.70873 equivalent_GFLOPS=34.965
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=1 rep=1 ms=30.84828 equivalent_GFLOPS=34.807
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=1 rep=2 ms=30.90448 equivalent_GFLOPS=34.744
+SHORTK_CHECK M=512 MB=128 NC=64 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=0 rep=0 ms=26.12906 equivalent_GFLOPS=41.094
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=0 rep=1 ms=26.06677 equivalent_GFLOPS=41.192
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=0 rep=2 ms=26.20620 equivalent_GFLOPS=40.973
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=1 rep=0 ms=31.18298 equivalent_GFLOPS=34.434
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=1 rep=1 ms=31.15682 equivalent_GFLOPS=34.462
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=1 rep=2 ms=31.18130 equivalent_GFLOPS=34.435
+SHORTK_CHECK M=512 MB=128 NC=128 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=0 rep=0 ms=20.59877 equivalent_GFLOPS=52.126
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=0 rep=1 ms=20.69104 equivalent_GFLOPS=51.894
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=0 rep=2 ms=20.90806 equivalent_GFLOPS=51.355
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=1 rep=0 ms=25.83116 equivalent_GFLOPS=41.568
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=1 rep=1 ms=25.94363 equivalent_GFLOPS=41.387
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=1 rep=2 ms=25.91101 equivalent_GFLOPS=41.440
+SHORTK_CHECK M=512 MB=64 NC=64 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=0 ms=21.19859 equivalent_GFLOPS=50.652
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=1 ms=21.19494 equivalent_GFLOPS=50.660
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=2 ms=21.19079 equivalent_GFLOPS=50.670
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=0 ms=26.33441 equivalent_GFLOPS=40.773
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=1 ms=26.29603 equivalent_GFLOPS=40.833
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=2 ms=26.28034 equivalent_GFLOPS=40.857
+SHORTK_CHECK M=512 MB=64 NC=128 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=0 rep=0 ms=19.57197 equivalent_GFLOPS=54.861
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=0 rep=1 ms=19.57876 equivalent_GFLOPS=54.842
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=0 rep=2 ms=19.59609 equivalent_GFLOPS=54.794
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=1 rep=0 ms=24.63877 equivalent_GFLOPS=43.579
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=1 rep=1 ms=24.63853 equivalent_GFLOPS=43.580
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=1 rep=2 ms=24.64490 equivalent_GFLOPS=43.569
+SHORTK_CHECK M=512 MB=128 NC=64 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=0 rep=0 ms=20.10373 equivalent_GFLOPS=53.410
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=0 rep=1 ms=20.07444 equivalent_GFLOPS=53.488
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=0 rep=2 ms=20.05838 equivalent_GFLOPS=53.531
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=1 rep=0 ms=25.13417 equivalent_GFLOPS=42.720
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=1 rep=1 ms=25.13366 equivalent_GFLOPS=42.721
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=1 rep=2 ms=25.15580 equivalent_GFLOPS=42.684
+SHORTK_CHECK M=512 MB=128 NC=128 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=0 rep=0 ms=16.88106 equivalent_GFLOPS=63.606
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=0 rep=1 ms=16.89459 equivalent_GFLOPS=63.555
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=0 rep=2 ms=16.89491 equivalent_GFLOPS=63.554
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=1 rep=0 ms=21.94473 equivalent_GFLOPS=48.929
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=1 rep=1 ms=21.89524 equivalent_GFLOPS=49.040
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=1 rep=2 ms=21.91559 equivalent_GFLOPS=48.994
+SHORTK_CHECK M=512 MB=64 NC=64 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=0 ms=16.88652 equivalent_GFLOPS=63.586
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=1 ms=16.82158 equivalent_GFLOPS=63.831
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=2 ms=16.79318 equivalent_GFLOPS=63.939
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=0 ms=21.66820 equivalent_GFLOPS=49.554
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=1 ms=21.71558 equivalent_GFLOPS=49.446
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=2 ms=21.70188 equivalent_GFLOPS=49.477
+SHORTK_CHECK M=512 MB=64 NC=128 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=0 rep=0 ms=14.49732 equivalent_GFLOPS=74.065
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=0 rep=1 ms=14.48211 equivalent_GFLOPS=74.143
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=0 rep=2 ms=14.50723 equivalent_GFLOPS=74.014
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=1 rep=0 ms=19.55923 equivalent_GFLOPS=54.897
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=1 rep=1 ms=19.52635 equivalent_GFLOPS=54.989
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=1 rep=2 ms=19.50414 equivalent_GFLOPS=55.052
+SHORTK_CHECK M=512 MB=128 NC=64 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=0 rep=0 ms=17.77264 equivalent_GFLOPS=60.415
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=0 rep=1 ms=17.76057 equivalent_GFLOPS=60.456
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=0 rep=2 ms=17.72656 equivalent_GFLOPS=60.573
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=1 rep=0 ms=22.72469 equivalent_GFLOPS=47.250
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=1 rep=1 ms=22.77833 equivalent_GFLOPS=47.139
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=1 rep=2 ms=22.77913 equivalent_GFLOPS=47.137
+SHORTK_CHECK M=512 MB=128 NC=128 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=0 rep=0 ms=15.24996 equivalent_GFLOPS=70.409
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=0 rep=1 ms=15.23514 equivalent_GFLOPS=70.478
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=0 rep=2 ms=15.23620 equivalent_GFLOPS=70.473
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=1 rep=0 ms=20.16818 equivalent_GFLOPS=53.239
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=1 rep=1 ms=20.10293 equivalent_GFLOPS=53.412
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=1 rep=2 ms=20.13790 equivalent_GFLOPS=53.319
+SHORTK_CHECK M=512 MB=64 NC=64 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=0 ms=14.14415 equivalent_GFLOPS=75.914
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=1 ms=14.13133 equivalent_GFLOPS=75.983
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=2 ms=14.14555 equivalent_GFLOPS=75.907
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=0 ms=19.20746 equivalent_GFLOPS=55.902
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=1 ms=19.17118 equivalent_GFLOPS=56.008
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=2 ms=19.16821 equivalent_GFLOPS=56.017
+SHORTK_CHECK M=512 MB=64 NC=128 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=0 rep=0 ms=11.51721 equivalent_GFLOPS=93.229
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=0 rep=1 ms=11.52408 equivalent_GFLOPS=93.174
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=0 rep=2 ms=11.53494 equivalent_GFLOPS=93.086
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=1 rep=0 ms=16.58181 equivalent_GFLOPS=64.754
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=1 rep=1 ms=16.59520 equivalent_GFLOPS=64.702
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=1 rep=2 ms=16.56646 equivalent_GFLOPS=64.814
+SHORTK_CHECK M=512 MB=128 NC=64 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=0 rep=0 ms=16.65820 equivalent_GFLOPS=64.457
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=0 rep=1 ms=16.65820 equivalent_GFLOPS=64.457
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=0 rep=2 ms=16.66776 equivalent_GFLOPS=64.420
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=1 rep=0 ms=21.70626 equivalent_GFLOPS=49.467
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=1 rep=1 ms=21.68689 equivalent_GFLOPS=49.511
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=1 rep=2 ms=21.71654 equivalent_GFLOPS=49.444
+SHORTK_CHECK M=512 MB=128 NC=128 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=0 rep=0 ms=13.24496 equivalent_GFLOPS=81.068
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=0 rep=1 ms=13.25015 equivalent_GFLOPS=81.036
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=0 rep=2 ms=13.25013 equivalent_GFLOPS=81.036
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=1 rep=0 ms=18.33095 equivalent_GFLOPS=58.575
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=1 rep=1 ms=18.31114 equivalent_GFLOPS=58.639
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=1 rep=2 ms=18.31400 equivalent_GFLOPS=58.630
+SHORTK_CHECK M=512 MB=64 NC=64 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=0 ms=13.55476 equivalent_GFLOPS=79.215
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=1 ms=13.62367 equivalent_GFLOPS=78.814
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=2 ms=13.60988 equivalent_GFLOPS=78.894
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=0 ms=18.63635 equivalent_GFLOPS=57.615
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=1 ms=18.62961 equivalent_GFLOPS=57.636
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=2 ms=18.60614 equivalent_GFLOPS=57.709
+SHORTK_CHECK M=512 MB=64 NC=128 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=0 rep=0 ms=9.52718 equivalent_GFLOPS=112.703
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=0 rep=1 ms=9.51821 equivalent_GFLOPS=112.809
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=0 rep=2 ms=9.54220 equivalent_GFLOPS=112.526
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=1 rep=0 ms=14.60909 equivalent_GFLOPS=73.498
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=1 rep=1 ms=14.64609 equivalent_GFLOPS=73.313
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=1 rep=2 ms=14.63950 equivalent_GFLOPS=73.346
+SHORTK_CHECK M=512 MB=128 NC=64 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=0 rep=0 ms=16.92210 equivalent_GFLOPS=63.452
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=0 rep=1 ms=16.91588 equivalent_GFLOPS=63.475
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=0 rep=2 ms=17.01928 equivalent_GFLOPS=63.090
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=1 rep=0 ms=22.04929 equivalent_GFLOPS=48.697
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=1 rep=1 ms=21.99977 equivalent_GFLOPS=48.807
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=1 rep=2 ms=21.89550 equivalent_GFLOPS=49.039
+SHORTK_CHECK M=512 MB=128 NC=128 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=0 rep=0 ms=10.57901 equivalent_GFLOPS=101.497
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=0 rep=1 ms=10.72065 equivalent_GFLOPS=100.156
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=0 rep=2 ms=10.74406 equivalent_GFLOPS=99.938
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=1 rep=0 ms=15.65916 equivalent_GFLOPS=68.570
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=1 rep=1 ms=15.61681 equivalent_GFLOPS=68.755
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=1 rep=2 ms=15.49619 equivalent_GFLOPS=69.291
+SHORTK_CHECK M=512 MB=64 NC=64 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=0 ms=2.23894 equivalent_GFLOPS=479.576
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=1 ms=2.14476 equivalent_GFLOPS=500.635
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=0 rep=2 ms=2.21702 equivalent_GFLOPS=484.317
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=0 ms=2.37223 equivalent_GFLOPS=452.630
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=1 ms=2.43016 equivalent_GFLOPS=441.839
+SHORTK_PERF M=512 MB=64 NC=64 KC=64 order=0 reconstruct=1 rep=2 ms=2.42363 equivalent_GFLOPS=443.030
+SHORTK_CHECK M=512 MB=64 NC=128 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=0 rep=0 ms=2.01700 equivalent_GFLOPS=532.345
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=0 rep=1 ms=2.00579 equivalent_GFLOPS=535.322
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=0 rep=2 ms=2.02277 equivalent_GFLOPS=530.827
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=1 rep=0 ms=2.16309 equivalent_GFLOPS=496.392
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=1 rep=1 ms=2.15450 equivalent_GFLOPS=498.372
+SHORTK_PERF M=512 MB=64 NC=128 KC=64 order=0 reconstruct=1 rep=2 ms=2.15247 equivalent_GFLOPS=498.841
+SHORTK_CHECK M=512 MB=128 NC=64 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=0 rep=0 ms=1.58337 equivalent_GFLOPS=678.135
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=0 rep=1 ms=1.58587 equivalent_GFLOPS=677.067
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=0 rep=2 ms=1.57870 equivalent_GFLOPS=680.144
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=1 rep=0 ms=1.71321 equivalent_GFLOPS=626.742
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=1 rep=1 ms=1.71856 equivalent_GFLOPS=624.790
+SHORTK_PERF M=512 MB=128 NC=64 KC=64 order=0 reconstruct=1 rep=2 ms=1.71555 equivalent_GFLOPS=625.888
+SHORTK_CHECK M=512 MB=128 NC=128 KC=64 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=0 rep=0 ms=1.42287 equivalent_GFLOPS=754.631
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=0 rep=1 ms=1.39427 equivalent_GFLOPS=770.109
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=0 rep=2 ms=1.40637 equivalent_GFLOPS=763.485
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=1 rep=0 ms=1.53015 equivalent_GFLOPS=701.723
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=1 rep=1 ms=1.53899 equivalent_GFLOPS=697.693
+SHORTK_PERF M=512 MB=128 NC=128 KC=64 order=0 reconstruct=1 rep=2 ms=1.52537 equivalent_GFLOPS=703.922
+SHORTK_CHECK M=512 MB=64 NC=64 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=0 ms=1.58489 equivalent_GFLOPS=677.489
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=1 ms=1.57893 equivalent_GFLOPS=680.046
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=0 rep=2 ms=1.59120 equivalent_GFLOPS=674.799
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=0 ms=1.73397 equivalent_GFLOPS=619.238
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=1 ms=1.72488 equivalent_GFLOPS=622.504
+SHORTK_PERF M=512 MB=64 NC=64 KC=128 order=0 reconstruct=1 rep=2 ms=1.71808 equivalent_GFLOPS=624.967
+SHORTK_CHECK M=512 MB=64 NC=128 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=0 rep=0 ms=1.34328 equivalent_GFLOPS=799.342
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=0 rep=1 ms=1.36273 equivalent_GFLOPS=787.937
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=0 rep=2 ms=1.32800 equivalent_GFLOPS=808.539
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=1 rep=0 ms=1.53826 equivalent_GFLOPS=698.023
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=1 rep=1 ms=1.49035 equivalent_GFLOPS=720.463
+SHORTK_PERF M=512 MB=64 NC=128 KC=128 order=0 reconstruct=1 rep=2 ms=1.49969 equivalent_GFLOPS=715.977
+SHORTK_CHECK M=512 MB=128 NC=64 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=0 rep=0 ms=1.22615 equivalent_GFLOPS=875.699
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=0 rep=1 ms=1.23026 equivalent_GFLOPS=872.775
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=0 rep=2 ms=1.20988 equivalent_GFLOPS=887.477
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=1 rep=0 ms=1.36047 equivalent_GFLOPS=789.242
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=1 rep=1 ms=1.36121 equivalent_GFLOPS=788.814
+SHORTK_PERF M=512 MB=128 NC=64 KC=128 order=0 reconstruct=1 rep=2 ms=1.35524 equivalent_GFLOPS=792.288
+SHORTK_CHECK M=512 MB=128 NC=128 KC=128 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=0 rep=0 ms=0.96648 equivalent_GFLOPS=1110.983
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=0 rep=1 ms=0.96636 equivalent_GFLOPS=1111.125
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=0 rep=2 ms=0.96518 equivalent_GFLOPS=1112.479
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=1 rep=0 ms=1.11368 equivalent_GFLOPS=964.135
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=1 rep=1 ms=1.10732 equivalent_GFLOPS=969.679
+SHORTK_PERF M=512 MB=128 NC=128 KC=128 order=0 reconstruct=1 rep=2 ms=1.10494 equivalent_GFLOPS=971.765
+SHORTK_CHECK M=512 MB=64 NC=64 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=0 ms=1.37243 equivalent_GFLOPS=782.368
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=1 ms=1.38266 equivalent_GFLOPS=776.577
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=0 rep=2 ms=1.38501 equivalent_GFLOPS=775.261
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=0 ms=1.50374 equivalent_GFLOPS=714.047
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=1 ms=1.50629 equivalent_GFLOPS=712.838
+SHORTK_PERF M=512 MB=64 NC=64 KC=256 order=0 reconstruct=1 rep=2 ms=1.49848 equivalent_GFLOPS=716.554
+SHORTK_CHECK M=512 MB=64 NC=128 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=0 rep=0 ms=1.12191 equivalent_GFLOPS=957.063
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=0 rep=1 ms=1.11627 equivalent_GFLOPS=961.904
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=0 rep=2 ms=1.12025 equivalent_GFLOPS=958.486
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=1 rep=0 ms=1.24697 equivalent_GFLOPS=861.080
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=1 rep=1 ms=1.24401 equivalent_GFLOPS=863.133
+SHORTK_PERF M=512 MB=64 NC=128 KC=256 order=0 reconstruct=1 rep=2 ms=1.25369 equivalent_GFLOPS=856.466
+SHORTK_CHECK M=512 MB=128 NC=64 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=0 rep=0 ms=1.11036 equivalent_GFLOPS=967.021
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=0 rep=1 ms=1.12146 equivalent_GFLOPS=957.447
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=0 rep=2 ms=1.13198 equivalent_GFLOPS=948.549
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=1 rep=0 ms=1.22729 equivalent_GFLOPS=874.885
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=1 rep=1 ms=1.24105 equivalent_GFLOPS=865.187
+SHORTK_PERF M=512 MB=128 NC=64 KC=256 order=0 reconstruct=1 rep=2 ms=1.24068 equivalent_GFLOPS=865.445
+SHORTK_CHECK M=512 MB=128 NC=128 KC=256 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=0 rep=0 ms=0.82122 equivalent_GFLOPS=1307.494
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=0 rep=1 ms=0.81536 equivalent_GFLOPS=1316.891
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=0 rep=2 ms=0.81476 equivalent_GFLOPS=1317.861
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=1 rep=0 ms=0.94705 equivalent_GFLOPS=1133.780
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=1 rep=1 ms=0.97755 equivalent_GFLOPS=1098.402
+SHORTK_PERF M=512 MB=128 NC=128 KC=256 order=0 reconstruct=1 rep=2 ms=0.95510 equivalent_GFLOPS=1124.224
+SHORTK_CHECK M=512 MB=64 NC=64 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=0 ms=1.41401 equivalent_GFLOPS=759.359
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=1 ms=1.41008 equivalent_GFLOPS=761.474
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=0 rep=2 ms=1.39583 equivalent_GFLOPS=769.250
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=0 ms=1.53805 equivalent_GFLOPS=698.117
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=1 ms=1.52699 equivalent_GFLOPS=703.176
+SHORTK_PERF M=512 MB=64 NC=64 KC=512 order=0 reconstruct=1 rep=2 ms=1.52403 equivalent_GFLOPS=704.539
+SHORTK_CHECK M=512 MB=64 NC=128 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=0 rep=0 ms=1.14686 equivalent_GFLOPS=936.244
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=0 rep=1 ms=1.14027 equivalent_GFLOPS=941.652
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=0 rep=2 ms=1.13396 equivalent_GFLOPS=946.898
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=1 rep=0 ms=1.27065 equivalent_GFLOPS=845.034
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=1 rep=1 ms=1.28439 equivalent_GFLOPS=835.994
+SHORTK_PERF M=512 MB=64 NC=128 KC=512 order=0 reconstruct=1 rep=2 ms=1.27159 equivalent_GFLOPS=844.408
+SHORTK_CHECK M=512 MB=128 NC=64 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=0 rep=0 ms=1.12471 equivalent_GFLOPS=954.680
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=0 rep=1 ms=1.13765 equivalent_GFLOPS=943.824
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=0 rep=2 ms=1.12406 equivalent_GFLOPS=955.238
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=1 rep=0 ms=1.27462 equivalent_GFLOPS=842.400
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=1 rep=1 ms=1.25702 equivalent_GFLOPS=854.197
+SHORTK_PERF M=512 MB=128 NC=64 KC=512 order=0 reconstruct=1 rep=2 ms=1.25861 equivalent_GFLOPS=853.116
+SHORTK_CHECK M=512 MB=128 NC=128 KC=512 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=0 rep=0 ms=0.82052 equivalent_GFLOPS=1308.610
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=0 rep=1 ms=0.81832 equivalent_GFLOPS=1312.128
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=0 rep=2 ms=0.81361 equivalent_GFLOPS=1319.718
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=1 rep=0 ms=0.96531 equivalent_GFLOPS=1112.333
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=1 rep=1 ms=0.96057 equivalent_GFLOPS=1117.822
+SHORTK_PERF M=512 MB=128 NC=128 KC=512 order=0 reconstruct=1 rep=2 ms=0.95977 equivalent_GFLOPS=1118.746
+SHORTK_CHECK M=512 MB=64 NC=64 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=0 ms=1.43792 equivalent_GFLOPS=746.731
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=1 ms=1.42843 equivalent_GFLOPS=751.694
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=0 rep=2 ms=1.38511 equivalent_GFLOPS=775.205
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=0 ms=1.50896 equivalent_GFLOPS=711.575
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=1 ms=1.50820 equivalent_GFLOPS=711.937
+SHORTK_PERF M=512 MB=64 NC=64 KC=1024 order=0 reconstruct=1 rep=2 ms=1.53319 equivalent_GFLOPS=700.330
+SHORTK_CHECK M=512 MB=64 NC=128 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=0 rep=0 ms=1.13720 equivalent_GFLOPS=944.200
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=0 rep=1 ms=1.12438 equivalent_GFLOPS=954.960
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=0 rep=2 ms=1.12066 equivalent_GFLOPS=958.130
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=1 rep=0 ms=1.27069 equivalent_GFLOPS=845.006
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=1 rep=1 ms=1.31867 equivalent_GFLOPS=814.262
+SHORTK_PERF M=512 MB=64 NC=128 KC=1024 order=0 reconstruct=1 rep=2 ms=1.27103 equivalent_GFLOPS=844.780
+SHORTK_CHECK M=512 MB=128 NC=64 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=0 rep=0 ms=1.14303 equivalent_GFLOPS=939.381
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=0 rep=1 ms=1.12101 equivalent_GFLOPS=957.834
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=0 rep=2 ms=1.11940 equivalent_GFLOPS=959.211
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=1 rep=0 ms=1.26108 equivalent_GFLOPS=851.445
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=1 rep=1 ms=1.26058 equivalent_GFLOPS=851.781
+SHORTK_PERF M=512 MB=128 NC=64 KC=1024 order=0 reconstruct=1 rep=2 ms=1.26843 equivalent_GFLOPS=846.511
+SHORTK_CHECK M=512 MB=128 NC=128 KC=1024 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=0 rep=0 ms=0.83563 equivalent_GFLOPS=1284.952
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=0 rep=1 ms=0.85071 equivalent_GFLOPS=1262.174
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=0 rep=2 ms=0.82690 equivalent_GFLOPS=1298.518
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=1 rep=0 ms=0.95574 equivalent_GFLOPS=1123.464
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=1 rep=1 ms=0.97544 equivalent_GFLOPS=1100.778
+SHORTK_PERF M=512 MB=128 NC=128 KC=1024 order=0 reconstruct=1 rep=2 ms=0.97219 equivalent_GFLOPS=1104.458
+SHORTK_CHECK M=512 MB=64 NC=64 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=0 ms=1.35583 equivalent_GFLOPS=791.943
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=1 ms=1.32220 equivalent_GFLOPS=812.088
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=0 rep=2 ms=1.32240 equivalent_GFLOPS=811.967
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=0 ms=1.45012 equivalent_GFLOPS=740.448
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=1 ms=1.47476 equivalent_GFLOPS=728.077
+SHORTK_PERF M=512 MB=64 NC=64 KC=2048 order=0 reconstruct=1 rep=2 ms=1.43704 equivalent_GFLOPS=747.191
+SHORTK_CHECK M=512 MB=64 NC=128 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=0 rep=0 ms=1.13159 equivalent_GFLOPS=948.881
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=0 rep=1 ms=1.14239 equivalent_GFLOPS=939.907
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=0 rep=2 ms=1.16250 equivalent_GFLOPS=923.645
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=1 rep=0 ms=1.25871 equivalent_GFLOPS=853.053
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=1 rep=1 ms=1.32440 equivalent_GFLOPS=810.737
+SHORTK_PERF M=512 MB=64 NC=128 KC=2048 order=0 reconstruct=1 rep=2 ms=1.27623 equivalent_GFLOPS=841.340
+SHORTK_CHECK M=512 MB=128 NC=64 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=0 rep=0 ms=1.22723 equivalent_GFLOPS=874.932
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=0 rep=1 ms=1.24194 equivalent_GFLOPS=864.567
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=0 rep=2 ms=1.23386 equivalent_GFLOPS=870.231
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=1 rep=0 ms=1.36398 equivalent_GFLOPS=787.214
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=1 rep=1 ms=1.36199 equivalent_GFLOPS=788.361
+SHORTK_PERF M=512 MB=128 NC=64 KC=2048 order=0 reconstruct=1 rep=2 ms=1.35753 equivalent_GFLOPS=790.951
+SHORTK_CHECK M=512 MB=128 NC=128 KC=2048 order=0 outputs=128 qerror=2.043e-14 PASS
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=0 rep=0 ms=1.00779 equivalent_GFLOPS=1065.443
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=0 rep=1 ms=0.99465 equivalent_GFLOPS=1079.514
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=0 rep=2 ms=0.98788 equivalent_GFLOPS=1086.916
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=1 rep=0 ms=1.14433 equivalent_GFLOPS=938.314
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=1 rep=1 ms=1.15400 equivalent_GFLOPS=930.451
+SHORTK_PERF M=512 MB=128 NC=128 KC=2048 order=0 reconstruct=1 rep=2 ms=1.14002 equivalent_GFLOPS=941.864

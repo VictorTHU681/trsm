@@ -1,0 +1,58 @@
+SHORTK_PMU KC=64 rep=0 threads=38 scaled=0 enabled=55897790 running=55897790 cpu_cycles=81665570 inst_retired=83669634 l2d_cache_refill=4652278 l1d_cache_refill=7770789 stall_frontend=707064 stall_backend=51496070
+SHORTK_PMU KC=64 rep=1 threads=38 scaled=0 enabled=132549220 running=132549220 cpu_cycles=84823765 inst_retired=82183734 l2d_cache_refill=4643927 l1d_cache_refill=7794910 stall_frontend=586281 stall_backend=55113359
+SHORTK_PMU KC=64 rep=2 threads=38 scaled=0 enabled=209146030 running=209146030 cpu_cycles=83961145 inst_retired=83778912 l2d_cache_refill=4587034 l1d_cache_refill=7796740 stall_frontend=545916 stall_backend=53899851
+SHORTK_PMU KC=64 rep=3 threads=38 scaled=0 enabled=284885080 running=284885080 cpu_cycles=84174651 inst_retired=81080976 l2d_cache_refill=4638285 l1d_cache_refill=7799234 stall_frontend=549402 stall_backend=54783464
+SHORTK_PMU KC=64 rep=4 threads=38 scaled=0 enabled=362225800 running=362225800 cpu_cycles=84215631 inst_retired=83289156 l2d_cache_refill=4625893 l1d_cache_refill=7794118 stall_frontend=519003 stall_backend=54289176
+SHORTK_PMU KC=64 rep=5 threads=38 scaled=0 enabled=439479990 running=439479990 cpu_cycles=84775021 inst_retired=83768148 l2d_cache_refill=4651382 l1d_cache_refill=7786792 stall_frontend=537433 stall_backend=54731473
+SHORTK_PMU KC=256 rep=0 threads=38 scaled=0 enabled=496222800 running=496222800 cpu_cycles=53752320 inst_retired=43761684 l2d_cache_refill=2623254 l1d_cache_refill=4283234 stall_frontend=297148 stall_backend=38841887
+SHORTK_PMU KC=256 rep=1 threads=38 scaled=0 enabled=554334370 running=554334370 cpu_cycles=55843432 inst_retired=44618736 l2d_cache_refill=2621181 l1d_cache_refill=4273894 stall_frontend=340183 stall_backend=40676825
+SHORTK_PMU KC=256 rep=2 threads=38 scaled=0 enabled=611940190 running=611940190 cpu_cycles=54207847 inst_retired=42303504 l2d_cache_refill=2609120 l1d_cache_refill=4268131 stall_frontend=333705 stall_backend=39630339
+SHORTK_PMU KC=256 rep=3 threads=38 scaled=0 enabled=669719560 running=669719560 cpu_cycles=55373378 inst_retired=43659846 l2d_cache_refill=2623222 l1d_cache_refill=4271960 stall_frontend=332575 stall_backend=40452650
+SHORTK_PMU KC=256 rep=4 threads=38 scaled=0 enabled=727420860 running=727420860 cpu_cycles=55082308 inst_retired=44704554 l2d_cache_refill=2621720 l1d_cache_refill=4280234 stall_frontend=334594 stall_backend=39900587
+SHORTK_PMU KC=256 rep=5 threads=38 scaled=0 enabled=784429040 running=784429040 cpu_cycles=54049190 inst_retired=43843842 l2d_cache_refill=2621995 l1d_cache_refill=4263972 stall_frontend=333872 stall_backend=39083967
+SHORTK_PMU KC=2048 rep=0 threads=38 scaled=0 enabled=850150190 running=850150190 cpu_cycles=68095289 inst_retired=34086632 l2d_cache_refill=2994017 l1d_cache_refill=4802538 stall_frontend=383889 stall_backend=56917667
+SHORTK_PMU KC=2048 rep=1 threads=38 scaled=0 enabled=917175500 running=917175500 cpu_cycles=68609930 inst_retired=35830082 l2d_cache_refill=2981711 l1d_cache_refill=4762105 stall_frontend=368158 stall_backend=57015394
+SHORTK_PMU KC=2048 rep=2 threads=38 scaled=0 enabled=983058920 running=983058920 cpu_cycles=68178841 inst_retired=35017832 l2d_cache_refill=2994411 l1d_cache_refill=4775289 stall_frontend=330998 stall_backend=56821799
+SHORTK_PMU KC=2048 rep=3 threads=38 scaled=0 enabled=1048091880 running=1048091880 cpu_cycles=67372278 inst_retired=35827292 l2d_cache_refill=2981314 l1d_cache_refill=4775623 stall_frontend=321929 stall_backend=55819108
+SHORTK_PMU KC=2048 rep=4 threads=38 scaled=0 enabled=1113313190 running=1113313190 cpu_cycles=66907959 inst_retired=38036438 l2d_cache_refill=2964540 l1d_cache_refill=4801626 stall_frontend=285962 stall_backend=54845458
+SHORTK_PMU KC=2048 rep=5 threads=38 scaled=0 enabled=1179621110 running=1179621110 cpu_cycles=68370860 inst_retired=34389416 l2d_cache_refill=2984252 l1d_cache_refill=4782216 stall_frontend=329691 stall_backend=57172425
+H24_CHECK variant=0 exact=0 outputs=512 error=4.441e-15 PASS
+H24_CHECK variant=1 exact=0 outputs=576 error=4.441e-15 PASS
+H24_CHECK variant=2 exact=0 outputs=576 error=4.441e-15 PASS
+H24_CHECK variant=3 exact=0 outputs=576 error=4.441e-15 PASS
+H24_CHECK variant=4 exact=0 outputs=576 error=4.441e-15 PASS
+H24_CHECK variant=0 exact=1 outputs=512 error=0.000e+00 PASS
+H24_PMU variant=0 rep=0 nr=6 enabled=3350410 running=3350410 cpu_cycles=5120897 inst_retired=10610223 l2d_cache_refill=4 l1d_cache_refill=404 stall_frontend=456 stall_backend=2065195
+H24_PERF variant=0 rep=0 ns_per_k=5.161750 cycles155=8.000712 GFLOPS=198.382332
+H24_PMU variant=0 rep=1 nr=6 enabled=6687380 running=6687380 cpu_cycles=5120686 inst_retired=10610223 l2d_cache_refill=0 l1d_cache_refill=422 stall_frontend=511 stall_backend=2064975
+H24_PERF variant=0 rep=1 ns_per_k=5.161766 cycles155=8.000737 GFLOPS=198.381731
+H24_PMU variant=0 rep=2 nr=6 enabled=10025690 running=10025690 cpu_cycles=5120393 inst_retired=10610223 l2d_cache_refill=0 l1d_cache_refill=366 stall_frontend=222 stall_backend=2065013
+H24_PERF variant=0 rep=2 ns_per_k=5.161516 cycles155=8.000349 GFLOPS=198.391340
+H24_CHECK variant=1 exact=1 outputs=576 error=0.000e+00 PASS
+H24_PMU variant=1 rep=0 nr=6 enabled=14914770 running=14914770 cpu_cycles=7524157 inst_retired=17650223 l2d_cache_refill=0 l1d_cache_refill=96 stall_frontend=2681 stall_backend=2065693
+H24_PERF variant=1 rep=0 ns_per_k=7.584703 cycles155=11.756290 GFLOPS=151.884653
+H24_PMU variant=1 rep=1 nr=6 enabled=19803320 running=19803320 cpu_cycles=7522621 inst_retired=17650223 l2d_cache_refill=0 l1d_cache_refill=130 stall_frontend=1472 stall_backend=2067867
+H24_PERF variant=1 rep=1 ns_per_k=7.583078 cycles155=11.753771 GFLOPS=151.917201
+H24_PMU variant=1 rep=2 nr=6 enabled=24691120 running=24691120 cpu_cycles=7524124 inst_retired=17650223 l2d_cache_refill=0 l1d_cache_refill=115 stall_frontend=2666 stall_backend=2065689
+H24_PERF variant=1 rep=2 ns_per_k=7.584656 cycles155=11.756217 GFLOPS=151.885591
+H24_CHECK variant=2 exact=1 outputs=576 error=0.000e+00 PASS
+H24_PMU variant=2 rep=0 nr=6 enabled=28376410 running=28376410 cpu_cycles=5660011 inst_retired=17650223 l2d_cache_refill=23 l1d_cache_refill=3743251 stall_frontend=199 stall_backend=519625
+H24_PERF variant=2 rep=0 ns_per_k=5.705516 cycles155=8.843549 GFLOPS=201.909884
+H24_PMU variant=2 rep=1 nr=6 enabled=32055010 running=32055010 cpu_cycles=5650766 inst_retired=17650223 l2d_cache_refill=3 l1d_cache_refill=3711987 stall_frontend=175 stall_backend=510420
+H24_PERF variant=2 rep=1 ns_per_k=5.696187 cycles155=8.829091 GFLOPS=202.240534
+H24_PMU variant=2 rep=2 nr=6 enabled=35744970 running=35744970 cpu_cycles=5666493 inst_retired=17650223 l2d_cache_refill=2 l1d_cache_refill=3772304 stall_frontend=172 stall_backend=526126
+H24_PERF variant=2 rep=2 ns_per_k=5.712031 cycles155=8.853648 GFLOPS=201.679569
+H24_CHECK variant=3 exact=1 outputs=576 error=0.000e+00 PASS
+H24_PMU variant=3 rep=0 nr=6 enabled=43211060 running=43211060 cpu_cycles=11520358 inst_retired=20850223 l2d_cache_refill=0 l1d_cache_refill=92 stall_frontend=198 stall_backend=5029985
+H24_PERF variant=3 rep=0 ns_per_k=11.613109 cycles155=18.000320 GFLOPS=99.198239
+H24_PMU variant=3 rep=1 nr=6 enabled=50677970 running=50677970 cpu_cycles=11520337 inst_retired=20850223 l2d_cache_refill=0 l1d_cache_refill=122 stall_frontend=160 stall_backend=5029989
+H24_PERF variant=3 rep=1 ns_per_k=11.613078 cycles155=18.000271 GFLOPS=99.198506
+H24_PMU variant=3 rep=2 nr=6 enabled=58145310 running=58145310 cpu_cycles=11520320 inst_retired=20850223 l2d_cache_refill=0 l1d_cache_refill=105 stall_frontend=149 stall_backend=5030025
+H24_PERF variant=3 rep=2 ns_per_k=11.613078 cycles155=18.000271 GFLOPS=99.198506
+H24_CHECK variant=4 exact=1 outputs=576 error=0.000e+00 PASS
+H24_PMU variant=4 rep=0 nr=6 enabled=61489480 running=61489480 cpu_cycles=5130495 inst_retired=17010223 l2d_cache_refill=2 l1d_cache_refill=594 stall_frontend=199 stall_backend=122
+H24_PERF variant=4 rep=0 ns_per_k=5.171719 cycles155=8.016164 GFLOPS=222.749932
+H24_PMU variant=4 rep=1 nr=6 enabled=64834000 running=64834000 cpu_cycles=5130532 inst_retired=17010223 l2d_cache_refill=0 l1d_cache_refill=632 stall_frontend=221 stall_backend=157
+H24_PERF variant=4 rep=1 ns_per_k=5.171687 cycles155=8.016116 GFLOPS=222.751278
+H24_PMU variant=4 rep=2 nr=6 enabled=68177840 running=68177840 cpu_cycles=5130451 inst_retired=17010223 l2d_cache_refill=0 l1d_cache_refill=583 stall_frontend=172 stall_backend=141
+H24_PERF variant=4 rep=2 ns_per_k=5.171672 cycles155=8.016091 GFLOPS=222.751951

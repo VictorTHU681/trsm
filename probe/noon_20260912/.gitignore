@@ -1,0 +1,9 @@
+# Sources are generated from the pinned production commit and tracked generators.
+*.c
+__pycache__/
+hybrid-peak
+hybrid24*
+rns-shortk*
+sve-load-peak
+owner-import47
+!make-*.py
