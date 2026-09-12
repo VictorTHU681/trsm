@@ -53,6 +53,50 @@ static double run(const cfg_t* g, long nchunk, char* dummy)
 static const char* names[32]; static double vals[32]; static int nres = 0;
 static void show(const char* name, double r) { names[nres] = name; vals[nres++] = r; }   // 流式模式下不能 printf（syscall 清 SM → SIGILL）
 
+// 纯 K 循环原型（无 drain）：测 fmopa 延迟藏匿——4-tile 交错 vs 8-tile 交错
+__attribute__((noinline)) static void probe_k4(const double* a, const double* b, long K) {
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "zero {za0.d,za1.d,za2.d,za3.d}\n\t"
+        "ld1d z0.d,p0/z,[%[a]]\n\t ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+        "ld1d z4.d,p0/z,[%[b]]\n\t ld1d z5.d,p0/z,[%[b],#1,mul vl]\n\t"
+        "mov x9,%[K]\n\t"
+        "1:\n\t"
+        "fmopa za0.d,p0/m,p0/m,z0.d,z4.d\n\t"
+        "fmopa za1.d,p0/m,p0/m,z0.d,z5.d\n\t"
+        "fmopa za2.d,p0/m,p0/m,z1.d,z4.d\n\t"
+        "fmopa za3.d,p0/m,p0/m,z1.d,z5.d\n\t"
+        "add %[a],%[a],#128\n\t add %[b],%[b],#128\n\t"
+        "ld1d z0.d,p0/z,[%[a]]\n\t ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+        "ld1d z4.d,p0/z,[%[b]]\n\t ld1d z5.d,p0/z,[%[b],#1,mul vl]\n\t"
+        "subs x9,x9,#1\n\t b.ne 1b\n\t"
+        : [a]"+&r"(a),[b]"+&r"(b) : [K]"r"(K) : "memory","cc","x9",VCLOB,PCLOB);
+}
+__attribute__((noinline)) static void probe_k8(const double* a, const double* b, long K) {
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "zero {za0.d,za1.d,za2.d,za3.d}\n\t zero {za4.d,za5.d,za6.d,za7.d}\n\t"
+        "ld1d z0.d,p0/z,[%[a]]\n\t ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+        "ld1d z2.d,p0/z,[%[a],#2,mul vl]\n\t ld1d z3.d,p0/z,[%[a],#3,mul vl]\n\t"
+        "ld1d z4.d,p0/z,[%[b]]\n\t ld1d z5.d,p0/z,[%[b],#1,mul vl]\n\t"
+        "mov x9,%[K]\n\t"
+        "1:\n\t"
+        "fmopa za0.d,p0/m,p0/m,z0.d,z4.d\n\t"
+        "fmopa za1.d,p0/m,p0/m,z0.d,z5.d\n\t"
+        "fmopa za2.d,p0/m,p0/m,z1.d,z4.d\n\t"
+        "fmopa za3.d,p0/m,p0/m,z1.d,z5.d\n\t"
+        "fmopa za4.d,p0/m,p0/m,z2.d,z4.d\n\t"
+        "fmopa za5.d,p0/m,p0/m,z2.d,z5.d\n\t"
+        "fmopa za6.d,p0/m,p0/m,z3.d,z4.d\n\t"
+        "fmopa za7.d,p0/m,p0/m,z3.d,z5.d\n\t"
+        "add %[a],%[a],#256\n\t add %[b],%[b],#128\n\t"
+        "ld1d z0.d,p0/z,[%[a]]\n\t ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+        "ld1d z2.d,p0/z,[%[a],#2,mul vl]\n\t ld1d z3.d,p0/z,[%[a],#3,mul vl]\n\t"
+        "ld1d z4.d,p0/z,[%[b]]\n\t ld1d z5.d,p0/z,[%[b],#1,mul vl]\n\t"
+        "subs x9,x9,#1\n\t b.ne 1b\n\t"
+        : [a]"+&r"(a),[b]"+&r"(b) : [K]"r"(K) : "memory","cc","x9",VCLOB,PCLOB);
+}
+
 int main(void)
 {
     char* dummy = (char*)al(1 << 20);
@@ -64,6 +108,20 @@ int main(void)
     for (long i = 0; i < 224 * 1024 / 8; i += 5) Ap[i] = 1.0 / (i + 2);
     for (long i = 0; i < 512 * 96; i += 3) CB[i] = 1.0 / (i + 7);
     sme_start();
+    // 延迟藏匿原型：4-tile vs 8-tile 纯 K 循环（每步分别 4 / 8 fmopa，按 fmopa 归一）
+    {
+        const long KK = 4096, reps = 4000;
+        uint64_t t0 = cyc();
+        for (long r = 0; r < reps; r++) probe_k4(Abig, Bbig, KK);
+        double c4 = (double)(cyc() - t0) / reps / KK * (1.55e9 / (double)cyc_hz());   // 周期/步（4 fmopa）
+        t0 = cyc();
+        for (long r = 0; r < reps; r++) probe_k8(Abig, Bbig, KK);
+        double c8 = (double)(cyc() - t0) / reps / KK * (1.55e9 / (double)cyc_hz());   // 周期/步（8 fmopa）
+        show("k4 纯循环 周期/4fmopa（理想 4）", c4);
+        show("k8 纯循环 周期/8fmopa（理想 8）", c8);
+        show("k4 每fmopa", c4 / 4);
+        show("k8 每fmopa", c8 / 8);
+    }
     double r1;
     {
         uint64_t t0 = cyc();
