@@ -1475,6 +1475,7 @@ typedef struct {
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
     int oant;               // fast_owner：GEMM 内核 A 装载 1=ldnt1d（旧）0=ld1d（TRSM_OANT）
+    int onc;                // fast_owner 面板宽（TRSM_ONC，96 或 128）：128 时面板数 −1/3，A 前缀重读流量同比降
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -1665,12 +1666,14 @@ static inline void za_flush_duplex_bank4(double*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank0_l(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank0_n128(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank4_n128(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4_l(const double*, const double*, double*, const char*, const char*, const char*);
 
 // Full 16x32 diagonal results can go straight from ZA to the resident panel.
 // All columns are independent; storing this tile before the next column tile
 // also removes the temporary ZA dump and its subsequent SVE reload.
-#define OWNER_DSTORE_ROW(T0, T1, T2, T3, R) \
+#define OWNER_DSTORE_ROW(T0, T1, T2, T3, R, ST) \
     "mov w12, #" #R "\n\t" \
     "mova z16.d, p0/m, za" #T0 "h.d[w12, 0]\n\t" \
     "mova z17.d, p0/m, za" #T1 "h.d[w12, 0]\n\t" \
@@ -1680,22 +1683,30 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_l(const doub
     "st1d z17.d, p0, [%[c], #1, mul vl]\n\t" \
     "st1d z18.d, p0, [%[c], #2, mul vl]\n\t" \
     "st1d z19.d, p0, [%[c], #3, mul vl]\n\t" \
-    "add %[c], %[c], #768\n\t"
-#define OWNER_DSTORE_ROWS(T0, T1, T2, T3) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 0) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 1) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 2) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 3) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 4) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 5) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 6) \
-    OWNER_DSTORE_ROW(T0, T1, T2, T3, 7)
+    "add %[c], %[c], #" #ST "\n\t"
+#define OWNER_DSTORE_ROWS(T0, T1, T2, T3, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 0, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 1, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 2, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 3, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 4, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 5, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 6, ST) \
+    OWNER_DSTORE_ROW(T0, T1, T2, T3, 7, ST)
 static inline void za_owner_dstore(double* c)
 {
     asm volatile(
         "ptrue p0.d\n\t"
-        OWNER_DSTORE_ROWS(0, 1, 2, 3)
-        OWNER_DSTORE_ROWS(4, 5, 6, 7)
+        OWNER_DSTORE_ROWS(0, 1, 2, 3, 768)
+        OWNER_DSTORE_ROWS(4, 5, 6, 7, 768)
+        : [c] "+&r"(c) :: "memory", "cc", "x12", VCLOB, PCLOB);
+}
+static inline void za_owner_dstore_n128(double* c)
+{
+    asm volatile(
+        "ptrue p0.d\n\t"
+        OWNER_DSTORE_ROWS(0, 1, 2, 3, 1024)
+        OWNER_DSTORE_ROWS(4, 5, 6, 7, 1024)
         : [c] "+&r"(c) :: "memory", "cc", "x12", VCLOB, PCLOB);
 }
 #undef OWNER_DSTORE_ROW
@@ -1706,12 +1717,12 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     if (!fast_owner && tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
     const task_t* tkn = tkn_guess;
-    const long mb = (fast_owner ? 64 : c->mb), nc = (fast_owner ? 96 : c->nc), kc = (fast_owner ? 64 : c->kc), ncp = (fast_owner ? 96 : c->ncp);
+    const long mb = (fast_owner ? 64 : c->mb), nc = (fast_owner ? c->onc : c->nc), kc = (fast_owner ? 64 : c->kc), ncp = (fast_owner ? c->onc : c->ncp);
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = fast_owner ? 64 : c->m - i0; if (mbi > mb) mbi = mb;
     const long c0 = p * nc;
-    long nci = fast_owner ? 96 : c->n - c0; if (nci > nc) nci = nc;
+    long nci = fast_owner ? nc : c->n - c0; if (nci > nc) nci = nc;
     const int S = fast_owner ? 4 : c->S_of[i];
     const long ntile = (nci + 31) / 32;
     double* cb = tb->cbuf;
@@ -1834,7 +1845,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         hosted_next = host_now;
         // 2 条之后（预取目标）：转置读的是 q+1 的行，因此预取 q+2；不托管时预取 q+1
         long pfq = q + (host_now ? 2 : 1);
-        for (long t = 0; t < (fast_owner ? 6 : ntile); t++) {
+        for (long t = 0; t < (fast_owner ? nc / 16 : ntile); t++) {
             pf_t pf = pf_dummy;
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
             if (pf_on && pfq < nstrips) {
@@ -1866,7 +1877,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 long pr0 = i0 + (fast_owner ? 32 * (pfq % (S / 2)) : 16 * (pfq % S));
                 long pk0 = (chfirst + pfq / (fast_owner ? S / 2 : S)) * kc;
                 const double* An = c->pp[cpy] + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
-                pf.p2 = (const char*)An + (size_t)((fast_owner ? 6 : ntile) + t) * (kk / 2) * 64;
+                pf.p2 = (const char*)An + (size_t)((fast_owner ? nc / 16 : ntile) + t) * (kk / 2) * 64;
                 p2_used = 1;
             }
             if (pf_on && !p2_used && k0n < kend) {
@@ -1888,7 +1899,11 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             if (fast_owner) {
                 // Adjacent row strips share one 16-column X tile in L1.
                 double* cur = acc + 16L * r * ncp + 16 * t;
-                if (c->oant) {
+                if (ncp == 128) {
+                PROF_T(c, kloop_owner_bank0_n128(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
+                PROF_T(c, kloop_owner_bank4_n128(A + 1024, Xk + 16 * t, cur, pf.p + 1024, pf.p2 + 1024,
+                    (const char*)(cur + 16 * ncp)), t_kloop);
+                } else if (c->oant) {
                 PROF_T(c, kloop_owner_bank0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
                 PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, pf.p + 1024, pf.p2 + 1024,
                     (const char*)(cur + 16 * ncp)), t_kloop);
@@ -2021,7 +2036,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 const int dnt = (fast_owner ? 1 : c->dnt) && K <= 256;
                 if (fast_owner) {
                     PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
-                    PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump);
+                    if (ncp == 128) { PROF_T(c, za_owner_dstore_n128(cb + 16L * s * ncp + 32 * t), t_ddump); }
+                    else { PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump); }
                     if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
                     continue;
                 }
@@ -2353,6 +2369,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0(const double
  "mov w12, #7\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 
+// nc=128 变体（TRSM_ONC=128）：B/C 行距 1024 B
+static inline __attribute__((always_inline)) void kloop_owner_bank0_n128(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #1\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #2\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #3\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #4\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #5\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #6\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_NEXT(1024, "ldnt1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #7\n\t" DUPLEX0_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
 // A 用 ld1d 的变体（TRSM_OANT=0）：owner 每面板对 A 前缀重读 7 次、唯一足迹 224KB+cbuf 393KB<L2，正常驻留优先级让重读吃 L2 命中
 static inline __attribute__((always_inline)) void kloop_owner_bank0_l(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
@@ -2561,6 +2603,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4(const double
  "mov w12, #5\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #6\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// nc=128 变体（TRSM_ONC=128）：B/C 行距 1024 B
+static inline __attribute__((always_inline)) void kloop_owner_bank4_n128(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_NEXT(1024, "ldnt1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(1024, 1024, 8192, 8256, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 
 // A 用 ld1d 的变体（TRSM_OANT=0）：owner 每面板对 A 前缀重读 7 次、唯一足迹 224KB+cbuf 393KB<L2，正常驻留优先级让重读吃 L2 命中
@@ -3567,7 +3635,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     int owner_auto = env_int("TRSM_OWNER", -1);
     if (owner_auto < 0) owner_auto = (m <= 1024 && n >= 2L * nth_hint * 96);
     // 默认 mb192/nc128/kc64：L2 足迹 cbuf 192K + 2×(A 段 96K + B 段 64K) = 512 KB；kc=64 时回写由 kloop_epi64 全程托管
-    int mb = env_int("TRSM_MB", owner_auto ? 64 : (m > 1024 && n >= 8192 ? 256 : 192)), nc = env_int("TRSM_NC", owner_auto ? 96 : 128), kc = env_int("TRSM_KC", 64);
+    int onc = env_int("TRSM_ONC", 96); if (onc != 128) onc = 96;
+    int mb = env_int("TRSM_MB", owner_auto ? 64 : (m > 1024 && n >= 8192 ? 256 : 192)), nc = env_int("TRSM_NC", owner_auto ? onc : 128), kc = env_int("TRSM_KC", 64);
     if (mb < 32) mb = 32;
     mb = (mb + 31) & ~31;
     if (nc < 32) nc = 32;
@@ -3685,7 +3754,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
 
     // Paired row strips require full 64-row tasks and full 96-column panels.
-    if (c.owner && m % 64 == 0 && n % 96 == 0 && env_int("TRSM_SPECIAL", 1) && mb == 64 && nc == 96 && kc == 64 && c.ncp == 96
+    c.onc = onc;
+    if (c.owner && m % 64 == 0 && n % onc == 0 && env_int("TRSM_SPECIAL", 1) && mb == 64 && nc == onc && kc == 64 && c.ncp == onc
         && !c.jit && c.ppmode == 0 && c.lchunk && !c.direct && c.ant && c.pf && c.reserve
         && !c.xpnt && c.ntstore && !c.swhost && c.dnt && c.packmode == 1) c.special = 5;
     // Tune B prefetch separately for the paired-row owner loop.
