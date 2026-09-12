@@ -5276,9 +5276,15 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 面板边界平移：bench 的 B 只 16 B 对齐（大块 malloc 恒为行首 +16 B），行距 ldb*8 为 64 B 整数倍时全矩阵行段偏移恒定。
     // 内部面板起点平移 cshift 列使 (B + c0*8) 落在 cache 行边界：装载无跨行向量（每条 svld1 从 2 次 L1 访问降到 1 次）、
     // 非临时回写无 partial-line RMW。首面板缩为 nc−cshift 列、末面板 cshift 列，由派发处路由到通用路径。
+    // 门控 npan≥64：多出的尾面板要整读一遍 A 流（成本 ≈ A 流量/npan），窄 X（如 17024×512，npan=4）A 占总流量 ~78%，
+    // 实测 +19% 灾难回退；npan≥64 时该成本 ≤1.6% A 流量，远小于对齐收益。TRSM_CSHIFT：0 关，1 自动（默认），2 强开。
     c.cshift = 0;
-    if (env_int("TRSM_CSHIFT", 1) && (((size_t)ldb * 8) & 63) == 0)
-        c.cshift = (long)(((uintptr_t)B >> 3) & 7);
+    {
+        int cs_mode = env_int("TRSM_CSHIFT", 1);
+        long npan0 = (n + nc - 1) / nc;
+        if (cs_mode && (((size_t)ldb * 8) & 63) == 0 && (cs_mode >= 2 || npan0 >= 64))
+            c.cshift = (long)(((uintptr_t)B >> 3) & 7);
+    }
     c.npan = c.cshift ? (n > nc - c.cshift ? 1 + (n - (nc - c.cshift) + nc - 1) / nc : 1) : (n + nc - 1) / nc;
     c.ncp = nc + TRSM_NCPAD;
     if (c.swhost < 0) c.swhost = c.npan <= 8;
