@@ -5442,7 +5442,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (c.ppmode == 1 && g_pp[1]) { trsm_free_buffer(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
-        if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
+        if (node0 >= 0 && g_pp_cap[0] >= off && g_pp_node[0] == (g_cpu_node >= 0 ? g_cpu_node : -1)) {
+            // 上次已因 HBM 不足落 DDR 且容量够（如 TC3 的 1.16 GB 包）：沿用，省去每次调用 ~300 µs 的 node_free_bytes sysfs 读
+            node0 = g_pp_node[0];
+        } else if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就退 DDR
             if (!HBM_ROOM(off * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
         }
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);
@@ -5529,19 +5532,19 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块
         int LA = env_int("TRSM_PACK_LA", 2);
         long gnext = 0;   // 下一个待派发的打包条
+        // 任务项显式初始化（不 memset）：任务表每次调用重建（TC1 1664 项 / TC3 1604 项），memset+补填约占 setup 的一半
+        #define TASK_INIT(t_, kind_, g_, i_, p_, seg_, nseg_, ch0_, ch1_, poff_) do { \
+            task_t* _t = (t_); _t->kind = (kind_); _t->g = (g_); _t->i = (i_); _t->p = (p_); \
+            _t->seg = (seg_); _t->nseg = (nseg_); _t->ch0 = (ch0_); _t->ch1 = (ch1_); _t->part_off = (poff_); } while (0)
         if (c.ppmode == 1) {
             long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
-            for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
+            for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
         }
         if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
             const long chunks_per_block = mb / kc;
             for (long p = 0; p < c.npan; p++)
-                for (long i = 0; i < c.nrb; i++) {
-                    task_t* t = &g_tasks[q++];
-                    memset(t, 0, sizeof *t);
-                    t->i = (int)i; t->p = (int)p; t->nseg = 1;
-                    t->ch0 = 0; t->ch1 = i * chunks_per_block;
-                }
+                for (long i = 0; i < c.nrb; i++)
+                    TASK_INIT(&g_tasks[q++], 0, 0, (int)i, (int)p, 0, 1, 0, i * chunks_per_block, 0);
             double c0 = env_int("TRSM_OWNER_C0", c.special == 5 && c.pf2 ? 160 : 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
             double rowsum = 0;
             for (long i = 0; i < c.nrb; i++) {
@@ -5572,7 +5575,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         for (long i = 0; i < c.nrb; i++) {
             if (c.ppmode == 1) {
                 long gend = (long)(i + LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
-                for (; gnext < gend; gnext++) { task_t* t = &g_tasks[q++]; memset(t, 0, sizeof *t); t->kind = 1; t->g = gnext; t->nseg = 1; }
+                for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
             }
             long nch = (i * mb) / kc;
             int nseg = 1;
