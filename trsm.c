@@ -3500,6 +3500,12 @@ static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const t
 // ===== TC2 A 驻留波前（TRSM_WAVE）：strip 静态所有权（LPT 配平）+ 面板波前流水 =====
 // 线程的 A 分片（其条带的打包 L，≈0.6 MB）跨全部面板驻留自有 L2；C 暂存在共享槽（每块 2 槽按面板奇偶复用），
 // 末完成条带的线程做对角+回写+发 flag。依赖：条带 GEMM 逐 K 段等 flag(块,面板)；槽复用等 wdiag。
+static inline void wave_spin_int(volatile const int* addr, int need)
+{   // 退避自旋：38 线程同线密集 load 会压垮一致性带宽，连带拖慢所有内核的内存操作
+    while (__atomic_load_n(addr, __ATOMIC_ACQUIRE) < need)
+        for (int z = 0; z < 256; z++) asm volatile("yield");
+}
+
 static void wave_finish_block(const ctx_t* c, tbuf_t* tb, long i, long p, double* cb)
 {
     const long mb = 256, nc = 128, kc = 64, ncp = 128;
@@ -3514,7 +3520,7 @@ static void wave_finish_block(const ctx_t* c, tbuf_t* tb, long i, long p, double
     double* scratch = tb->scratch;
     const pf_t pf_dummy = { (const char*)tb->scratch2, 1, -64, (const char*)tb->scratch2, (const char*)tb->scratch2, 0, &tb->sw };
     const svbool_t pg = svptrue_b64();
-    if (c->nobar) while (__atomic_load_n(&c->dcnt[i], __ATOMIC_ACQUIRE) < S) asm volatile("yield");
+    if (c->nobar) wave_spin_int((volatile const int*)&c->dcnt[i], (int)S);
     {
         const double* D = c->diag + c->diag_off[i];
         int pend = 0; double* pend_c = NULL; long pend_cols = 0;
@@ -3584,7 +3590,7 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
             const long S = c->S_of[i];
             double* slot = c->wbuf + ((size_t)i * 2 + (p & 1)) * mb * ncp;
             { uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-              if (p >= 2) while (__atomic_load_n(&c->wdiag[i], __ATOMIC_ACQUIRE) < (int)(p - 1)) asm volatile("yield");
+              if (p >= 2) wave_spin_int(&c->wdiag[i], (int)(p - 1));
               if (c->prof >= 2) tb->t_depi += cyc() - t0; }   // 槽守卫自旋记入 depi 槽位
             {   // 装载本条带 16 行 B → 槽（越界行/列补零）
                 long rows = c->m - (i0 + 16L * r); if (rows > 16) rows = 16;
@@ -3602,7 +3608,7 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
             if (i0 > 0) {   // GEMM：本条带 × 全 K——C 累加在线程本地 cbuf 16 行区（L2）；
                 // duplex 内核每 K 段回灌一次 C，若直写共享 HBM 槽则 C 流量 ×段数（实测 46GB≈150ms 灾难）
                 { uint64_t t0 = c->prof >= 2 ? cyc() : 0;
-                  while (__atomic_load_n(&c->pflags[g], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
+                  wave_spin_int((volatile const int*)&c->pflags[g], 1);
                   if (c->prof >= 2) tb->t_pack += cyc() - t0; }   // 打包等待记入 pack 槽位
                 double* dst = tb->cbuf;   // 本地 16×ncp 累加区（装载值已在槽中，先拷进来）
                 for (long rr = 0; rr < 16; rr++)
@@ -3612,7 +3618,7 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
                 sme_zero_za();
                 const long nch = i0 / kc;
                 for (long ch = 0; ch < nch; ch++) {
-                    PROF_T(c, wait_flag(c, (ch * kc / mb) * c->npan + p), t_wait);
+                    PROF_T(c, wave_spin_int((volatile const int*)&c->flags[(ch * kc / mb) * c->npan + p], 1), t_wait);
                     const double* A = c->pp[0] + c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024;
                     const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
                     // 真游标：ap → 同条带下一 K 段 A（8KB，4 个 t 调用 × 2KB）；
