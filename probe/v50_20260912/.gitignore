@@ -1,0 +1,17 @@
+# Generated sources and ARM executables.
+*.c
+!v47-boundary.c
+!independent-owner-switch.c
+!independent-duplex43.c
+!validate.c
+!gen-strict.c
+__pycache__/
+*.o
+*.text
+v48-synced
+owner-*
+!*-*.sh
+strict-*
+independent-*48
+validate-*48
+v49-final-boundary-alt

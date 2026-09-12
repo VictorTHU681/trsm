@@ -1,0 +1,125 @@
+INDEPENDENT m=64 n=96 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=64 n=96 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=1 maxerr=1.443e-15 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=1 maxerr=1.554e-15 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=1 maxerr=1.554e-15 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=1 maxerr=1.110e-15 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=1 maxerr=1.277e-15 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=1 maxerr=1.332e-15 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=1 maxerr=1.221e-15 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=1 maxerr=1.055e-15 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=1 maxerr=1.388e-15 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=1 maxerr=1.388e-15 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=1 maxerr=1.499e-15 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=1 maxerr=1.388e-15 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=1 maxerr=1.610e-15 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=1 maxerr=2.165e-15 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=1 maxerr=1.610e-15 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=1 maxerr=1.998e-15 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=1 maxerr=1.499e-15 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=1 maxerr=1.776e-15 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=0 maxerr=3.331e-16 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=1 maxerr=1.610e-15 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=1 maxerr=1.776e-15 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.165e-15
+V48_SYNC_SCORE round=1 tag=off shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2750.7169     3.33e-16     PASS
+V48_SYNC_SCORE round=1 tag=on shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2727.2776     3.33e-16     PASS
+V48_SYNC_SCORE round=2 tag=on shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2717.6925     3.33e-16     PASS
+V48_SYNC_SCORE round=2 tag=off shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.97    2656.6402     3.33e-16     PASS
+V48_SYNC_SCORE round=3 tag=off shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2750.7877     3.33e-16     PASS
+V48_SYNC_SCORE round=3 tag=on shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2724.1888     3.33e-16     PASS
+V48_SYNC_SCORE round=4 tag=on shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2716.6683     3.33e-16     PASS
+V48_SYNC_SCORE round=4 tag=off shape=512x19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2721.1052     3.33e-16     PASS
+V48_SYNC_SCORE round=1 tag=on shape=2432 17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.97    4201.4502     7.77e-16     PASS
+V48_SYNC_SCORE round=1 tag=on shape=17024 512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.62    4166.3100     1.50e-15     PASS

@@ -1,0 +1,336 @@
+OWNER_CURSOR48_PMU flag=0 shape=512 19968
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 28.226 ms, parallel 68.520 ms
+[trsm prof]  并行区唤醒：最慢线程 20.5 µs，平均 18.5 µs
+[trsm prof]  每线程平均 ms：prep 0.053 | load 1.120 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.001 dump 0.000 epi 0.004 dkloop 0.163 ddump 0.055 depi 0.000 store 0.114 | task 合计 2.525 | 尾部不均衡 27.021 ms（平均空闲 20.534 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=222067471 inst_retired=657562648 l2d_cache_refill=7077480 l1d_cache_refill=30605091 stall_frontend=1411035 stall_backend=42379180 enabled_ns=190189600 running_ns=190189600
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.036 ms, parallel 2.607 ms
+[trsm prof]  并行区唤醒：最慢线程 20.3 µs，平均 15.7 µs
+[trsm prof]  每线程平均 ms：prep 0.023 | load 0.290 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.008 dump 0.000 epi 0.004 dkloop 0.160 ddump 0.054 depi 0.000 store 0.122 | task 合计 1.686 | 尾部不均衡 0.166 ms（平均空闲 0.065 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=102419951 inst_retired=171537546 l2d_cache_refill=7043682 l1d_cache_refill=30518887 stall_frontend=885042 stall_backend=44819474 enabled_ns=278334300 running_ns=278334300
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.028 ms, parallel 2.607 ms
+[trsm prof]  并行区唤醒：最慢线程 24.9 µs，平均 16.5 µs
+[trsm prof]  每线程平均 ms：prep 0.023 | load 0.287 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.007 dump 0.000 epi 0.004 dkloop 0.159 ddump 0.054 depi 0.000 store 0.121 | task 合计 1.679 | 尾部不均衡 0.194 ms（平均空闲 0.079 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=101946427 inst_retired=171537549 l2d_cache_refill=7040391 l1d_cache_refill=30553981 stall_frontend=812349 stall_backend=44407984 enabled_ns=366571320 running_ns=366571320
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.028 ms, parallel 2.660 ms
+[trsm prof]  并行区唤醒：最慢线程 19.4 µs，平均 13.9 µs
+[trsm prof]  每线程平均 ms：prep 0.022 | load 0.294 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.018 dump 0.000 epi 0.004 dkloop 0.163 ddump 0.054 depi 0.000 store 0.122 | task 合计 1.704 | 尾部不均衡 0.219 ms（平均空闲 0.113 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.6%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=103317263 inst_retired=171537558 l2d_cache_refill=7039807 l1d_cache_refill=30543970 stall_frontend=885620 stall_backend=45715341 enabled_ns=455503070 running_ns=455503070
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.034 ms, parallel 2.602 ms
+[trsm prof]  并行区唤醒：最慢线程 16.8 µs，平均 13.1 µs
+[trsm prof]  每线程平均 ms：prep 0.022 | load 0.288 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.004 dump 0.000 epi 0.004 dkloop 0.158 ddump 0.054 depi 0.000 store 0.121 | task 合计 1.675 | 尾部不均衡 0.192 ms（平均空闲 0.074 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.6%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=101701978 inst_retired=171537552 l2d_cache_refill=7041793 l1d_cache_refill=30528060 stall_frontend=775285 stall_backend=44241978 enabled_ns=543753440 running_ns=543753440
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.034 ms, parallel 2.559 ms
+[trsm prof]  并行区唤醒：最慢线程 15.7 µs，平均 13.0 µs
+[trsm prof]  每线程平均 ms：prep 0.017 | load 0.286 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.005 dump 0.000 epi 0.004 dkloop 0.157 ddump 0.054 depi 0.000 store 0.121 | task 合计 1.673 | 尾部不均衡 0.169 ms（平均空闲 0.077 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.6%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=101600255 inst_retired=171537543 l2d_cache_refill=7042458 l1d_cache_refill=30566491 stall_frontend=751597 stall_backend=44166413 enabled_ns=630886560 running_ns=630886560
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         3.10    1688.6247     3.33e-16     PASS
+OWNER_CURSOR48_PMU flag=1 shape=512 19968
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 27.529 ms, parallel 21.876 ms
+[trsm prof]  并行区唤醒：最慢线程 19.6 µs，平均 17.6 µs
+[trsm prof]  每线程平均 ms：prep 0.187 | load 1.603 pack 0.000 xcopy 0.000 wait 0.129 kloop 1.007 dump 0.000 epi 0.004 dkloop 0.159 ddump 0.054 depi 0.000 store 0.113 | task 合计 3.117 | 尾部不均衡 12.548 ms（平均空闲 2.906 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=157391755 inst_retired=386474916 l2d_cache_refill=7043470 l1d_cache_refill=30670453 stall_frontend=1255552 stall_backend=43070672 enabled_ns=114110570 running_ns=114110570
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.036 ms, parallel 2.638 ms
+[trsm prof]  并行区唤醒：最慢线程 21.4 µs，平均 14.4 µs
+[trsm prof]  每线程平均 ms：prep 0.032 | load 0.291 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.013 dump 0.000 epi 0.004 dkloop 0.159 ddump 0.054 depi 0.000 store 0.122 | task 合计 1.692 | 尾部不均衡 0.234 ms（平均空闲 0.094 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=102887986 inst_retired=165946533 l2d_cache_refill=7013958 l1d_cache_refill=30654783 stall_frontend=926604 stall_backend=45961491 enabled_ns=202896260 running_ns=202896260
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.029 ms, parallel 2.607 ms
+[trsm prof]  并行区唤醒：最慢线程 22.2 µs，平均 14.4 µs
+[trsm prof]  每线程平均 ms：prep 0.021 | load 0.290 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.011 dump 0.000 epi 0.004 dkloop 0.158 ddump 0.054 depi 0.000 store 0.121 | task 合计 1.686 | 尾部不均衡 0.212 ms（平均空闲 0.079 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=102458381 inst_retired=165946512 l2d_cache_refill=7013672 l1d_cache_refill=30664028 stall_frontend=890611 stall_backend=45586395 enabled_ns=291519270 running_ns=291519270
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.035 ms, parallel 2.598 ms
+[trsm prof]  并行区唤醒：最慢线程 18.5 µs，平均 13.4 µs
+[trsm prof]  每线程平均 ms：prep 0.020 | load 0.288 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.006 dump 0.000 epi 0.004 dkloop 0.155 ddump 0.053 depi 0.000 store 0.121 | task 合计 1.674 | 尾部不均衡 0.206 ms（平均空闲 0.079 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=101659268 inst_retired=165946521 l2d_cache_refill=7010161 l1d_cache_refill=30657909 stall_frontend=860320 stall_backend=44808344 enabled_ns=379581050 running_ns=379581050
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.034 ms, parallel 2.619 ms
+[trsm prof]  并行区唤醒：最慢线程 17.8 µs，平均 13.5 µs
+[trsm prof]  每线程平均 ms：prep 0.016 | load 0.289 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.006 dump 0.000 epi 0.004 dkloop 0.155 ddump 0.053 depi 0.000 store 0.120 | task 合计 1.675 | 尾部不均衡 0.249 ms（平均空闲 0.105 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=101695460 inst_retired=165946503 l2d_cache_refill=7013735 l1d_cache_refill=30657570 stall_frontend=803537 stall_backend=44902840 enabled_ns=467472520 running_ns=467472520
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=-1 pp0=17 pp1=-1 hbmfree=4002MB | setup 0.036 ms, parallel 2.595 ms
+[trsm prof]  并行区唤醒：最慢线程 15.3 µs，平均 12.3 µs
+[trsm prof]  每线程平均 ms：prep 0.018 | load 0.287 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.005 dump 0.000 epi 0.004 dkloop 0.155 ddump 0.053 depi 0.000 store 0.121 | task 合计 1.672 | 尾部不均衡 0.219 ms（平均空闲 0.091 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=512 n=19968 threads=38 cpu_cycles=101483791 inst_retired=165946509 l2d_cache_refill=7010546 l1d_cache_refill=30691752 stall_frontend=783274 stall_backend=44718056 enabled_ns=554808180 running_ns=554808180
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         3.11    1681.4873     3.33e-16     PASS
+OWNER_CURSOR48_PMU flag=0 shape=2432 17024
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3445MB | setup 90.933 ms, parallel 41.359 ms
+[trsm prof]  并行区唤醒：最慢线程 21.4 µs，平均 19.0 µs
+[trsm prof]  每线程平均 ms：prep 2.783 | load 1.866 pack 0.000 xcopy 0.000 wait 0.009 kloop 17.131 dump 0.000 epi 0.008 dkloop 2.498 ddump 0.340 depi 0.094 store 8.623 | task 合计 31.425 | 尾部不均衡 0.584 ms（平均空闲 0.262 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 68.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1422414898 inst_retired=2704381539 l2d_cache_refill=105937588 l1d_cache_refill=570261559 stall_frontend=13542947 stall_backend=472567957 enabled_ns=1193783980 running_ns=1193783980
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3445MB | setup 0.038 ms, parallel 24.489 ms
+[trsm prof]  并行区唤醒：最慢线程 21.7 µs，平均 15.2 µs
+[trsm prof]  每线程平均 ms：prep 0.408 | load 1.082 pack 0.000 xcopy 0.000 wait 0.016 kloop 16.801 dump 0.000 epi 0.009 dkloop 2.370 ddump 0.337 depi 0.084 store 1.655 | task 合计 23.156 | 尾部不均衡 0.386 ms（平均空闲 0.075 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1387254934 inst_retired=2705464370 l2d_cache_refill=106064779 l1d_cache_refill=568121871 stall_frontend=2684310 stall_backend=448059551 enabled_ns=2111946980 running_ns=2111946980
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3445MB | setup 0.037 ms, parallel 24.814 ms
+[trsm prof]  并行区唤醒：最慢线程 18.4 µs，平均 15.0 µs
+[trsm prof]  每线程平均 ms：prep 0.403 | load 1.078 pack 0.000 xcopy 0.000 wait 0.006 kloop 16.848 dump 0.000 epi 0.008 dkloop 2.378 ddump 0.337 depi 0.083 store 1.729 | task 合计 23.265 | 尾部不均衡 0.586 ms（平均空闲 0.352 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 69.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1394131622 inst_retired=2704086550 l2d_cache_refill=106069289 l1d_cache_refill=568404744 stall_frontend=2573846 stall_backend=455640499 enabled_ns=3033716350 running_ns=3033716350
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3445MB | setup 0.036 ms, parallel 24.733 ms
+[trsm prof]  并行区唤醒：最慢线程 19.6 µs，平均 16.1 µs
+[trsm prof]  每线程平均 ms：prep 0.399 | load 1.048 pack 0.000 xcopy 0.000 wait 0.009 kloop 16.800 dump 0.000 epi 0.008 dkloop 2.345 ddump 0.334 depi 0.083 store 1.647 | task 合计 23.073 | 尾部不均衡 0.570 ms（平均空闲 0.451 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.2%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1382117221 inst_retired=2704545610 l2d_cache_refill=106000217 l1d_cache_refill=568212113 stall_frontend=2524108 stall_backend=443536871 enabled_ns=3948428200 running_ns=3948428200
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3445MB | setup 0.030 ms, parallel 24.468 ms
+[trsm prof]  并行区唤醒：最慢线程 23.5 µs，平均 15.6 µs
+[trsm prof]  每线程平均 ms：prep 0.400 | load 1.033 pack 0.000 xcopy 0.000 wait 0.011 kloop 16.746 dump 0.000 epi 0.008 dkloop 2.359 ddump 0.338 depi 0.083 store 1.632 | task 合计 23.008 | 尾部不均衡 0.611 ms（平均空闲 0.286 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1378752059 inst_retired=2704770505 l2d_cache_refill=105960502 l1d_cache_refill=568279164 stall_frontend=2487916 stall_backend=440126442 enabled_ns=4859840720 running_ns=4859840720
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3445MB | setup 0.028 ms, parallel 24.877 ms
+[trsm prof]  并行区唤醒：最慢线程 20.9 µs，平均 13.2 µs
+[trsm prof]  每线程平均 ms：prep 0.405 | load 1.096 pack 0.000 xcopy 0.000 wait 0.006 kloop 16.803 dump 0.000 epi 0.009 dkloop 2.390 ddump 0.342 depi 0.084 store 1.729 | task 合计 23.257 | 尾部不均衡 0.575 ms（平均空闲 0.439 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.0%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1393753507 inst_retired=2704086550 l2d_cache_refill=106010255 l1d_cache_refill=568582937 stall_frontend=2453714 stall_backend=455438693 enabled_ns=5780922540 running_ns=5780922540
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        25.20    3996.2564     7.77e-16     PASS
+OWNER_CURSOR48_PMU flag=1 shape=2432 17024
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3442MB | setup 92.163 ms, parallel 81.384 ms
+[trsm prof]  并行区唤醒：最慢线程 20.1 µs，平均 18.2 µs
+[trsm prof]  每线程平均 ms：prep 4.362 | load 1.679 pack 0.000 xcopy 0.000 wait 0.007 kloop 17.015 dump 0.000 epi 0.008 dkloop 2.532 ddump 0.348 depi 0.095 store 8.410 | task 合计 30.931 | 尾部不均衡 0.569 ms（平均空闲 0.359 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 68.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1439633151 inst_retired=2704088970 l2d_cache_refill=105979253 l1d_cache_refill=568684712 stall_frontend=13328414 stall_backend=490254083 enabled_ns=1359841650 running_ns=1359841650
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3442MB | setup 0.037 ms, parallel 24.790 ms
+[trsm prof]  并行区唤醒：最慢线程 20.3 µs，平均 13.5 µs
+[trsm prof]  每线程平均 ms：prep 0.405 | load 1.112 pack 0.000 xcopy 0.000 wait 0.006 kloop 16.787 dump 0.000 epi 0.008 dkloop 2.376 ddump 0.335 depi 0.083 store 1.716 | task 合计 23.219 | 尾部不均衡 0.573 ms（平均空闲 0.364 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.2%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1391236387 inst_retired=2704086550 l2d_cache_refill=105757139 l1d_cache_refill=568730155 stall_frontend=2516278 stall_backend=452918860 enabled_ns=2279689490 running_ns=2279689490
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3442MB | setup 0.029 ms, parallel 24.761 ms
+[trsm prof]  并行区唤醒：最慢线程 20.0 µs，平均 13.5 µs
+[trsm prof]  每线程平均 ms：prep 0.403 | load 1.089 pack 0.000 xcopy 0.000 wait 0.012 kloop 16.816 dump 0.000 epi 0.008 dkloop 2.368 ddump 0.335 depi 0.084 store 1.663 | task 合计 23.171 | 尾部不均衡 0.573 ms（平均空闲 0.406 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1388548991 inst_retired=2704940080 l2d_cache_refill=105730854 l1d_cache_refill=568525601 stall_frontend=2490043 stall_backend=449937740 enabled_ns=3197405170 running_ns=3197405170
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3442MB | setup 0.028 ms, parallel 24.846 ms
+[trsm prof]  并行区唤醒：最慢线程 19.4 µs，平均 12.5 µs
+[trsm prof]  每线程平均 ms：prep 0.402 | load 1.107 pack 0.000 xcopy 0.000 wait 0.006 kloop 16.782 dump 0.000 epi 0.008 dkloop 2.368 ddump 0.335 depi 0.084 store 1.742 | task 合计 23.228 | 尾部不均衡 0.576 ms（平均空闲 0.411 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.2%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1391798401 inst_retired=2704086550 l2d_cache_refill=105758752 l1d_cache_refill=568635694 stall_frontend=2411061 stall_backend=453622006 enabled_ns=4118061260 running_ns=4118061260
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3442MB | setup 0.027 ms, parallel 24.861 ms
+[trsm prof]  并行区唤醒：最慢线程 22.0 µs，平均 14.4 µs
+[trsm prof]  每线程平均 ms：prep 0.404 | load 1.100 pack 0.000 xcopy 0.000 wait 0.006 kloop 16.772 dump 0.000 epi 0.008 dkloop 2.387 ddump 0.334 depi 0.083 store 1.783 | task 合计 23.271 | 尾部不均衡 0.572 ms（平均空闲 0.393 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.2%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1394514508 inst_retired=2704086550 l2d_cache_refill=105610348 l1d_cache_refill=569355797 stall_frontend=2393563 stall_backend=456376435 enabled_ns=5040224880 running_ns=5040224880
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1330(items 1330) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=1 hbmfree=3442MB | setup 0.027 ms, parallel 24.763 ms
+[trsm prof]  并行区唤醒：最慢线程 20.1 µs，平均 13.1 µs
+[trsm prof]  每线程平均 ms：prep 0.401 | load 1.102 pack 0.000 xcopy 0.000 wait 0.013 kloop 16.739 dump 0.000 epi 0.008 dkloop 2.384 ddump 0.334 depi 0.083 store 1.755 | task 合计 23.214 | 尾部不均衡 0.581 ms（平均空闲 0.348 ms）| k 步 98977536（对角 10725120）（理想 13.443 ms，kloop 效率 70.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=2432 n=17024 threads=38 cpu_cycles=1390848900 inst_retired=2705003210 l2d_cache_refill=105333799 l1d_cache_refill=570412015 stall_frontend=2353426 stall_backend=452384835 enabled_ns=5960371350 running_ns=5960371350
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        25.34    3972.9874     7.77e-16     PASS
+OWNER_CURSOR48_PMU flag=0 shape=17024 512
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2847MB | setup 28.760 ms, parallel 85.448 ms
+[trsm prof]  并行区唤醒：最慢线程 19.0 µs，平均 16.7 µs
+[trsm prof]  每线程平均 ms：prep 7.490 | load 1.745 pack 30.965 xcopy 0.000 wait 1.000 kloop 33.959 dump 0.000 epi 0.004 dkloop 0.338 ddump 0.060 depi 0.023 store 1.165 | task 合计 39.560 | 尾部不均衡 0.979 ms（平均空闲 0.475 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 57.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=2650804338 inst_retired=4152752580 l2d_cache_refill=172258967 l1d_cache_refill=789031180 stall_frontend=23658136 stall_backend=1178150087 enabled_ns=2847576070 running_ns=2847576070
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2847MB | setup 0.068 ms, parallel 36.477 ms
+[trsm prof]  并行区唤醒：最慢线程 515.7 µs，平均 513.3 µs
+[trsm prof]  每线程平均 ms：prep 0.743 | load 0.577 pack 3.060 xcopy 0.000 wait 0.866 kloop 27.556 dump 0.000 epi 0.004 dkloop 0.296 ddump 0.057 depi 0.016 store 0.337 | task 合计 30.876 | 尾部不均衡 0.851 ms（平均空闲 0.555 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1878640008 inst_retired=3802270459 l2d_cache_refill=158320865 l1d_cache_refill=736724554 stall_frontend=8807124 stall_backend=543316170 enabled_ns=4079265720 running_ns=4079265720
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2847MB | setup 0.065 ms, parallel 36.502 ms
+[trsm prof]  并行区唤醒：最慢线程 512.2 µs，平均 510.5 µs
+[trsm prof]  每线程平均 ms：prep 0.741 | load 0.568 pack 3.114 xcopy 0.000 wait 0.835 kloop 27.594 dump 0.000 epi 0.004 dkloop 0.298 ddump 0.056 depi 0.016 store 0.336 | task 合计 30.874 | 尾部不均衡 0.859 ms（平均空闲 0.524 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.6%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1881830541 inst_retired=3796936562 l2d_cache_refill=158113036 l1d_cache_refill=736428383 stall_frontend=8876688 stall_backend=547772283 enabled_ns=5313994550 running_ns=5313994550
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2847MB | setup 0.059 ms, parallel 36.498 ms
+[trsm prof]  并行区唤醒：最慢线程 545.7 µs，平均 543.7 µs
+[trsm prof]  每线程平均 ms：prep 0.742 | load 0.568 pack 3.062 xcopy 0.000 wait 0.888 kloop 27.571 dump 0.000 epi 0.004 dkloop 0.297 ddump 0.056 depi 0.016 store 0.336 | task 合计 30.903 | 尾部不均衡 0.843 ms（平均空闲 0.557 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1880322813 inst_retired=3796594682 l2d_cache_refill=159285497 l1d_cache_refill=734644890 stall_frontend=8758677 stall_backend=546740284 enabled_ns=6546005450 running_ns=6546005450
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2847MB | setup 0.060 ms, parallel 36.364 ms
+[trsm prof]  并行区唤醒：最慢线程 534.7 µs，平均 532.6 µs
+[trsm prof]  每线程平均 ms：prep 0.741 | load 0.561 pack 3.079 xcopy 0.000 wait 0.853 kloop 27.527 dump 0.000 epi 0.004 dkloop 0.298 ddump 0.056 depi 0.016 store 0.332 | task 合计 30.814 | 尾部不均衡 0.839 ms（平均空闲 0.472 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1876602088 inst_retired=3795584495 l2d_cache_refill=158595483 l1d_cache_refill=736177307 stall_frontend=8576309 stall_backend=543431993 enabled_ns=7776986450 running_ns=7776986450
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2847MB | setup 0.059 ms, parallel 36.329 ms
+[trsm prof]  并行区唤醒：最慢线程 556.3 µs，平均 554.4 µs
+[trsm prof]  每线程平均 ms：prep 0.741 | load 0.561 pack 3.075 xcopy 0.000 wait 0.859 kloop 27.510 dump 0.000 epi 0.004 dkloop 0.297 ddump 0.056 depi 0.016 store 0.336 | task 合计 30.804 | 尾部不均衡 0.724 ms（平均空闲 0.423 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1875856488 inst_retired=3800502635 l2d_cache_refill=158416846 l1d_cache_refill=736349383 stall_frontend=8797900 stall_backend=541281205 enabled_ns=9007439630 running_ns=9007439630
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        37.00    4010.4751     1.50e-15     PASS
+OWNER_CURSOR48_PMU flag=1 shape=17024 512
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2848MB | setup 26.818 ms, parallel 102.565 ms
+[trsm prof]  并行区唤醒：最慢线程 19.8 µs，平均 18.0 µs
+[trsm prof]  每线程平均 ms：prep 3.950 | load 1.986 pack 30.241 xcopy 0.000 wait 0.646 kloop 34.276 dump 0.000 epi 0.005 dkloop 0.347 ddump 0.061 depi 0.022 store 0.982 | task 合计 39.576 | 尾部不均衡 0.954 ms（平均空闲 0.490 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 56.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=2656546212 inst_retired=4074384292 l2d_cache_refill=172346306 l1d_cache_refill=790144421 stall_frontend=24042886 stall_backend=1203858233 enabled_ns=2822504170 running_ns=2822504170
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2848MB | setup 0.070 ms, parallel 36.177 ms
+[trsm prof]  并行区唤醒：最慢线程 508.8 µs，平均 506.6 µs
+[trsm prof]  每线程平均 ms：prep 0.743 | load 0.561 pack 3.052 xcopy 0.000 wait 0.848 kloop 27.422 dump 0.000 epi 0.004 dkloop 0.298 ddump 0.056 depi 0.017 store 0.334 | task 合计 30.711 | 尾部不均衡 0.721 ms（平均空闲 0.423 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 71.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1870086583 inst_retired=3790423941 l2d_cache_refill=159070768 l1d_cache_refill=737204892 stall_frontend=8250697 stall_backend=537392662 enabled_ns=4049406760 running_ns=4049406760
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2848MB | setup 0.059 ms, parallel 36.556 ms
+[trsm prof]  并行区唤醒：最慢线程 525.7 µs，平均 523.7 µs
+[trsm prof]  每线程平均 ms：prep 0.741 | load 0.569 pack 3.122 xcopy 0.000 wait 0.903 kloop 27.528 dump 0.000 epi 0.004 dkloop 0.299 ddump 0.056 depi 0.017 store 0.350 | task 合计 30.893 | 尾部不均衡 0.825 ms（平均空闲 0.554 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1882465106 inst_retired=3796762910 l2d_cache_refill=158890962 l1d_cache_refill=736619692 stall_frontend=8650593 stall_backend=548101725 enabled_ns=5283869620 running_ns=5283869620
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2848MB | setup 0.069 ms, parallel 36.411 ms
+[trsm prof]  并行区唤醒：最慢线程 539.2 µs，平均 537.4 µs
+[trsm prof]  每线程平均 ms：prep 0.742 | load 0.574 pack 3.082 xcopy 0.000 wait 0.851 kloop 27.537 dump 0.000 epi 0.004 dkloop 0.297 ddump 0.056 depi 0.016 store 0.338 | task 合计 30.843 | 尾部不均衡 0.881 ms（平均空闲 0.507 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1879345708 inst_retired=3791046814 l2d_cache_refill=158991782 l1d_cache_refill=735520058 stall_frontend=8911891 stall_backend=546713620 enabled_ns=6515569810 running_ns=6515569810
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2848MB | setup 0.067 ms, parallel 39.104 ms
+[trsm prof]  并行区唤醒：最慢线程 3173.7 µs，平均 3171.5 µs
+[trsm prof]  每线程平均 ms：prep 0.741 | load 0.565 pack 3.104 xcopy 0.000 wait 0.861 kloop 27.553 dump 0.000 epi 0.004 dkloop 0.298 ddump 0.056 depi 0.017 store 0.334 | task 合计 30.853 | 尾部不均衡 0.820 ms（平均空闲 0.517 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1880423602 inst_retired=3794302297 l2d_cache_refill=158880400 l1d_cache_refill=736000750 stall_frontend=8737471 stall_backend=546749743 enabled_ns=7748504510 running_ns=7748504510
+[trsm prof] m=17024 n=512 mb=192 nc=128 kc=64 jit=0 pp=1 tasks=356(items 1604) nth=38 hbm=17 Xnode=17 Lnode=1 Xp=17 pp0=17 pp1=-1 hbmfree=2848MB | setup 0.066 ms, parallel 36.332 ms
+[trsm prof]  并行区唤醒：最慢线程 573.2 µs，平均 571.0 µs
+[trsm prof]  每线程平均 ms：prep 0.741 | load 0.568 pack 3.051 xcopy 0.000 wait 0.864 kloop 27.472 dump 0.000 epi 0.004 dkloop 0.296 ddump 0.057 depi 0.016 store 0.333 | task 合计 30.775 | 尾部不均衡 0.777 ms（平均空闲 0.492 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+PMUSOLVE m=17024 n=512 threads=38 cpu_cycles=1871966147 inst_retired=3790370918 l2d_cache_refill=158931862 l1d_cache_refill=736358187 stall_frontend=8494354 stall_backend=539587536 enabled_ns=8975721940 running_ns=8975721940
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        37.50    3956.9972     1.50e-15     PASS
+OWNER_CURSOR48_SAME round=1 flag=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2726.2923     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=1 flag=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2759.5639     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=2 flag=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2708.3897     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=2 flag=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2702.3773     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=3 flag=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2736.9446     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=3 flag=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2732.0110     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=4 flag=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2745.5700     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=4 flag=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2711.1697     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=5 flag=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2731.8864     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=5 flag=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2728.6200     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=6 flag=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2743.5159     3.33e-16     PASS
+OWNER_CURSOR48_SAME round=6 flag=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2713.5262     3.33e-16     PASS
+OWNER_CURSOR48_TC3 round=1 tag=v48-synced
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.74    4151.5587     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=1 tag=owner-cursor-final48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.63    4164.7463     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=2 tag=owner-cursor-final48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.64    4163.9844     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=2 tag=v48-synced
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.63    4164.4753     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=3 tag=v48-synced
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.65    4162.2066     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=3 tag=owner-cursor-final48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.61    4166.9580     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=4 tag=owner-cursor-final48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.66    4161.1734     1.50e-15     PASS
+OWNER_CURSOR48_TC3 round=4 tag=v48-synced
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.65    4161.7215     1.50e-15     PASS

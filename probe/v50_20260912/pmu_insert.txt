@@ -1,0 +1,7 @@
+    if(pmu_on) {
+        fprintf(stderr,"PMUSOLVE m=%ld n=%ld threads=%d",m,n,nth);
+        for(int q=0;q<6;q++) { uint64_t sum=0;for(int t=0;t<nth;t++)sum+=pmu_vals[t][3+q];fprintf(stderr," %s=%lu",pmu_names[q],sum); }
+        uint64_t en=0,run=0;for(int t=0;t<nth;t++){en+=pmu_vals[t][1];run+=pmu_vals[t][2];}
+        fprintf(stderr," enabled_ns=%lu running_ns=%lu\n",en,run);
+    }
+    free(ditem_i);
