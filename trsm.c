@@ -3617,10 +3617,11 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
                 int pend = 0; double* pend_c = NULL;
                 sme_zero_za();
                 const long nch = i0 / kc;
+                const int wdbg = c->wave >= 2;   // WAVE=2：A/Xk 固定小缓冲（结果错、计时真）——区分骨架毒性与访存模式
                 for (long ch = 0; ch < nch; ch++) {
                     PROF_T(c, wave_spin_int((volatile const int*)&c->flags[(ch * kc / mb) * c->npan + p], 1), t_wait);
-                    const double* A = c->pp[0] + c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024;
-                    const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
+                    const double* A = wdbg ? c->pp[0] : c->pp[0] + c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024;
+                    const double* Xk = wdbg ? c->xp : c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
                     // 真游标：ap → 同条带下一 K 段 A（8KB，4 个 t 调用 × 2KB）；
                     // bp → 下一 K 段 Xk 的第 (r&7) 个 8KB 分片（同块各条带错位合作，8 分片全覆盖 64KB）
                     const double* An = (ch + 1 < nch) ? A + (size_t)S * 1024 : A;
@@ -5763,7 +5764,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 
     // TC2 A 驻留波前（TRSM_WAVE，默认关）：准入 = special2 + 每线程 A 分片 ≤ 700KB + 线程数下限 + 整条带
     c.wave = 0;
-    if (env_int("TRSM_WAVE", 0) && c.special == 2 && !c.jit && c.ppmode == 0 && c.nobar
+    int wave_env = env_int("TRSM_WAVE", 0);
+    if (wave_env && c.special == 2 && !c.jit && c.ppmode == 0 && c.nobar
         && nth >= 16 && nth <= 1024 && m % 16 == 0 && (size_t)m * m * 4 <= (size_t)nth * 700 * 1024) {
         if (g_wmap_cap < (size_t)c.nstrip) {
             free(g_wowner); free(g_wlist); free(g_woff);
@@ -5801,7 +5803,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (g_wdiag_cap < (size_t)c.nrb) { free(g_wdiag); g_wdiag = calloc(c.nrb, sizeof(int)); g_wdiag_cap = c.nrb; }
         memset(g_wdiag, 0, c.nrb * sizeof(int));
         c.wlist = g_wlist; c.woff = g_woff; c.wcnt = g_wcnt; c.wdiag = g_wdiag; c.wbuf = g_wbuf;
-        c.wave = 1;
+        c.wave = wave_env;
     }
 
 #pragma omp parallel num_threads(nth)
