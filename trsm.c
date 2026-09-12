@@ -1471,6 +1471,7 @@ typedef struct {
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
+    int ddirect;            // fast_owner 对角：1=kloop_plain_nt+za_owner_dstore 直写（默认）；0=走通用 epi 托管路径（K=64 条带 drain 可藏）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
@@ -2032,7 +2033,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 sme_zero_za();
                 // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
                 const int dnt = (fast_owner ? 1 : c->dnt) && K <= 256;
-                if (fast_owner) {
+                if (fast_owner && c->ddirect) {
                     PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                     PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump);
                     if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
@@ -5337,6 +5338,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
+        c.ddirect = env_int("TRSM_DDIRECT", 1);
         c.eflag = env_int("TRSM_EFLAG", 1);
         c.nexta = env_int("TRSM_NEXTA", 1);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
