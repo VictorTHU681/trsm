@@ -1251,6 +1251,47 @@ static void pack_strip_ld4(const double* L, long lda, long row0, long k0, long k
         : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
 }
 
+
+// dc zva 变体（TRSM_PACKZVA）：打包写免 RFO
+static void pack_strip_ld4_zva(const double* L, long lda, long row0, long k0, long kk, double* dst)
+{
+    const char* xl = (const char*)(L + row0 * lda + k0);
+    char* xd = (char*)dst;
+    long n = kk / 32, lda8 = lda * 8;
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "ld1d z16.d, p0/z, [%[u]]\n\t"
+        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
+        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
+        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
+        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
+        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
+        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
+        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
+        "1:\n\t"
+        // 先把本轮 4 KB 目的块 dc zva 零填充分配：str za 落在已脏 L1 行上，免去写分配的 RFO 读回
+        "mov x9, %[b]\n\t"
+        "mov x12, #64\n\t"
+        "9:\n\t"
+        "dc zva, x9\n\t"
+        "add x9, x9, #64\n\t"
+        "subs x12, x12, #1\n\t"
+        "b.ne 9b\n\t"
+        "zero {za}\n\t"
+        "mov x9, %[xl]\n\t"
+        P4_EVEN("z16") P4_ODD("z17") P4_EVEN("z18") P4_ODD("z19")
+        P4_EVEN("z20") P4_ODD("z21") P4_EVEN("z22") P4_ODD("z23")
+        P4_EVEN_H("z16") P4_ODD_H("z17") P4_EVEN_H("z18") P4_ODD_H("z19")
+        P4_EVEN_H("z20") P4_ODD_H("z21") P4_EVEN_H("z22") P4_ODD_H("z23")
+        ZA_DUMP_GROUP(0) ZA_DUMP_GROUP(16) ZA_DUMP_GROUP(32) ZA_DUMP_GROUP(48)
+        "add %[xl], %[xl], #256\n\t"
+        "subs %[n], %[n], #1\n\t"
+        "b.ne 1b\n\t"
+        : [xl] "+&r"(xl), [b] "+&r"(xd), [n] "+&r"(n)
+        : [lda8] "r"(lda8), [u] "r"(g_unit)
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
+}
+
 // 变体 B：ld2d + 4 tile，两组交替（za0-3 / za4-7），使 str za 与下一组的 fmopa 有机会重叠。
 // 16 个 k 一组：z_q[j] = L[r][k0+2j+q]，tile (2q + [r≥8]) (+4 奇数组)。布局：k 偶 → 256(k-k0)，k 奇 → 256(k-k0)-128，
 // 即 K 循环步长交替 128 / 384。要求 kk % 32 == 0。
@@ -1464,6 +1505,7 @@ typedef struct {
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
+    int packzva;            // 打包 dump 前 dc zva 目的块（TRSM_PACKZVA，需 DCZID 使能且块 64B）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -1623,7 +1665,7 @@ static void pack_l_chunked(const ctx_t* c, long g) {
     for(long k=0;k<kk;k+=c->kc) {
         double* dst=c->pp[0]+packed_l_offset(c,g,k);
         // The initial OpenMP packing stage has not enabled ZA; only task packing may use it.
-        if(c->ppmode==1 && rows==16 && (c->kc&31)==0)pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst);
+        if(c->ppmode==1 && rows==16 && (c->kc&31)==0){ if(c->packzva)pack_strip_ld4_zva(c->L,c->lda,row0,k,c->kc,dst); else pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst); }
         else pack_strip(c->L,c->lda,c->m,row0,k,c->kc,dst);
         if(c->pp[1])memcpy(c->pp[1]+packed_l_offset(c,g,k),dst,(size_t)c->kc*16*8);
     }
@@ -1641,7 +1683,7 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
     double* dst = c->pp[0] + c->pp_off[g];
     if (i0 > 0 && c->lchunk) { pack_l_chunked(c, g); }
     else if (i0 > 0) {
-        if (rows == 16 && (i0 & 31) == 0) pack_strip_ld4(c->L, c->lda, row0, 0, i0, dst);
+        if (rows == 16 && (i0 & 31) == 0) { if (c->packzva) pack_strip_ld4_zva(c->L, c->lda, row0, 0, i0, dst); else pack_strip_ld4(c->L, c->lda, row0, 0, i0, dst); }
         else pack_strip(c->L, c->lda, c->m, row0, 0, i0, dst);
     }
     __atomic_store_n(&c->pflags[g], 1, __ATOMIC_RELEASE);
@@ -5301,6 +5343,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.eflag = env_int("TRSM_EFLAG", 1);
         c.nexta = env_int("TRSM_NEXTA", 1);
+        {
+            unsigned long dcz; asm volatile("mrs %0, dczid_el0" : "=r"(dcz));
+            int zva_ok = !(dcz & 16) && (dcz & 15) == 4;   // DZP=0 且块 2^4 字 = 64 B
+            c.packzva = env_int("TRSM_PACKZVA", 0) && zva_ok;
+        }
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     {
