@@ -1486,6 +1486,7 @@ typedef struct {
     volatile int* pflags;   // 每条的打包完成标志（ppmode=1；nobar 时 ppmode=0 也用）
     volatile int* dcnt;     // 每个行块已完成的对角条数（nobar：任务对角阶段前等它等于 S_of[i]）
     int nobar;              // 预处理阶段不设全局 barrier：预处理项按行块顺序动态领取，消费者用 pflags/dcnt 等（TRSM_NOBAR）
+    int lrep; size_t lrep_pitch;   // 打包 L 副本数 / 副本间距（double）——case1 全体线程流读同一 1 MB 打包 L，错开起点共享读只有 150–200 GB/s（zgemm l3share），N 份副本把共享度降到 38/N（TRSM_LREP）
     double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
@@ -1631,10 +1632,12 @@ static void pack_l_chunked(const ctx_t* c, long g) {
     long rows=c->m-row0; if(rows>16)rows=16;
     for(long k=0;k<kk;k+=c->kc) {
         double* dst=c->pp[0]+packed_l_offset(c,g,k);
+        double* dst0=dst;
         // The initial OpenMP packing stage has not enabled ZA; only task packing may use it.
         if(c->ppmode==1 && rows==16 && (c->kc&31)==0)pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst);
         else pack_strip(c->L,c->lda,c->m,row0,k,c->kc,dst);
         if(c->pp[1])memcpy(c->pp[1]+packed_l_offset(c,g,k),dst,(size_t)c->kc*16*8);
+        for (int rr = 1; rr < c->lrep; rr++) memcpy(dst0 + (size_t)rr * c->lrep_pitch, dst0, (size_t)c->kc*16*8);
     }
 }
 
@@ -1761,6 +1764,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!(fast_owner ? 0 : c->jit) && c->pp[1]) cpy = (int)((i + p) & 1);
+    const size_t lroff = c->lrep > 1 ? (size_t)(tid % c->lrep) * c->lrep_pitch : 0;   // 本线程的打包 L 副本
     if (!(fast_owner ? 0 : c->jit) && ((fast_owner ? 0 : c->ppmode) == 1 || c->nobar) && i0 > 0) {   // 等本行块各条打包完成（nobar 时预打包也按条设 flag）
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         for (int r = 0; r < S; r++)
@@ -1815,7 +1819,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             }
             A = Acur;
         } else {
-            A = c->pp[cpy] + (fast_owner ? c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024 : packed_l_offset(c, i0 / 16 + r, k0));
+            A = c->pp[cpy] + lroff + (fast_owner ? c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024 : packed_l_offset(c, i0 / 16 + r, k0));
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
         long nrow0 = 0, nk0 = 0;
@@ -1847,7 +1851,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else {
-                    const double* An = c->pp[cpy] + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
+                    const double* An = c->pp[cpy] + lroff + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
                     pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
@@ -1861,7 +1865,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             if (pf_on && (fast_owner ? 1 : c->owner) && c->pf2 && !(fast_owner ? 0 : c->jit) && pfq < nstrips) {
                 long pr0 = i0 + (fast_owner ? 32 * (pfq % (S / 2)) : 16 * (pfq % S));
                 long pk0 = (chfirst + pfq / (fast_owner ? S / 2 : S)) * kc;
-                const double* An = c->pp[cpy] + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
+                const double* An = c->pp[cpy] + lroff + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
                 pf.p2 = (const char*)An + (size_t)((fast_owner ? 6 : ntile) + t) * (kk / 2) * 64;
                 p2_used = 1;
             }
@@ -3741,21 +3745,33 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 副本节点：主副本放 HBM（有则），副副本放本地 DDR；TRSM_LSPLIT=0 只用主副本；流水式打包只有一份
         int split = c.ppmode == 1 ? 0 : env_int("TRSM_LSPLIT", c.owner ? 0 : 1);   // 面板驻留模式（case1）不做 DDR 第二份：实测 2.00→1.92 ms（一半任务从 DDR 读 A 更慢 + 省 memcpy）；case2 持平
         if (c.ppmode == 1 && g_pp[1]) { trsm_free_buffer(g_pp[1], g_pp_cap[1] * 8); g_pp[1] = NULL; g_pp_cap[1] = 0; g_pp_node[1] = -3; }
+        // 面板驻留模式：打包 L 复制 N 份（同在 HBM），线程按 tid%N 选副本，消掉 38 核流读同一小缓冲的共享读惩罚
+        c.lrep = 1;
+        if (c.owner && c.ppmode == 0 && !split) {
+            int lr = env_int("TRSM_LREP", 8);
+            if (lr < 1) lr = 1;
+            if (lr > nth) lr = nth;
+            while (lr > 1 && (size_t)lr * (off * 8) > ((size_t)256 << 20)) lr--;
+            c.lrep = lr;
+        }
+        c.lrep_pitch = ((off * 8 + 4095) & ~(size_t)4095) / 8;
+        size_t need0 = c.lrep > 1 ? c.lrep_pitch * c.lrep : off;
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
-        if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
-            HBM_MAKE_ROOM(off * 8 + 4096);
-            if (!HBM_ROOM(off * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
+        if (node0 >= 0 && !(g_pp_cap[0] >= need0 && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
+            HBM_MAKE_ROOM(need0 * 8 + 4096);
+            if (!HBM_ROOM(need0 * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
         }
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);
         if (env_int("TRSM_LNODE1", -3) != -3) node1 = env_int("TRSM_LNODE1", -3);
         for (int k = 0; k < 2; k++) {
             if (k == 1 && !split) break;
             int node = k == 0 ? node0 : node1;
-            if (g_pp_cap[k] < off || g_pp_node[k] != node) {
+            size_t need = k == 0 ? need0 : off;
+            if (g_pp_cap[k] < need || g_pp_node[k] != node) {
                 trsm_free_buffer(g_pp[k], g_pp_cap[k] * 8);
-                g_pp[k] = alloc_on(off * 8 + 4096, node);
-                g_pp_cap[k] = off;
+                g_pp[k] = alloc_on(need * 8 + 4096, node);
+                g_pp_cap[k] = need;
                 g_pp_node[k] = node;
             }
             c.pp[k] = g_pp[k];
