@@ -2364,6 +2364,32 @@ static inline __attribute__((always_inline)) void kloop_duplex_bank0(const doubl
  "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
  "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// ncp=256 变体（TC3 宽面板：npan 4→2，A 重读流量减半）
+static inline __attribute__((always_inline)) void kloop_duplex_bank0_c256(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 16384;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #1\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #2\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #3\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #4\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #5\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(2048)
+ "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 2048, 16384, 16448, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(2048)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 static inline __attribute__((always_inline)) void kloop_owner_bank0(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
@@ -2547,6 +2573,32 @@ static inline __attribute__((always_inline)) void kloop_duplex_bank4(const doubl
  "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
  "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, DUP4_ALD) DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// ncp=256 变体（TC3 宽面板：npan 4→2，A 重读流量减半）
+static inline __attribute__((always_inline)) void kloop_duplex_bank4_c256(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 16384;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(2048)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 2048, 16384, 16448, DUP4_ALD) DUPLEX4_U_LAST DUPLEX4_U_TAIL(2048)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
@@ -3291,6 +3343,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 if (hoist) {
                 PROF_T(c,kloop_hoist_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
                 PROF_T(c,kloop_hoist_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                } else if (ncp == 256) {
+                PROF_T(c,kloop_duplex_bank0_c256(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
+                PROF_T(c,kloop_duplex_bank4_c256(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
                 } else {
                 PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
                 PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
@@ -5356,7 +5411,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
-    if(!c.owner && env_int("TRSM_SPECIAL",1) && n%128==0 && nc==128 && kc==64 && c.ncp==128 && !c.jit && c.lchunk && c.pf && c.reserve && c.ntstore && c.ant) {   // xpnt 在专用实现里已按开关处理
+    if(!c.owner && env_int("TRSM_SPECIAL",1) && (nc==128 || nc==256) && n%nc==0 && kc==64 && c.ncp==nc && !c.jit && c.lchunk && c.pf && c.reserve && c.ntstore && c.ant) {   // xpnt 在专用实现里已按开关处理；nc=256 门槛为整除（宽面板减 A 重读）
+      if (nc != 128) g_abhoist = 0;   // hoist 内核行距烧死 128 列，宽面板回退 duplex_c256
       if(mb==192 && c.direct && !c.ppmode && !c.swhost)c.special=1;
       if(mb==256 && !c.direct && !c.ppmode && !c.swhost)c.special=2;
       if(mb==192 && !c.direct && c.ppmode==1 && c.npan<=8 &&
