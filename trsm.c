@@ -3981,9 +3981,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     long ndiag_items = 0;
     for (long i = 0; i < c.nrb; i++) ndiag_items += c.S_of[i];
     long nprep_items = prep_cached ? 0 : ndiag_items + ((c.nobar && prep_pack) ? c.nstrip : 0);
-    long* ditem_i = malloc(sizeof(long) * nprep_items);
-    int* ditem_s = malloc(sizeof(int) * nprep_items);
-    {
+    long* ditem_i = malloc(sizeof(long) * (nprep_items ? nprep_items : 1));
+    int* ditem_s = malloc(sizeof(int) * (nprep_items ? nprep_items : 1));
+    if (nprep_items) {
         long q = 0;
         for (long i = 0; i < c.nrb; i++) {
             for (int s = 0; s < c.S_of[i]; s++) { ditem_i[q] = i; ditem_s[q] = s; q++; }
