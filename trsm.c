@@ -1468,6 +1468,8 @@ typedef struct {
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
+    long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
+                     // （首面板 nc−cshift 列、末面板 cshift 列走通用路径），内部面板的 X 装载/回写全对齐（TRSM_CSHIFT）
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
     double* diag;           // 全部行块的对角打包
@@ -1693,6 +1695,16 @@ static inline void za_owner_dstore(double* c)
 #undef OWNER_DSTORE_ROW
 #undef OWNER_DSTORE_ROWS
 
+// 面板列起点/宽度：cshift>0 时内部面板边界按 X 的 64 B cache 行对齐（面板 0 缩为 nc−cshift 列、末面板 cshift 列），
+// X 行段的装载与非临时回写全对齐（无跨行向量、无 partial-line RMW）。cshift=0 时退化为原始等宽划分。
+static inline long pan_c0(const ctx_t* c, long p) { return p ? p * c->nc - c->cshift : 0; }
+static inline long pan_nci(const ctx_t* c, long p)
+{
+    long e = (p + 1) * c->nc - c->cshift;
+    if (e > c->n) e = c->n;
+    return e - pan_c0(c, p);
+}
+
 static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int fast_owner)
 {
     if (!fast_owner && tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
@@ -1702,8 +1714,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = fast_owner ? 64 : c->m - i0; if (mbi > mb) mbi = mb;
-    const long c0 = p * nc;
-    long nci = fast_owner ? 96 : c->n - c0; if (nci > nc) nci = nc;
+    const long c0 = pan_c0(c, p);   // fast_owner 只接整面板（奇面板由调度路由到通用路径），公式对两者一致
+    long nci = fast_owner ? 96 : pan_nci(c, p); if (nci > nc) nci = nc;
     const int S = fast_owner ? 4 : c->S_of[i];
     const long ntile = (nci + 31) / 32;
     double* cb = tb->cbuf;
@@ -1986,9 +1998,9 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
         if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
-            long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
+            long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
-            long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
+            long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
             nb_lines = (nnci * 8 + 63) / 64;
             nb_base = c->B + ni0 * ldb + nc0;
         }
@@ -3069,7 +3081,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
-    const long c0 = p * nc;
+    const long c0 = pan_c0(c, p);   // cshift>0 时奇面板（首/末）由调度路由到通用路径，这里只接完整对齐面板
     // The specialization admission check guarantees a complete 128-column panel.
     long nci=128;
     const int S = c->S_of[i];
@@ -3351,9 +3363,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
         if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
-            long ni0 = (long)tkn->i * mb, nc0 = (long)tkn->p * nc;
+            long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
-            long nnci = c->n - nc0; if (nnci > nc) nnci = nc;
+            long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
             nb_lines = (nnci * 8 + 63) / 64;
             nb_base = c->B + ni0 * ldb + nc0;
         }
@@ -5261,7 +5273,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.lchunk = env_int("TRSM_LCHUNK", 1) && mb % kc == 0;
     c.direct = env_int("TRSM_DIRECT", m <= 1024);
     c.nrb = (m + mb - 1) / mb;
-    c.npan = (n + nc - 1) / nc;
+    // 面板边界平移：bench 的 B 只 16 B 对齐（大块 malloc 恒为行首 +16 B），行距 ldb*8 为 64 B 整数倍时全矩阵行段偏移恒定。
+    // 内部面板起点平移 cshift 列使 (B + c0*8) 落在 cache 行边界：装载无跨行向量（每条 svld1 从 2 次 L1 访问降到 1 次）、
+    // 非临时回写无 partial-line RMW。首面板缩为 nc−cshift 列、末面板 cshift 列，由派发处路由到通用路径。
+    c.cshift = 0;
+    if (env_int("TRSM_CSHIFT", 1) && (((size_t)ldb * 8) & 63) == 0)
+        c.cshift = (long)(((uintptr_t)B >> 3) & 7);
+    c.npan = c.cshift ? (n > nc - c.cshift ? 1 + (n - (nc - c.cshift) + nc - 1) / nc : 1) : (n + nc - 1) / nc;
     c.ncp = nc + TRSM_NCPAD;
     if (c.swhost < 0) c.swhost = c.npan <= 8;
     c.ntask = c.nrb * c.npan;
@@ -5511,23 +5529,25 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     t->ch0 = 0; t->ch1 = i * chunks_per_block;
                 }
             double c0 = env_int("TRSM_OWNER_C0", c.special == 5 && c.pf2 ? 160 : 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
-            double ototal = 0;
+            double rowsum = 0;
             for (long i = 0; i < c.nrb; i++) {
                 cost[i] = ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
-                ototal += cost[i];
+                rowsum += cost[i];
             }
-            ototal *= c.npan;
+            // cshift>0 时首/末奇面板更窄，按面板宽度加权（Σ 权重 = n/nc）
+            double ototal = rowsum * ((double)n / nc);
             c.owner_bound = malloc(sizeof(long) * (nth + 1));
             double cum = 0;
             int tb_ = 1;
             c.owner_bound[0] = 0;
             // Each panel repeats the same row costs. Reuse those costs and
             // update the next boundary only when advancing to another thread.
-            long row = 0;
+            long row = 0, pan = 0;
+            double pw = (double)pan_nci(&c, 0) / nc;
             double next_bound = ototal / nth;
             for (long qq = 0; qq < q && tb_ < nth; qq++) {
-                cum += cost[row];
-                if (++row == c.nrb) row = 0;
+                cum += cost[row] * pw;
+                if (++row == c.nrb) { row = 0; if (++pan < c.npan) pw = (double)pan_nci(&c, pan) / nc; }
                 while (tb_ < nth && cum >= next_bound) {
                     c.owner_bound[tb_++] = qq + 1;
                     next_bound = ototal * tb_ / nth;
@@ -5685,7 +5705,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
-                    long pc0 = pa * c.nc, pnci = c.n - pc0; if (pnci > c.nc) pnci = c.nc;
+                    long pc0 = pan_c0(&c, pa), pnci = pan_nci(&c, pa); if (pnci > c.nc) pnci = c.nc;
                     for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
                     double* buf = g_tb[tid].cbuf;
                     const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
@@ -5698,7 +5718,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
                     }
                 }
-                (c.special == 5 ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
+                {   // cshift>0 时首/末奇面板（宽度 ≠ nc 或起点非对齐）路由到通用路径
+                    const task_t* tsk = &c.tasks[sched[s]];
+                    const int fullpan = !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
+                    (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
+                }
             }
         } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
@@ -5709,7 +5733,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
             long tg = t + nth;
-            long tn = taskfn(&c, &g_tb[tid], &c.tasks[t], tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
+            const task_t* tsk = &c.tasks[t];
+            // cshift>0 时首/末奇面板（宽度 ≠ nc）路由到通用路径；打包任务（kind=1）两边都能处理，走 taskfn 不变
+            const int fullpan = !c.cshift || tsk->kind != 0 || (tsk->p > 0 && tsk->p < c.npan - 1);
+            long tn = (fullpan ? taskfn : run_task)(&c, &g_tb[tid], tsk, tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
             t = tn >= 0 ? tn : __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         }
         }
