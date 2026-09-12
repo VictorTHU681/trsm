@@ -5277,12 +5277,14 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 内部面板起点平移 cshift 列使 (B + c0*8) 落在 cache 行边界：装载无跨行向量（每条 svld1 从 2 次 L1 访问降到 1 次）、
     // 非临时回写无 partial-line RMW。首面板缩为 nc−cshift 列、末面板 cshift 列，由派发处路由到通用路径。
     // 门控 npan≥64：多出的尾面板要整读一遍 A 流（成本 ≈ A 流量/npan），窄 X（如 17024×512，npan=4）A 占总流量 ~78%，
-    // 实测 +19% 灾难回退；npan≥64 时该成本 ≤1.6% A 流量，远小于对齐收益。TRSM_CSHIFT：0 关，1 自动（默认），2 强开。
+    // 实测 +19% 灾难回退；npan≥64 时该成本 ≤1.6% A 流量，远小于对齐收益（TC2 实测 +1.1%，两节点一致）。
+    // 门控 !owner：面板驻留模式（TC1）收益节点敏感（cn20481 +1%、cn20483 −2%——奇面板走通用路径 + owner 区间形状变化
+    // 撞上"慢线程集合绑定区间形状"的已知噪声），owner 的对齐收益由装载循环单独收割。TRSM_CSHIFT：0 关，1 自动（默认），2 强开。
     c.cshift = 0;
     {
         int cs_mode = env_int("TRSM_CSHIFT", 1);
         long npan0 = (n + nc - 1) / nc;
-        if (cs_mode && (((size_t)ldb * 8) & 63) == 0 && (cs_mode >= 2 || npan0 >= 64))
+        if (cs_mode && (((size_t)ldb * 8) & 63) == 0 && (cs_mode >= 2 || (npan0 >= 64 && !owner_auto)))
             c.cshift = (long)(((uintptr_t)B >> 3) & 7);
     }
     c.npan = c.cshift ? (n > nc - c.cshift ? 1 + (n - (nc - c.cshift) + nc - 1) / nc : 1) : (n + nc - 1) / nc;
