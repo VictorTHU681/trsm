@@ -96,6 +96,57 @@ int main(void)
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.NT = 8; show("v4t8 A、B 流式 NT=8（C 512K）", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.S = 32; v.cS = 32; show("v4s32 A、B 流式 S=32（C 512K）", run(&v, n, dummy));
     v = base; v.abytes = big; v.pfa = 1; v.bbytes = big; v.pfb = 1; v.blate = 1; v.S = 8; v.NT = 8; v.cS = 8; show("v4s8t8 S=8 NT=8（C 256K, B 段 128K）", run(&v, n, dummy));
+    // ---- owner 内核（fast_owner 路径）场景：定位 TC1 kloop 11.4 vs TC2 10.1 的来源 ----
+    // 访问模式（真实 TC1）：每面板 8 行块任务，任务 i 读 A 块 ch0..ch(i-1)（各 32KB=2 对条带），
+    // 每对条带 ×6 个 16 列 t 瓦片重读；B=cbuf（393KB 驻留、行距 768B）；C=cbuf 本行块 16 行瓦片、pend 链回写。
+    {
+        double* Ap = al(224 * 1024);          // 7 块 × 32KB（HBM，同一面板集重复读）
+        double* CB = al(512 * 96 * 8);        // cbuf 393KB
+        for (long i = 0; i < 224 * 1024 / 8; i += 5) Ap[i] = 1.0 / (i + 2);
+        for (long i = 0; i < 512 * 96; i += 3) CB[i] = 1.0 / (i + 7);
+        // o1: 全驻留地板（固定 16KB A 对 + 单 B/C 瓦片）
+        {
+            uint64_t t0 = cyc();
+            for (long r = 0; r < 20000; r++) {
+                kloop_owner_bank0(Ap, CB, CB + 8 * 96, dummy, dummy, dummy);
+                kloop_owner_bank4(Ap + 1024, CB, CB + 8 * 96 + 16 * 96, dummy + 1024, dummy + 1024, dummy + 128);
+            }
+            show("o1 owner 对全驻留地板", (double)(cyc() - t0) / 20000 / K * (1.55e9 / (double)cyc_hz()));
+        }
+        // o2/o5/o6：面板任务模式。o2=真实（A 224K HBM 重读 + cbuf 393K）；o5=A 只 32K（恒 L2 热）；o6=B/C 只用 1 个块（48K 恒热）
+        for (int sc = 0; sc < 3; sc++) {
+            const long ABLK = sc == 1 ? 1 : 7;      // A 别名到 1 块 → 恒热
+            const long BBLK = sc == 2 ? 1 : 8;      // cbuf 只用 1 个 64 行块 → 恒热
+            uint64_t t0 = 0; long steps = 0;
+            const long panels = 60, warm = 10;
+            for (long pnl = 0; pnl < panels; pnl++) {
+                if (pnl == warm) t0 = cyc();
+                double* pend_c = NULL;
+                for (long i = 1; i < 8; i++) {
+                    double* blk = CB + (i % BBLK) * 64 * 96;
+                    for (long ch = 0; ch < i; ch++) {
+                        const double* Bch = CB + (ch % BBLK) * 64 * 96;
+                        for (int r = 0; r < 4; r += 2) {
+                            const double* A = Ap + ((ch % ABLK) * 4 + r) * 1024;
+                            long pfq_off = (((ch % ABLK) * 4 + r + 2) % (4 * ABLK)) * 1024;
+                            for (int t = 0; t < 6; t++) {
+                                double* cur = blk + 16 * r * 96 + 16 * t;
+                                const char* ap = (const char*)(Ap + pfq_off) + t * 2048;
+                                const char* ap2 = ap + 6 * 2048;
+                                kloop_owner_bank0(A, Bch + 16 * t, pend_c ? pend_c : cur, ap, ap2, (const char*)cur);
+                                kloop_owner_bank4(A + 1024, Bch + 16 * t, cur, ap + 1024, ap2 + 1024, (const char*)(cur + 16 * 96));
+                                pend_c = cur + 16 * 96;
+                                if (pnl >= warm) steps += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            double r = (double)(cyc() - t0) / steps / K * (1.55e9 / (double)cyc_hz());
+            show(sc == 0 ? "o2 owner 真实模式（A 224K 重读+cbuf 393K）" : sc == 1 ? "o5 o2 但 A 恒热（32K 别名）" : "o6 o2 但 B/C 恒热（48K 别名）", r);
+        }
+    }
+
     sme_stop();
     printf("每 16×32 等效 k 步周期数（理想 8）：\n");
     for (int i = 0; i < nres; i++) printf("%-44s: %6.2f  效率 %.1f%%\n", names[i], vals[i], 800 / vals[i]);
