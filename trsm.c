@@ -2069,20 +2069,28 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 tb->n_swq += rows * w.lpr;
             }
         } else if ((fast_owner ? 1 : c->ntstore)) {
-            // 下一任务首段 A 预取（fast_owner，TRSM_NEXTA）：任务只有 20–80 µs，首段冷 A 摊不掉（按 i 凸增的任务耗时）；
-            // 借回写循环逐行发 4 条 prfm（zgemm"打包循环内预取"模式），64 行盖住下一任务首段 16 KB
-            const char* na = NULL;
-            if (fast_owner && c->nexta && tkn && tkn->kind == 0 && tkn->i > 0)
+            // 下一任务 A 预取（fast_owner，TRSM_NEXTA）：任务只有 20–80 µs，任务开头的冷 A 摊不掉（按 i 凸增的任务耗时）；
+            // 借回写循环逐行发 prfm（zgemm"打包循环内预取"模式）。档位：1=首块前 16 KB；2=首块整 32 KB；
+            // 3=首块 32 KB + "新"块 chi 32 KB（chi 是下一任务相对当前任务唯一没读过的 A 块）
+            const char* na = NULL; const char* na2 = NULL; long nal = 0;
+            if (fast_owner && c->nexta && tkn && tkn->kind == 0 && tkn->i > 0) {
                 na = (const char*)c->pp[cpy] + c->pp_off[(long)tkn->i * (mb / 16)];
+                nal = c->nexta >= 2 ? 512 : 256;                     // 每行预取字节数（首块）
+                if (c->nexta >= 3 && tkn->i > 1)
+                    na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
+            }
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
                 double* d = Bout + r * ldb;
                 if (na) {
-                    const char* q = na + r * 256;
-                    __builtin_prefetch(q, 0, 2); __builtin_prefetch(q + 64, 0, 2);
-                    __builtin_prefetch(q + 128, 0, 2); __builtin_prefetch(q + 192, 0, 2);
+                    const char* q = na + r * nal;
+                    for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
+                    if (na2) {
+                        const char* q2 = na2 + r * 512;
+                        for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
+                    }
                 }
                 long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
                 if (pre > nci) pre = nci;
