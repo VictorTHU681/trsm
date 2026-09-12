@@ -54,6 +54,10 @@ fi
 MEMOPT=""
 if [[ -n "$hbm" ]] && numactl -N $cpunode --preferred=$hbm true >/dev/null 2>&1; then
     MEMOPT="--preferred=$hbm"
+    # 启动级内存策略已保证 X/L 分配落 HBM：关闭算子内的页迁移与大页重铺（它们只是无 --preferred 时的回退；
+    # 实测两轮配对三用例持平——cn20484：TC1 1.94/1.95 vs 1.94/2.01、TC2 23.41 vs 23.35、TC3 35.83 vs 35.76 ms）
+    export TRSM_XNODE=-1
+    export TRSM_REHUGE=0
 fi
 echo "[run.sh] numactl -N $cpunode $MEMOPT" >&2
 
