@@ -1,0 +1,126 @@
+CBUF_CHECK mb=192 nc=128 bytes=8 outputs=24576 chunks=3 quant_reference_error=0.000e+00 original_error=2.109e-15 bad=0 PASS
+CBUF_CHECK mb=192 nc=128 bytes=7 outputs=24576 chunks=3 quant_reference_error=0.000e+00 original_error=1.279e-13 bad=0 PASS
+CBUF_CHECK mb=192 nc=128 bytes=6 outputs=24576 chunks=3 quant_reference_error=0.000e+00 original_error=3.867e-11 bad=0 PASS
+CBUF_CHECK mb=192 nc=160 bytes=8 outputs=30720 chunks=3 quant_reference_error=0.000e+00 original_error=2.665e-15 bad=0 PASS
+CBUF_CHECK mb=192 nc=160 bytes=7 outputs=30720 chunks=3 quant_reference_error=0.000e+00 original_error=1.297e-13 bad=0 PASS
+CBUF_CHECK mb=192 nc=160 bytes=6 outputs=30720 chunks=3 quant_reference_error=0.000e+00 original_error=4.544e-11 bad=0 PASS
+CBUF_CHECK mb=192 nc=192 bytes=8 outputs=36864 chunks=3 quant_reference_error=0.000e+00 original_error=1.998e-15 bad=0 PASS
+CBUF_CHECK mb=192 nc=192 bytes=7 outputs=36864 chunks=3 quant_reference_error=0.000e+00 original_error=1.328e-13 bad=0 PASS
+CBUF_CHECK mb=192 nc=192 bytes=6 outputs=36864 chunks=3 quant_reference_error=0.000e+00 original_error=3.805e-11 bad=0 PASS
+CBUF_CHECK mb=256 nc=128 bytes=8 outputs=32768 chunks=3 quant_reference_error=0.000e+00 original_error=1.776e-15 bad=0 PASS
+CBUF_CHECK mb=256 nc=128 bytes=7 outputs=32768 chunks=3 quant_reference_error=0.000e+00 original_error=1.519e-13 bad=0 PASS
+CBUF_CHECK mb=256 nc=128 bytes=6 outputs=32768 chunks=3 quant_reference_error=0.000e+00 original_error=3.469e-11 bad=0 PASS
+CBUF_CHECK mb=256 nc=160 bytes=8 outputs=40960 chunks=3 quant_reference_error=0.000e+00 original_error=2.665e-15 bad=0 PASS
+CBUF_CHECK mb=256 nc=160 bytes=7 outputs=40960 chunks=3 quant_reference_error=0.000e+00 original_error=1.563e-13 bad=0 PASS
+CBUF_CHECK mb=256 nc=160 bytes=6 outputs=40960 chunks=3 quant_reference_error=0.000e+00 original_error=4.399e-11 bad=0 PASS
+CBUF_CHECK mb=256 nc=192 bytes=8 outputs=49152 chunks=3 quant_reference_error=0.000e+00 original_error=2.220e-15 bad=0 PASS
+CBUF_CHECK mb=256 nc=192 bytes=7 outputs=49152 chunks=3 quant_reference_error=0.000e+00 original_error=1.510e-13 bad=0 PASS
+CBUF_CHECK mb=256 nc=192 bytes=6 outputs=49152 chunks=3 quant_reference_error=0.000e+00 original_error=4.312e-11 bad=0 PASS
+CBUF_PERF mb=192 nc=128 bytes=8 mode=1 rep=0 ns_per_k=6.182302 cycles155=9.582568 GFLOPS=165.634100
+CBUF_PERF mb=192 nc=128 bytes=7 mode=1 rep=0 ns_per_k=7.458623 cycles155=11.560866 GFLOPS=137.290753
+CBUF_PERF mb=192 nc=128 bytes=6 mode=1 rep=0 ns_per_k=7.196681 cycles155=11.154855 GFLOPS=142.287819
+CBUF_PERF mb=192 nc=128 bytes=6 mode=1 rep=1 ns_per_k=7.187589 cycles155=11.140763 GFLOPS=142.467801
+CBUF_PERF mb=192 nc=128 bytes=7 mode=1 rep=1 ns_per_k=7.450205 cycles155=11.547819 GFLOPS=137.445873
+CBUF_PERF mb=192 nc=128 bytes=8 mode=1 rep=1 ns_per_k=6.152140 cycles155=9.535817 GFLOPS=166.446139
+CBUF_PERF mb=192 nc=128 bytes=8 mode=1 rep=2 ns_per_k=6.151110 cycles155=9.534221 GFLOPS=166.474010
+CBUF_PERF mb=192 nc=128 bytes=7 mode=1 rep=2 ns_per_k=7.451731 cycles155=11.550184 GFLOPS=137.417729
+CBUF_PERF mb=192 nc=128 bytes=6 mode=1 rep=2 ns_per_k=7.191709 cycles155=11.147149 GFLOPS=142.386186
+CBUF_PERF mb=192 nc=128 bytes=8 mode=4 rep=0 ns_per_k=6.766930 cycles155=10.488741 GFLOPS=151.324169
+CBUF_PERF mb=192 nc=128 bytes=7 mode=4 rep=0 ns_per_k=8.073565 cycles155=12.514026 GFLOPS=126.833682
+CBUF_PERF mb=192 nc=128 bytes=6 mode=4 rep=0 ns_per_k=7.894770 cycles155=12.236894 GFLOPS=129.706117
+CBUF_PERF mb=192 nc=128 bytes=6 mode=4 rep=1 ns_per_k=7.883377 cycles155=12.219234 GFLOPS=129.893571
+CBUF_PERF mb=192 nc=128 bytes=7 mode=4 rep=1 ns_per_k=8.067245 cycles155=12.504230 GFLOPS=126.933041
+CBUF_PERF mb=192 nc=128 bytes=8 mode=4 rep=1 ns_per_k=6.743660 cycles155=10.452673 GFLOPS=151.846327
+CBUF_PERF mb=192 nc=128 bytes=8 mode=4 rep=2 ns_per_k=6.739311 cycles155=10.445932 GFLOPS=151.944311
+CBUF_PERF mb=192 nc=128 bytes=7 mode=4 rep=2 ns_per_k=8.074633 cycles155=12.515682 GFLOPS=126.816905
+CBUF_PERF mb=192 nc=128 bytes=6 mode=4 rep=2 ns_per_k=7.911263 cycles155=12.262457 GFLOPS=129.435725
+CBUF_PERF mb=192 nc=160 bytes=8 mode=1 rep=0 ns_per_k=6.137146 cycles155=9.512576 GFLOPS=166.852801
+CBUF_PERF mb=192 nc=160 bytes=7 mode=1 rep=0 ns_per_k=7.404165 cycles155=11.476455 GFLOPS=138.300544
+CBUF_PERF mb=192 nc=160 bytes=6 mode=1 rep=0 ns_per_k=7.110494 cycles155=11.021266 GFLOPS=144.012498
+CBUF_PERF mb=192 nc=160 bytes=6 mode=1 rep=1 ns_per_k=7.105703 cycles155=11.013839 GFLOPS=144.109603
+CBUF_PERF mb=192 nc=160 bytes=7 mode=1 rep=1 ns_per_k=7.389730 cycles155=11.454081 GFLOPS=138.570695
+CBUF_PERF mb=192 nc=160 bytes=8 mode=1 rep=1 ns_per_k=6.117462 cycles155=9.482066 GFLOPS=167.389675
+CBUF_PERF mb=192 nc=160 bytes=8 mode=1 rep=2 ns_per_k=6.113302 cycles155=9.475617 GFLOPS=167.503596
+CBUF_PERF mb=192 nc=160 bytes=7 mode=1 rep=2 ns_per_k=7.396922 cycles155=11.465229 GFLOPS=138.435964
+CBUF_PERF mb=192 nc=160 bytes=6 mode=1 rep=2 ns_per_k=7.105042 cycles155=11.012814 GFLOPS=144.123015
+CBUF_PERF mb=192 nc=160 bytes=8 mode=4 rep=0 ns_per_k=6.689423 cycles155=10.368605 GFLOPS=153.077487
+CBUF_PERF mb=192 nc=160 bytes=7 mode=4 rep=0 ns_per_k=8.160929 cycles155=12.649441 GFLOPS=125.475905
+CBUF_PERF mb=192 nc=160 bytes=6 mode=4 rep=0 ns_per_k=7.898336 cycles155=12.242420 GFLOPS=129.647565
+CBUF_PERF mb=192 nc=160 bytes=6 mode=4 rep=1 ns_per_k=7.903676 cycles155=12.250698 GFLOPS=129.559961
+CBUF_PERF mb=192 nc=160 bytes=7 mode=4 rep=1 ns_per_k=8.157023 cycles155=12.643386 GFLOPS=125.535993
+CBUF_PERF mb=192 nc=160 bytes=8 mode=4 rep=1 ns_per_k=6.697866 cycles155=10.381692 GFLOPS=152.884520
+CBUF_PERF mb=192 nc=160 bytes=8 mode=4 rep=2 ns_per_k=6.663330 cycles155=10.328162 GFLOPS=153.676913
+CBUF_PERF mb=192 nc=160 bytes=7 mode=4 rep=2 ns_per_k=8.119548 cycles155=12.585299 GFLOPS=126.115402
+CBUF_PERF mb=192 nc=160 bytes=6 mode=4 rep=2 ns_per_k=7.878835 cycles155=12.212194 GFLOPS=129.968453
+CBUF_PERF mb=192 nc=192 bytes=8 mode=1 rep=0 ns_per_k=6.123598 cycles155=9.491577 GFLOPS=167.221953
+CBUF_PERF mb=192 nc=192 bytes=7 mode=1 rep=0 ns_per_k=7.411380 cycles155=11.487640 GFLOPS=138.165895
+CBUF_PERF mb=192 nc=192 bytes=6 mode=1 rep=0 ns_per_k=7.206904 cycles155=11.170701 GFLOPS=142.085976
+CBUF_PERF mb=192 nc=192 bytes=6 mode=1 rep=1 ns_per_k=7.201453 cycles155=11.162253 GFLOPS=142.193521
+CBUF_PERF mb=192 nc=192 bytes=7 mode=1 rep=1 ns_per_k=7.403225 cycles155=11.474999 GFLOPS=138.318091
+CBUF_PERF mb=192 nc=192 bytes=8 mode=1 rep=1 ns_per_k=6.103202 cycles155=9.459963 GFLOPS=167.780782
+CBUF_PERF mb=192 nc=192 bytes=8 mode=1 rep=2 ns_per_k=6.101947 cycles155=9.458018 GFLOPS=167.815279
+CBUF_PERF mb=192 nc=192 bytes=7 mode=1 rep=2 ns_per_k=7.400284 cycles155=11.470440 GFLOPS=138.373071
+CBUF_PERF mb=192 nc=192 bytes=6 mode=1 rep=2 ns_per_k=7.190916 cycles155=11.145920 GFLOPS=142.401881
+CBUF_PERF mb=192 nc=192 bytes=8 mode=4 rep=0 ns_per_k=6.658410 cycles155=10.320535 GFLOPS=153.790470
+CBUF_PERF mb=192 nc=192 bytes=7 mode=4 rep=0 ns_per_k=8.241433 cycles155=12.774221 GFLOPS=124.250236
+CBUF_PERF mb=192 nc=192 bytes=6 mode=4 rep=0 ns_per_k=8.086556 cycles155=12.534162 GFLOPS=126.629922
+CBUF_PERF mb=192 nc=192 bytes=6 mode=4 rep=1 ns_per_k=8.094042 cycles155=12.545764 GFLOPS=126.512816
+CBUF_PERF mb=192 nc=192 bytes=7 mode=4 rep=1 ns_per_k=8.307783 cycles155=12.877064 GFLOPS=123.257909
+CBUF_PERF mb=192 nc=192 bytes=8 mode=4 rep=1 ns_per_k=6.642829 cycles155=10.296385 GFLOPS=154.151190
+CBUF_PERF mb=192 nc=192 bytes=8 mode=4 rep=2 ns_per_k=6.644058 cycles155=10.298290 GFLOPS=154.122671
+CBUF_PERF mb=192 nc=192 bytes=7 mode=4 rep=2 ns_per_k=8.211661 cycles155=12.728075 GFLOPS=124.700708
+CBUF_PERF mb=192 nc=192 bytes=6 mode=4 rep=2 ns_per_k=8.066703 cycles155=12.503390 GFLOPS=126.941578
+CBUF_PERF mb=256 nc=128 bytes=8 mode=1 rep=0 ns_per_k=6.169138 cycles155=9.562164 GFLOPS=165.987535
+CBUF_PERF mb=256 nc=128 bytes=7 mode=1 rep=0 ns_per_k=7.452211 cycles155=11.550928 GFLOPS=137.408877
+CBUF_PERF mb=256 nc=128 bytes=6 mode=1 rep=0 ns_per_k=7.188797 cycles155=11.142635 GFLOPS=142.443861
+CBUF_PERF mb=256 nc=128 bytes=6 mode=1 rep=1 ns_per_k=7.188787 cycles155=11.142621 GFLOPS=142.444050
+CBUF_PERF mb=256 nc=128 bytes=7 mode=1 rep=1 ns_per_k=7.449141 cycles155=11.546168 GFLOPS=137.465523
+CBUF_PERF mb=256 nc=128 bytes=8 mode=1 rep=1 ns_per_k=6.152973 cycles155=9.537108 GFLOPS=166.423609
+CBUF_PERF mb=256 nc=128 bytes=8 mode=1 rep=2 ns_per_k=6.155672 cycles155=9.541292 GFLOPS=166.350642
+CBUF_PERF mb=256 nc=128 bytes=7 mode=1 rep=2 ns_per_k=7.452326 cycles155=11.551105 GFLOPS=137.406767
+CBUF_PERF mb=256 nc=128 bytes=6 mode=1 rep=2 ns_per_k=7.193947 cycles155=11.150618 GFLOPS=142.341891
+CBUF_PERF mb=256 nc=128 bytes=8 mode=4 rep=0 ns_per_k=6.659451 cycles155=10.322148 GFLOPS=153.766440
+CBUF_PERF mb=256 nc=128 bytes=7 mode=4 rep=0 ns_per_k=8.033533 cycles155=12.451976 GFLOPS=127.465710
+CBUF_PERF mb=256 nc=128 bytes=6 mode=4 rep=0 ns_per_k=7.788248 cycles155=12.071784 GFLOPS=131.480147
+CBUF_PERF mb=256 nc=128 bytes=6 mode=4 rep=1 ns_per_k=7.781057 cycles155=12.060639 GFLOPS=131.601652
+CBUF_PERF mb=256 nc=128 bytes=7 mode=4 rep=1 ns_per_k=8.082361 cycles155=12.527660 GFLOPS=126.695649
+CBUF_PERF mb=256 nc=128 bytes=8 mode=4 rep=1 ns_per_k=6.661777 cycles155=10.325755 GFLOPS=153.712729
+CBUF_PERF mb=256 nc=128 bytes=8 mode=4 rep=2 ns_per_k=6.641254 cycles155=10.293944 GFLOPS=154.187738
+CBUF_PERF mb=256 nc=128 bytes=7 mode=4 rep=2 ns_per_k=8.035717 cycles155=12.455361 GFLOPS=127.431068
+CBUF_PERF mb=256 nc=128 bytes=6 mode=4 rep=2 ns_per_k=7.782059 cycles155=12.062191 GFLOPS=131.584718
+CBUF_PERF mb=256 nc=160 bytes=8 mode=1 rep=0 ns_per_k=6.138794 cycles155=9.515131 GFLOPS=166.808010
+CBUF_PERF mb=256 nc=160 bytes=7 mode=1 rep=0 ns_per_k=7.414879 cycles155=11.493062 GFLOPS=138.100706
+CBUF_PERF mb=256 nc=160 bytes=6 mode=1 rep=0 ns_per_k=7.119446 cycles155=11.035141 GFLOPS=143.831420
+CBUF_PERF mb=256 nc=160 bytes=6 mode=1 rep=1 ns_per_k=7.119003 cycles155=11.034455 GFLOPS=143.840360
+CBUF_PERF mb=256 nc=160 bytes=7 mode=1 rep=1 ns_per_k=7.414436 cycles155=11.492376 GFLOPS=138.108948
+CBUF_PERF mb=256 nc=160 bytes=8 mode=1 rep=1 ns_per_k=6.121887 cycles155=9.488925 GFLOPS=167.268681
+CBUF_PERF mb=256 nc=160 bytes=8 mode=1 rep=2 ns_per_k=6.116386 cycles155=9.480399 GFLOPS=167.419115
+CBUF_PERF mb=256 nc=160 bytes=7 mode=1 rep=2 ns_per_k=7.400742 cycles155=11.471149 GFLOPS=138.364512
+CBUF_PERF mb=256 nc=160 bytes=6 mode=1 rep=2 ns_per_k=7.122696 cycles155=11.040179 GFLOPS=143.765789
+CBUF_PERF mb=256 nc=160 bytes=8 mode=4 rep=0 ns_per_k=6.651352 cycles155=10.309595 GFLOPS=153.953664
+CBUF_PERF mb=256 nc=160 bytes=7 mode=4 rep=0 ns_per_k=8.824074 cycles155=13.677314 GFLOPS=116.046174
+CBUF_PERF mb=256 nc=160 bytes=6 mode=4 rep=0 ns_per_k=8.093330 cycles155=12.544662 GFLOPS=126.523934
+CBUF_PERF mb=256 nc=160 bytes=6 mode=4 rep=1 ns_per_k=8.081718 cycles155=12.526664 GFLOPS=126.705726
+CBUF_PERF mb=256 nc=160 bytes=7 mode=4 rep=1 ns_per_k=8.872841 cycles155=13.752903 GFLOPS=115.408358
+CBUF_PERF mb=256 nc=160 bytes=8 mode=4 rep=1 ns_per_k=6.674431 cycles155=10.345368 GFLOPS=153.421321
+CBUF_PERF mb=256 nc=160 bytes=8 mode=4 rep=2 ns_per_k=6.645981 cycles155=10.301270 GFLOPS=154.078085
+CBUF_PERF mb=256 nc=160 bytes=7 mode=4 rep=2 ns_per_k=8.815987 cycles155=13.664779 GFLOPS=116.152626
+CBUF_PERF mb=256 nc=160 bytes=6 mode=4 rep=2 ns_per_k=8.091904 cycles155=12.542451 GFLOPS=126.546242
+CBUF_PERF mb=256 nc=192 bytes=8 mode=1 rep=0 ns_per_k=6.121031 cycles155=9.487599 GFLOPS=167.292067
+CBUF_PERF mb=256 nc=192 bytes=7 mode=1 rep=0 ns_per_k=7.409592 cycles155=11.484867 GFLOPS=138.199248
+CBUF_PERF mb=256 nc=192 bytes=6 mode=1 rep=0 ns_per_k=7.202981 cycles155=11.164621 GFLOPS=142.163356
+CBUF_PERF mb=256 nc=192 bytes=6 mode=1 rep=1 ns_per_k=7.199319 cycles155=11.158945 GFLOPS=142.235671
+CBUF_PERF mb=256 nc=192 bytes=7 mode=1 rep=1 ns_per_k=7.410711 cycles155=11.486602 GFLOPS=138.178381
+CBUF_PERF mb=256 nc=192 bytes=8 mode=1 rep=1 ns_per_k=6.106021 cycles155=9.464332 GFLOPS=167.703332
+CBUF_PERF mb=256 nc=192 bytes=8 mode=1 rep=2 ns_per_k=6.102912 cycles155=9.459513 GFLOPS=167.788764
+CBUF_PERF mb=256 nc=192 bytes=7 mode=1 rep=2 ns_per_k=7.409172 cycles155=11.484217 GFLOPS=138.207075
+CBUF_PERF mb=256 nc=192 bytes=6 mode=1 rep=2 ns_per_k=7.199942 cycles155=11.159911 GFLOPS=142.223363
+CBUF_PERF mb=256 nc=192 bytes=8 mode=4 rep=0 ns_per_k=7.969926 cycles155=12.353386 GFLOPS=128.482997
+CBUF_PERF mb=256 nc=192 bytes=7 mode=4 rep=0 ns_per_k=11.900908 cycles155=18.446408 GFLOPS=86.043854
+CBUF_PERF mb=256 nc=192 bytes=6 mode=4 rep=0 ns_per_k=9.971345 cycles155=15.455585 GFLOPS=102.694268
+CBUF_PERF mb=256 nc=192 bytes=6 mode=4 rep=1 ns_per_k=10.017242 cycles155=15.526726 GFLOPS=102.223741
+CBUF_PERF mb=256 nc=192 bytes=7 mode=4 rep=1 ns_per_k=11.992734 cycles155=18.588738 GFLOPS=85.385032
+CBUF_PERF mb=256 nc=192 bytes=8 mode=4 rep=1 ns_per_k=7.950980 cycles155=12.324019 GFLOPS=128.789158
+CBUF_PERF mb=256 nc=192 bytes=8 mode=4 rep=2 ns_per_k=7.949702 cycles155=12.322038 GFLOPS=128.809861
+CBUF_PERF mb=256 nc=192 bytes=7 mode=4 rep=2 ns_per_k=11.904354 cycles155=18.451749 GFLOPS=86.018947
+CBUF_PERF mb=256 nc=192 bytes=6 mode=4 rep=2 ns_per_k=10.052586 cycles155=15.581508 GFLOPS=101.864340

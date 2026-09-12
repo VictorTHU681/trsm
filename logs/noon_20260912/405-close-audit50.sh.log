@@ -1,0 +1,45 @@
+02c681876f59127e5f85b3723203172149e1f6c510252f06faa3ffe19eac731e  trsm-v49-final.c
+e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac  bench_trsm.c
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=1 call=0 kind=initial maxerr=3.331e-16 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=1 call=1 kind=identical_input maxerr=3.331e-16 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=1 call=2 kind=one_L_entry_and_matching_rhs maxerr=3.331e-16 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=1 call=3 kind=rhs_only maxerr=3.331e-16 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=2 call=0 kind=initial maxerr=8.327e-16 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=2 call=1 kind=identical_input maxerr=8.327e-16 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=2 call=2 kind=one_L_entry_and_matching_rhs maxerr=8.327e-16 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=2 call=3 kind=rhs_only maxerr=8.327e-16 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=3 call=0 kind=initial maxerr=1.443e-15 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=3 call=1 kind=identical_input maxerr=1.443e-15 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=3 call=2 kind=one_L_entry_and_matching_rhs maxerr=1.443e-15 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+INPUT_AUDIT case=3 call=3 kind=rhs_only maxerr=1.443e-15 PASS
+CLOSE50_FORMAL shape=512 19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2719.7970     3.33e-16     PASS
+CLOSE50_FORMAL shape=2432 17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        24.08    4181.6855     7.77e-16     PASS
+CLOSE50_FORMAL shape=17024 512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.67    4159.7567     1.50e-15     PASS
+CLOSE50_DONE

@@ -36,7 +36,7 @@ for number in range(395, 403):
 assert len(formal) == 110 and len(pmu) == 36, (len(formal), len(pmu))
 for name, rows in [('v48_followup_formal.csv', formal), ('v50_pmu.csv', pmu)]:
     with (logs / name).open('w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 

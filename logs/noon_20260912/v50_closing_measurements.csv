@@ -1,0 +1,120 @@
+log,kind,configuration,m,n,gflops
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=1 flag=0,512,19968,2519.0872
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=1 flag=1,512,19968,2674.5196
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=2 flag=1,512,19968,2659.6831
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=2 flag=0,512,19968,2745.2454
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=3 flag=0,512,19968,2686.2546
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=3 flag=1,512,19968,2665.6503
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=4 flag=1,512,19968,2638.7089
+403-owner-diagduplex50.sh.log,formal,OWNER_DIAGDUP50_SCORE round=4 flag=0,512,19968,2730.1848
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=8 mode=1 rep=0,192,128,165.634100
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=7 mode=1 rep=0,192,128,137.290753
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=6 mode=1 rep=0,192,128,142.287819
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=6 mode=1 rep=1,192,128,142.467801
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=7 mode=1 rep=1,192,128,137.445873
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=8 mode=1 rep=1,192,128,166.446139
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=8 mode=1 rep=2,192,128,166.474010
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=7 mode=1 rep=2,192,128,137.417729
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=6 mode=1 rep=2,192,128,142.386186
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=8 mode=4 rep=0,192,128,151.324169
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=7 mode=4 rep=0,192,128,126.833682
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=6 mode=4 rep=0,192,128,129.706117
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=6 mode=4 rep=1,192,128,129.893571
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=7 mode=4 rep=1,192,128,126.933041
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=8 mode=4 rep=1,192,128,151.846327
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=8 mode=4 rep=2,192,128,151.944311
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=7 mode=4 rep=2,192,128,126.816905
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=128 bytes=6 mode=4 rep=2,192,128,129.435725
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=8 mode=1 rep=0,192,160,166.852801
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=7 mode=1 rep=0,192,160,138.300544
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=6 mode=1 rep=0,192,160,144.012498
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=6 mode=1 rep=1,192,160,144.109603
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=7 mode=1 rep=1,192,160,138.570695
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=8 mode=1 rep=1,192,160,167.389675
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=8 mode=1 rep=2,192,160,167.503596
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=7 mode=1 rep=2,192,160,138.435964
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=6 mode=1 rep=2,192,160,144.123015
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=8 mode=4 rep=0,192,160,153.077487
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=7 mode=4 rep=0,192,160,125.475905
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=6 mode=4 rep=0,192,160,129.647565
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=6 mode=4 rep=1,192,160,129.559961
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=7 mode=4 rep=1,192,160,125.535993
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=8 mode=4 rep=1,192,160,152.884520
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=8 mode=4 rep=2,192,160,153.676913
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=7 mode=4 rep=2,192,160,126.115402
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=160 bytes=6 mode=4 rep=2,192,160,129.968453
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=8 mode=1 rep=0,192,192,167.221953
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=7 mode=1 rep=0,192,192,138.165895
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=6 mode=1 rep=0,192,192,142.085976
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=6 mode=1 rep=1,192,192,142.193521
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=7 mode=1 rep=1,192,192,138.318091
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=8 mode=1 rep=1,192,192,167.780782
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=8 mode=1 rep=2,192,192,167.815279
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=7 mode=1 rep=2,192,192,138.373071
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=6 mode=1 rep=2,192,192,142.401881
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=8 mode=4 rep=0,192,192,153.790470
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=7 mode=4 rep=0,192,192,124.250236
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=6 mode=4 rep=0,192,192,126.629922
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=6 mode=4 rep=1,192,192,126.512816
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=7 mode=4 rep=1,192,192,123.257909
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=8 mode=4 rep=1,192,192,154.151190
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=8 mode=4 rep=2,192,192,154.122671
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=7 mode=4 rep=2,192,192,124.700708
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=192 nc=192 bytes=6 mode=4 rep=2,192,192,126.941578
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=8 mode=1 rep=0,256,128,165.987535
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=7 mode=1 rep=0,256,128,137.408877
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=6 mode=1 rep=0,256,128,142.443861
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=6 mode=1 rep=1,256,128,142.444050
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=7 mode=1 rep=1,256,128,137.465523
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=8 mode=1 rep=1,256,128,166.423609
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=8 mode=1 rep=2,256,128,166.350642
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=7 mode=1 rep=2,256,128,137.406767
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=6 mode=1 rep=2,256,128,142.341891
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=8 mode=4 rep=0,256,128,153.766440
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=7 mode=4 rep=0,256,128,127.465710
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=6 mode=4 rep=0,256,128,131.480147
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=6 mode=4 rep=1,256,128,131.601652
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=7 mode=4 rep=1,256,128,126.695649
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=8 mode=4 rep=1,256,128,153.712729
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=8 mode=4 rep=2,256,128,154.187738
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=7 mode=4 rep=2,256,128,127.431068
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=128 bytes=6 mode=4 rep=2,256,128,131.584718
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=8 mode=1 rep=0,256,160,166.808010
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=7 mode=1 rep=0,256,160,138.100706
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=6 mode=1 rep=0,256,160,143.831420
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=6 mode=1 rep=1,256,160,143.840360
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=7 mode=1 rep=1,256,160,138.108948
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=8 mode=1 rep=1,256,160,167.268681
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=8 mode=1 rep=2,256,160,167.419115
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=7 mode=1 rep=2,256,160,138.364512
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=6 mode=1 rep=2,256,160,143.765789
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=8 mode=4 rep=0,256,160,153.953664
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=7 mode=4 rep=0,256,160,116.046174
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=6 mode=4 rep=0,256,160,126.523934
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=6 mode=4 rep=1,256,160,126.705726
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=7 mode=4 rep=1,256,160,115.408358
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=8 mode=4 rep=1,256,160,153.421321
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=8 mode=4 rep=2,256,160,154.078085
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=7 mode=4 rep=2,256,160,116.152626
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=160 bytes=6 mode=4 rep=2,256,160,126.546242
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=8 mode=1 rep=0,256,192,167.292067
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=7 mode=1 rep=0,256,192,138.199248
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=6 mode=1 rep=0,256,192,142.163356
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=6 mode=1 rep=1,256,192,142.235671
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=7 mode=1 rep=1,256,192,138.178381
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=8 mode=1 rep=1,256,192,167.703332
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=8 mode=1 rep=2,256,192,167.788764
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=7 mode=1 rep=2,256,192,138.207075
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=6 mode=1 rep=2,256,192,142.223363
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=8 mode=4 rep=0,256,192,128.482997
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=7 mode=4 rep=0,256,192,86.043854
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=6 mode=4 rep=0,256,192,102.694268
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=6 mode=4 rep=1,256,192,102.223741
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=7 mode=4 rep=1,256,192,85.385032
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=8 mode=4 rep=1,256,192,128.789158
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=8 mode=4 rep=2,256,192,128.809861
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=7 mode=4 rep=2,256,192,86.018947
+404-cbuf-packed50.sh.log,component,CBUF_PERF mb=256 nc=192 bytes=6 mode=4 rep=2,256,192,101.864340
+405-close-audit50.sh.log,formal,CLOSE50_FORMAL shape=512 19968,512,19968,2719.7970
+405-close-audit50.sh.log,formal,CLOSE50_FORMAL shape=2432 17024,2432,17024,4181.6855
+405-close-audit50.sh.log,formal,CLOSE50_FORMAL shape=17024 512,17024,512,4159.7567

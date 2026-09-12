@@ -19,3 +19,6 @@ s=s.replace('// 忙核探测（TRSM_CPROBE，默认开，','// 忙核探测（TR
 (here/'v49-final-boundary.c').write_text((here/'owner-cursor-final48-boundary.c').read_text().replace('trsm-owner-cursor-final48.c','trsm-v49-final.c'))
 (here/'bench_trsm.c').write_bytes((repo/'bench_trsm.c').read_bytes())
 print('Generated pinned v48 experiments and v49 validation sources.')
+
+for script in ('make-owner-diagduplex50.py','make-cbuf-packed50.py','make-close-audit50.py'):
+ subprocess.run([sys.executable,str(here/script)],check=True)
