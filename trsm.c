@@ -1655,6 +1655,8 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0(const double
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank0_bp(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4_bp(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank0_bp2(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank4_bp2(const double*, const double*, double*, const char*, const char*, const char*);
 
 static inline __attribute__((always_inline)) void kloop_owner_cursor0(const double*,const double*,double*,const char*,const char*,const char*);
 static inline __attribute__((always_inline)) void kloop_owner_cursor4(const double*,const double*,double*,const char*,const char*,const char*);
@@ -1684,6 +1686,28 @@ static int g_owner_cursor;
     OWNER_DSTORE_ROW(T0, T1, T2, T3, 5) \
     OWNER_DSTORE_ROW(T0, T1, T2, T3, 6) \
     OWNER_DSTORE_ROW(T0, T1, T2, T3, 7)
+#define OWNER_DSTORE_ROW16(T0, T1, R) \
+    "mov w12, #" #R "\n\t" \
+    "mova z16.d, p0/m, za" #T0 "h.d[w12, 0]\n\t" \
+    "mova z17.d, p0/m, za" #T1 "h.d[w12, 0]\n\t" \
+    "st1d z16.d, p0, [%[c], #0, mul vl]\n\t" \
+    "st1d z17.d, p0, [%[c], #1, mul vl]\n\t" \
+    "add %[c], %[c], #128\n\t"
+// 16 列 tile 主序 dump：对角结果按 (tile, 行) 布局写（za0/za1=前 16 列 za2/za3=... 调用方按 16 列步进）
+static inline void za_owner_dstore_t16(double* c, double* c2)
+{
+    asm volatile(
+        "ptrue p0.d\n\t"
+        OWNER_DSTORE_ROW16(0, 1, 0) OWNER_DSTORE_ROW16(0, 1, 1) OWNER_DSTORE_ROW16(0, 1, 2) OWNER_DSTORE_ROW16(0, 1, 3)
+        OWNER_DSTORE_ROW16(0, 1, 4) OWNER_DSTORE_ROW16(0, 1, 5) OWNER_DSTORE_ROW16(0, 1, 6) OWNER_DSTORE_ROW16(0, 1, 7)
+        : [c] "+&r"(c) :: "memory", "cc", "x12", VCLOB, PCLOB);
+    asm volatile(
+        "ptrue p0.d\n\t"
+        OWNER_DSTORE_ROW16(2, 3, 0) OWNER_DSTORE_ROW16(2, 3, 1) OWNER_DSTORE_ROW16(2, 3, 2) OWNER_DSTORE_ROW16(2, 3, 3)
+        OWNER_DSTORE_ROW16(2, 3, 4) OWNER_DSTORE_ROW16(2, 3, 5) OWNER_DSTORE_ROW16(2, 3, 6) OWNER_DSTORE_ROW16(2, 3, 7)
+        : [c] "+&r"(c2) :: "memory", "cc", "x12", VCLOB, PCLOB);
+}
+
 static inline void za_owner_dstore(double* c)
 {
     asm volatile(
@@ -2374,6 +2398,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_bp(const dou
  "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// tile 主序变体（BS=128, CS=128）：B 与 C 都在 16 列微面板内连续
+static inline __attribute__((always_inline)) void kloop_owner_bank0_bp2(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 1024;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #1\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #2\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #3\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #4\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #5\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(128)
+ "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(128)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
 #undef DUPLEX0_U_LAST
@@ -2583,6 +2633,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_bp(const dou
  "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// tile 主序变体（BS=128, CS=128）：B 与 C 都在 16 列微面板内连续
+static inline __attribute__((always_inline)) void kloop_owner_bank4_bp2(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 1024;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(128)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 128, 1024, 1088, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(128)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
