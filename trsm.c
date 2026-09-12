@@ -5332,6 +5332,9 @@ static void build_tasks(ctx_t* c, int nth)
             c->owner_bound[0] = 0;
             // Each panel repeats the same row costs. Reuse those costs and
             // update the next boundary only when advancing to another thread.
+            // khead 代价（TRSM_KHEADW，c0 的百分比/行块，默认 0 关）：区间起点切在面板中间（ia≠0）的线程要先等 flag
+            // 并把 ia*mb 行 X 拷进面板缓冲（~6 µs/行块），未计入任务代价 → 边界放置时记入该线程预算，压缩其区间
+            double khw = env_int("TRSM_KHEADW", 0) / 100.0 * c0;
             long row = 0, pan = 0;
             double pw = (double)pan_nci(c, 0) / nc;
             double next_bound = ototal / nth;
@@ -5341,6 +5344,7 @@ static void build_tasks(ctx_t* c, int nth)
                 while (tb_ < nth && cum >= next_bound) {
                     c->owner_bound[tb_++] = qq + 1;
                     next_bound = ototal * tb_ / nth;
+                    if (khw > 0) { long ia2 = (qq + 1) % c->nrb; if (ia2) cum += khw * ia2; }
                 }
             }
             while (tb_ <= nth) c->owner_bound[tb_++] = q;
@@ -5386,7 +5390,6 @@ static void build_tasks(ctx_t* c, int nth)
         c->part = g_part;
         free(cost);
         (void)ntile_full;
-    }
 }
 
 // ---------------------------------------------------------------- 主流程
