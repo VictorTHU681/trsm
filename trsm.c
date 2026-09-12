@@ -3583,7 +3583,9 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
             const int r = (int)((16 * g - i0) / 16);
             const long S = c->S_of[i];
             double* slot = c->wbuf + ((size_t)i * 2 + (p & 1)) * mb * ncp;
-            if (p >= 2) while (__atomic_load_n(&c->wdiag[i], __ATOMIC_ACQUIRE) < (int)(p - 1)) asm volatile("yield");
+            { uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+              if (p >= 2) while (__atomic_load_n(&c->wdiag[i], __ATOMIC_ACQUIRE) < (int)(p - 1)) asm volatile("yield");
+              if (c->prof >= 2) tb->t_depi += cyc() - t0; }   // 槽守卫自旋记入 depi 槽位
             {   // 装载本条带 16 行 B → 槽（越界行/列补零）
                 long rows = c->m - (i0 + 16L * r); if (rows > 16) rows = 16;
                 for (long rr = 0; rr < 16; rr++) {
@@ -3599,7 +3601,9 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
             }
             if (i0 > 0) {   // GEMM：本条带 × 全 K——C 累加在线程本地 cbuf 16 行区（L2）；
                 // duplex 内核每 K 段回灌一次 C，若直写共享 HBM 槽则 C 流量 ×段数（实测 46GB≈150ms 灾难）
-                while (__atomic_load_n(&c->pflags[g], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
+                { uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+                  while (__atomic_load_n(&c->pflags[g], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
+                  if (c->prof >= 2) tb->t_pack += cyc() - t0; }   // 打包等待记入 pack 槽位
                 double* dst = tb->cbuf;   // 本地 16×ncp 累加区（装载值已在槽中，先拷进来）
                 for (long rr = 0; rr < 16; rr++)
                     for (long j = 0; j < nc; j += 8)
@@ -3608,24 +3612,26 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
                 sme_zero_za();
                 const long nch = i0 / kc;
                 for (long ch = 0; ch < nch; ch++) {
-                    wait_flag(c, (ch * kc / mb) * c->npan + p);
+                    PROF_T(c, wait_flag(c, (ch * kc / mb) * c->npan + p), t_wait);
                     const double* A = c->pp[0] + c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024;
                     const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
                     for (long t = 0; t < ntile; t++) {
                         double* cur = dst + 32 * t;
-                        kloop_duplex_bank0(A, Xk + 32 * t * kc, (pend ? pend_c : cur) + 16, (const char*)tb->scratch2, (const char*)tb->scratch2, (const char*)cur);
-                        kloop_duplex_bank4(A, Xk + 32 * t * kc + 1024, cur, (const char*)tb->scratch2 + 1024, (const char*)tb->scratch2 + 1024, (const char*)(cur + 16 * ncp));
+                        PROF_T(c, kloop_duplex_bank0(A, Xk + 32 * t * kc, (pend ? pend_c : cur) + 16, (const char*)tb->scratch2, (const char*)tb->scratch2, (const char*)cur), t_kloop);
+                        PROF_T(c, kloop_duplex_bank4(A, Xk + 32 * t * kc + 1024, cur, (const char*)tb->scratch2 + 1024, (const char*)tb->scratch2 + 1024, (const char*)(cur + 16 * ncp)), t_kloop);
                         pend = 1; pend_c = cur;
                     }
                 }
                 if (pend) za_flush_duplex_bank4(pend_c + 16, cs);
-                for (long rr = 0; rr < 16; rr++)   // 结果一次性写回共享槽（16×nc ≈ 16KB/条带/面板）
+                { uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+                  for (long rr = 0; rr < 16; rr++)   // 结果一次性写回共享槽（16×nc ≈ 16KB/条带/面板）
                     for (long j = 0; j < nc; j += 8)
                         svstnt1_f64(pg, slot + ((size_t)16 * r + rr) * ncp + j, svld1_f64(pg, dst + rr * ncp + j));
+                  if (c->prof >= 2) tb->t_store += cyc() - t0; }
                 if (c->prof >= 2) tb->n_kstep += i0;
             }
             int done = __atomic_add_fetch(&c->wcnt[i * c->npan + p], 1, __ATOMIC_ACQ_REL);
-            if (done == (int)S) wave_finish_block(c, tb, i, p, slot);
+            if (done == (int)S) { uint64_t t0 = c->prof >= 2 ? cyc() : 0; wave_finish_block(c, tb, i, p, slot); if (c->prof >= 2) tb->t_dkloop += cyc() - t0; }
         }
     }
 }
