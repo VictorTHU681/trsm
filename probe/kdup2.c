@@ -114,9 +114,10 @@ int main(void)
             show("o1 owner 对全驻留地板", (double)(cyc() - t0) / 20000 / K * (1.55e9 / (double)cyc_hz()));
         }
         // o2/o5/o6：面板任务模式。o2=真实（A 224K HBM 重读 + cbuf 393K）；o5=A 只 32K（恒 L2 热）；o6=B/C 只用 1 个块（48K 恒热）
-        for (int sc = 0; sc < 3; sc++) {
+        for (int sc = 0; sc < 4; sc++) {
             const long ABLK = sc == 1 ? 1 : 7;      // A 别名到 1 块 → 恒热
             const long BBLK = sc == 2 ? 1 : 8;      // cbuf 只用 1 个 64 行块 → 恒热
+            const int DUMCUR = sc == 3;             // o2d: cursors fed dummy
             uint64_t t0 = 0; long steps = 0;
             const long panels = 60, warm = 10;
             for (long pnl = 0; pnl < panels; pnl++) {
@@ -131,8 +132,8 @@ int main(void)
                             long pfq_off = (((ch % ABLK) * 4 + r + 2) % (4 * ABLK)) * 1024;
                             for (int t = 0; t < 6; t++) {
                                 double* cur = blk + 16 * r * 96 + 16 * t;
-                                const char* ap = (const char*)(Ap + pfq_off) + t * 2048;
-                                const char* ap2 = ap + 6 * 2048;
+                                const char* ap = DUMCUR ? dummy : (const char*)(Ap + pfq_off) + t * 2048;
+                                const char* ap2 = DUMCUR ? dummy : ap + 6 * 2048;
                                 kloop_owner_bank0(A, Bch + 16 * t, pend_c ? pend_c : cur, ap, ap2, (const char*)cur);
                                 kloop_owner_bank4(A + 1024, Bch + 16 * t, cur, ap + 1024, ap2 + 1024, (const char*)(cur + 16 * 96));
                                 pend_c = cur + 16 * 96;
@@ -143,7 +144,7 @@ int main(void)
                 }
             }
             double r = (double)(cyc() - t0) / steps / K * (1.55e9 / (double)cyc_hz());
-            show(sc == 0 ? "o2 owner 真实模式（A 224K 重读+cbuf 393K）" : sc == 1 ? "o5 o2 但 A 恒热（32K 别名）" : "o6 o2 但 B/C 恒热（48K 别名）", r);
+            show(sc == 0 ? "o2 owner 真实模式（A 224K 重读+cbuf 393K）" : sc == 1 ? "o5 o2 但 A 恒热（32K 别名）" : sc == 2 ? "o6 o2 但 B/C 恒热（48K 别名）" : "o2d o2 游标 dummy（无预取上限）", r);
         }
     }
 
