@@ -5333,18 +5333,21 @@ static void build_tasks(ctx_t* c, int nth)
             // Each panel repeats the same row costs. Reuse those costs and
             // update the next boundary only when advancing to another thread.
             // khead 代价（TRSM_KHEADW，c0 的百分比/行块，默认 0 关）：区间起点切在面板中间（ia≠0）的线程要先等 flag
-            // 并把 ia*mb 行 X 拷进面板缓冲（~6 µs/行块），未计入任务代价 → 边界放置时记入该线程预算，压缩其区间
+            // 并把 ia*mb 行 X 拷进面板缓冲（~6 µs/行块），未计入任务代价 → 该线程的份额内扣减（不污染全局累计），
+            // 全体份额按期望 khead 总量放大（(nth-1)×khw×nrb/2）
             double khw = env_int("TRSM_KHEADW", 0) / 100.0 * c0;
+            double share = (ototal + (khw > 0 ? (nth - 1) * khw * (c->nrb / 2.0) : 0)) / nth;
             long row = 0, pan = 0;
             double pw = (double)pan_nci(c, 0) / nc;
-            double next_bound = ototal / nth;
+            double next_bound = share;
             for (long qq = 0; qq < q && tb_ < nth; qq++) {
                 cum += cost[row] * pw;
                 if (++row == c->nrb) { row = 0; if (++pan < c->npan) pw = (double)pan_nci(c, pan) / nc; }
                 while (tb_ < nth && cum >= next_bound) {
                     c->owner_bound[tb_++] = qq + 1;
-                    next_bound = ototal * tb_ / nth;
-                    if (khw > 0) { long ia2 = (qq + 1) % c->nrb; if (ia2) cum += khw * ia2; }
+                    long ia2 = (qq + 1) % c->nrb;
+                    // khw=0：绝对目标（原行为，超额自校正）；khw>0：相对份额 − 本线程 khead 扣减
+                    next_bound = khw > 0 ? cum + share - (ia2 ? khw * ia2 : 0) : ototal * tb_ / nth;
                 }
             }
             while (tb_ <= nth) c->owner_bound[tb_++] = q;
