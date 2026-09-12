@@ -1653,6 +1653,8 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
 static inline void za_flush_duplex_bank4(double*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank0_bp(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank4_bp(const double*, const double*, double*, const char*, const char*, const char*);
 
 static inline __attribute__((always_inline)) void kloop_owner_cursor0(const double*,const double*,double*,const char*,const char*,const char*);
 static inline __attribute__((always_inline)) void kloop_owner_cursor4(const double*,const double*,double*,const char*,const char*,const char*);
@@ -2346,6 +2348,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0(const double
  "mov w12, #6\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// B打包读变体（BS=128，C 仍 768）：隔离 768B 跨行 B 对 L1 流预取的影响
+static inline __attribute__((always_inline)) void kloop_owner_bank0_bp(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(128, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX0_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
 #undef DUPLEX0_U_LAST
@@ -2529,6 +2557,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4(const double
  "mov w12, #5\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #6\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+
+// B打包读变体（BS=128，C 仍 768）：隔离 768B 跨行 B 对 L1 流预取的影响
+static inline __attribute__((always_inline)) void kloop_owner_bank4_bp(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(128, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT

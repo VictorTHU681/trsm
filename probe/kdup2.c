@@ -146,6 +146,35 @@ int main(void)
             double r = (double)(cyc() - t0) / steps / K * (1.55e9 / (double)cyc_hz());
             show(sc == 0 ? "o2 owner 真实模式（A 224K 重读+cbuf 393K）" : sc == 1 ? "o5 o2 但 A 恒热（32K 别名）" : sc == 2 ? "o6 o2 但 B/C 恒热（48K 别名）" : "o2d o2 游标 dummy（无预取上限）", r);
         }
+        // o8：同 o2 的访问量与 A 模式，但 B 打包寻址（_bp 内核，BS=128）——隔离 768B 跨行 B 的 L1 流预取损失
+        {
+            uint64_t t0 = 0; long steps = 0;
+            const long panels = 60, warm = 10;
+            for (long pnl = 0; pnl < panels; pnl++) {
+                if (pnl == warm) t0 = cyc();
+                double* pend_c = NULL;
+                for (long i = 1; i < 8; i++) {
+                    double* blk = CB + 0 * 64 * 96;   // C 仍在行主序 cbuf（与 o2 同）
+                    for (long ch = 0; ch < i; ch++) {
+                        const double* Bpk = CB + (ch % 8) * 64 * 96;   // 把同一存储当作打包微面板用（数据无意义、访存模式为准）
+                        for (int r = 0; r < 4; r += 2) {
+                            const double* A = Ap + ((ch % 7) * 4 + r) * 1024;
+                            long pfq_off = (((ch % 7) * 4 + r + 2) % 28) * 1024;
+                            for (int t = 0; t < 6; t++) {
+                                double* cur = blk + 16 * r * 96 + 16 * t;
+                                const char* ap = (const char*)(Ap + pfq_off) + t * 2048;
+                                const char* ap2 = ap + 6 * 2048;
+                                kloop_owner_bank0_bp(A, Bpk + (size_t)t * 1024, pend_c ? pend_c : cur, ap, ap2, (const char*)cur);
+                                kloop_owner_bank4_bp(A + 1024, Bpk + (size_t)t * 1024 + 512, cur, ap + 1024, ap2 + 1024, (const char*)(cur + 16 * 96));
+                                pend_c = cur + 16 * 96;
+                                if (pnl >= warm) steps += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            show("o8 o2 模式但 B 打包（_bp 内核）", (double)(cyc() - t0) / steps / K * (1.55e9 / (double)cyc_hz()));
+        }
     }
 
     sme_stop();
