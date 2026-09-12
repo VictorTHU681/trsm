@@ -1,0 +1,118 @@
+file,line,context,round,mode,m,n,repeats,time_ms,gflops,max_error,status,nc,private,kernel,pack,mr,mb,special
+407-schedule-formal.log,11,FORMAL round=1 mode=control m=512 n=19968 repeats=7,1,control,512,19968,7,1.92,2721.0349,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,17,FORMAL round=1 mode=pfspread m=512 n=19968 repeats=7,1,pfspread,512,19968,7,1.92,2719.6979,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,23,FORMAL round=1 mode=spread m=512 n=19968 repeats=7,1,spread,512,19968,7,1.96,2669.7286,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,29,FORMAL round=1 mode=front32 m=512 n=19968 repeats=7,1,front32,512,19968,7,1.92,2730.3596,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,35,FORMAL round=1 mode=late32 m=512 n=19968 repeats=7,1,late32,512,19968,7,1.95,2683.5075,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,41,FORMAL round=2 mode=late32 m=512 n=19968 repeats=7,2,late32,512,19968,7,1.93,2714.5572,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,47,FORMAL round=2 mode=front32 m=512 n=19968 repeats=7,2,front32,512,19968,7,1.92,2725.1386,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,53,FORMAL round=2 mode=spread m=512 n=19968 repeats=7,2,spread,512,19968,7,2.00,2613.1570,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,59,FORMAL round=2 mode=pfspread m=512 n=19968 repeats=7,2,pfspread,512,19968,7,1.92,2730.6425,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,65,FORMAL round=2 mode=control m=512 n=19968 repeats=7,2,control,512,19968,7,1.91,2735.0165,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,71,FORMAL round=3 mode=control m=512 n=19968 repeats=7,3,control,512,19968,7,1.92,2722.5954,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,77,FORMAL round=3 mode=pfspread m=512 n=19968 repeats=7,3,pfspread,512,19968,7,1.95,2687.1701,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,83,FORMAL round=3 mode=spread m=512 n=19968 repeats=7,3,spread,512,19968,7,1.95,2687.7557,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,89,FORMAL round=3 mode=front32 m=512 n=19968 repeats=7,3,front32,512,19968,7,1.94,2696.3731,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,95,FORMAL round=3 mode=late32 m=512 n=19968 repeats=7,3,late32,512,19968,7,1.95,2689.5563,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,101,FORMAL round=4 mode=late32 m=512 n=19968 repeats=7,4,late32,512,19968,7,1.95,2684.2525,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,107,FORMAL round=4 mode=front32 m=512 n=19968 repeats=7,4,front32,512,19968,7,1.93,2710.0883,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,113,FORMAL round=4 mode=spread m=512 n=19968 repeats=7,4,spread,512,19968,7,1.93,2705.2800,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,119,FORMAL round=4 mode=pfspread m=512 n=19968 repeats=7,4,pfspread,512,19968,7,1.97,2662.1797,3.33e-16,PASS,,,,,,,
+407-schedule-formal.log,125,FORMAL round=4 mode=control m=512 n=19968 repeats=7,4,control,512,19968,7,1.92,2733.3804,3.33e-16,PASS,,,,,,,
+408-schedule-profile.sh.log,36,PROFILE mode=control m=512 n=19968 repeats=5,,control,512,19968,5,3.62,1444.0521,3.33e-16,PASS,,,,,,,
+408-schedule-profile.sh.log,72,PROFILE mode=pfspread m=512 n=19968 repeats=5,,pfspread,512,19968,5,3.54,1478.0137,3.33e-16,PASS,,,,,,,
+408-schedule-profile.sh.log,108,PROFILE mode=spread m=512 n=19968 repeats=5,,spread,512,19968,5,3.65,1435.0958,3.33e-16,PASS,,,,,,,
+408-schedule-profile.sh.log,144,PROFILE mode=front32 m=512 n=19968 repeats=5,,front32,512,19968,5,3.57,1465.8070,3.33e-16,PASS,,,,,,,
+408-schedule-profile.sh.log,180,PROFILE mode=late32 m=512 n=19968 repeats=5,,late32,512,19968,5,3.52,1488.7936,3.33e-16,PASS,,,,,,,
+409-fullinv-screen.sh.log,6,INVERSE_SCREEN round=1 nc=0 m=512 n=19968,1,,512,19968,,2.01,2601.4960,3.33e-16,PASS,0,,,,,,
+409-fullinv-screen.sh.log,18,INVERSE_SCREEN round=1 nc=32 m=512 n=19968,1,,512,19968,,7.85,666.4843,2.22e-16,PASS,32,,,,,,
+409-fullinv-screen.sh.log,30,INVERSE_SCREEN round=1 nc=64 m=512 n=19968,1,,512,19968,,6.94,754.2835,2.22e-16,PASS,64,,,,,,
+409-fullinv-screen.sh.log,42,INVERSE_SCREEN round=1 nc=128 m=512 n=19968,1,,512,19968,,6.91,757.3870,2.22e-16,PASS,128,,,,,,
+409-fullinv-screen.sh.log,54,INVERSE_SCREEN round=2 nc=128 m=512 n=19968,2,,512,19968,,6.71,779.6581,2.22e-16,PASS,128,,,,,,
+409-fullinv-screen.sh.log,66,INVERSE_SCREEN round=2 nc=64 m=512 n=19968,2,,512,19968,,6.99,749.0011,2.22e-16,PASS,64,,,,,,
+409-fullinv-screen.sh.log,78,INVERSE_SCREEN round=2 nc=32 m=512 n=19968,2,,512,19968,,9.09,576.1375,2.22e-16,PASS,32,,,,,,
+409-fullinv-screen.sh.log,84,INVERSE_SCREEN round=2 nc=0 m=512 n=19968,2,,512,19968,,1.93,2714.3198,3.33e-16,PASS,0,,,,,,
+409-fullinv-screen.sh.log,90,INVERSE_SCREEN round=3 nc=0 m=512 n=19968,3,,512,19968,,2.66,1966.5538,3.33e-16,PASS,0,,,,,,
+409-fullinv-screen.sh.log,102,INVERSE_SCREEN round=3 nc=32 m=512 n=19968,3,,512,19968,,7.75,675.4742,2.22e-16,PASS,32,,,,,,
+409-fullinv-screen.sh.log,114,INVERSE_SCREEN round=3 nc=64 m=512 n=19968,3,,512,19968,,6.97,750.8762,2.22e-16,PASS,64,,,,,,
+409-fullinv-screen.sh.log,126,INVERSE_SCREEN round=3 nc=128 m=512 n=19968,3,,512,19968,,7.43,704.9392,2.22e-16,PASS,128,,,,,,
+410-fullinv-private.log,6,INVERSE_PRIVATE round=1 nc=0 m=512 n=19968,1,,512,19968,,1.91,2736.3603,3.33e-16,PASS,0,,,,,,
+410-fullinv-private.log,18,INVERSE_PRIVATE round=1 nc=32 m=512 n=19968,1,,512,19968,,4.82,1085.3918,2.22e-16,PASS,32,,,,,,
+410-fullinv-private.log,30,INVERSE_PRIVATE round=1 nc=64 m=512 n=19968,1,,512,19968,,3.83,1366.4753,2.22e-16,PASS,64,,,,,,
+410-fullinv-private.log,42,INVERSE_PRIVATE round=1 nc=128 m=512 n=19968,1,,512,19968,,3.66,1430.0327,2.22e-16,PASS,128,,,,,,
+410-fullinv-private.log,54,INVERSE_PRIVATE round=2 nc=128 m=512 n=19968,2,,512,19968,,3.70,1415.7412,2.22e-16,PASS,128,,,,,,
+410-fullinv-private.log,66,INVERSE_PRIVATE round=2 nc=64 m=512 n=19968,2,,512,19968,,3.87,1351.0851,2.22e-16,PASS,64,,,,,,
+410-fullinv-private.log,78,INVERSE_PRIVATE round=2 nc=32 m=512 n=19968,2,,512,19968,,4.81,1088.3582,2.22e-16,PASS,32,,,,,,
+410-fullinv-private.log,84,INVERSE_PRIVATE round=2 nc=0 m=512 n=19968,2,,512,19968,,1.94,2700.3074,3.33e-16,PASS,0,,,,,,
+410-fullinv-private.log,90,INVERSE_PRIVATE round=3 nc=0 m=512 n=19968,3,,512,19968,,1.94,2696.5660,3.33e-16,PASS,0,,,,,,
+410-fullinv-private.log,102,INVERSE_PRIVATE round=3 nc=32 m=512 n=19968,3,,512,19968,,4.83,1083.5230,2.22e-16,PASS,32,,,,,,
+410-fullinv-private.log,114,INVERSE_PRIVATE round=3 nc=64 m=512 n=19968,3,,512,19968,,3.89,1344.9094,2.22e-16,PASS,64,,,,,,
+410-fullinv-private.log,126,INVERSE_PRIVATE round=3 nc=128 m=512 n=19968,3,,512,19968,,3.70,1415.9482,2.22e-16,PASS,128,,,,,,
+410-fullinv-private.log,138,PRIVATE_SW_ONLY private=0,,,512,19968,,4.21,1242.0376,2.22e-16,PASS,,0,,,,,
+410-fullinv-private.log,150,PRIVATE_SW_ONLY private=1,,,512,19968,,3.71,1412.0748,2.22e-16,PASS,,1,,,,,
+411-fullinv-compact.log,12,INVERSE_COMPACT round=1 kernel=0 pack=0 nc=128,1,,512,19968,,3.79,1380.1626,2.22e-16,PASS,128,,0,0,,,
+411-fullinv-compact.log,24,INVERSE_COMPACT round=1 kernel=1 pack=0 nc=128,1,,512,19968,,3.71,1411.9167,2.22e-16,PASS,128,,1,0,,,
+411-fullinv-compact.log,36,INVERSE_COMPACT round=1 kernel=2 pack=0 nc=128,1,,512,19968,,3.83,1366.5304,2.22e-16,PASS,128,,2,0,,,
+411-fullinv-compact.log,48,INVERSE_COMPACT round=1 kernel=0 pack=1 nc=128,1,,512,19968,,4.27,1224.4468,2.22e-16,PASS,128,,0,1,,,
+411-fullinv-compact.log,60,INVERSE_COMPACT round=1 kernel=1 pack=1 nc=128,1,,512,19968,,3.96,1323.0315,2.22e-16,PASS,128,,1,1,,,
+411-fullinv-compact.log,72,INVERSE_COMPACT round=1 kernel=2 pack=1 nc=128,1,,512,19968,,4.04,1294.2895,2.22e-16,PASS,128,,2,1,,,
+411-fullinv-compact.log,84,INVERSE_COMPACT round=2 kernel=0 pack=0 nc=128,2,,512,19968,,3.91,1340.0144,2.22e-16,PASS,128,,0,0,,,
+411-fullinv-compact.log,96,INVERSE_COMPACT round=2 kernel=1 pack=0 nc=128,2,,512,19968,,3.66,1428.7355,2.22e-16,PASS,128,,1,0,,,
+411-fullinv-compact.log,108,INVERSE_COMPACT round=2 kernel=2 pack=0 nc=128,2,,512,19968,,3.80,1376.5438,2.22e-16,PASS,128,,2,0,,,
+411-fullinv-compact.log,120,INVERSE_COMPACT round=2 kernel=0 pack=1 nc=128,2,,512,19968,,4.08,1284.4931,2.22e-16,PASS,128,,0,1,,,
+411-fullinv-compact.log,132,INVERSE_COMPACT round=2 kernel=1 pack=1 nc=128,2,,512,19968,,3.94,1327.4510,2.22e-16,PASS,128,,1,1,,,
+411-fullinv-compact.log,144,INVERSE_COMPACT round=2 kernel=2 pack=1 nc=128,2,,512,19968,,4.04,1296.9031,2.22e-16,PASS,128,,2,1,,,
+413-fullinv-shapes.sh.log,12,INVERSE_SHAPE round=1 mr=8 nc=128,1,,512,19968,,3.80,1378.9761,2.22e-16,PASS,128,,,,8,,
+413-fullinv-shapes.sh.log,24,INVERSE_SHAPE round=1 mr=16 nc=128,1,,512,19968,,3.57,1466.5761,2.22e-16,PASS,128,,,,16,,
+413-fullinv-shapes.sh.log,36,INVERSE_SHAPE round=1 mr=32 nc=128,1,,512,19968,,4.89,1070.6137,2.22e-16,PASS,128,,,,32,,
+413-fullinv-shapes.sh.log,48,INVERSE_SHAPE round=1 mr=64 nc=128,1,,512,19968,,5.29,988.6938,2.22e-16,PASS,128,,,,64,,
+413-fullinv-shapes.sh.log,60,INVERSE_SHAPE round=2 mr=64 nc=128,2,,512,19968,,5.29,990.1661,2.22e-16,PASS,128,,,,64,,
+413-fullinv-shapes.sh.log,72,INVERSE_SHAPE round=2 mr=32 nc=128,2,,512,19968,,4.89,1071.3575,2.22e-16,PASS,128,,,,32,,
+413-fullinv-shapes.sh.log,84,INVERSE_SHAPE round=2 mr=16 nc=128,2,,512,19968,,3.59,1459.5668,2.22e-16,PASS,128,,,,16,,
+413-fullinv-shapes.sh.log,96,INVERSE_SHAPE round=2 mr=8 nc=128,2,,512,19968,,3.72,1406.9040,2.22e-16,PASS,128,,,,8,,
+422b-production-mb.sh.log,6,PRODUCTION_MB round=1 m=2432 n=17024 mb=64,1,,2432,17024,,39.57,2544.5306,7.77e-16,PASS,,,,,,64,
+422b-production-mb.sh.log,12,PRODUCTION_MB round=1 m=2432 n=17024 mb=128,1,,2432,17024,,29.17,3452.4304,7.77e-16,PASS,,,,,,128,
+422b-production-mb.sh.log,18,PRODUCTION_MB round=1 m=2432 n=17024 mb=192,1,,2432,17024,,28.48,3535.0474,7.77e-16,PASS,,,,,,192,
+422b-production-mb.sh.log,24,PRODUCTION_MB round=1 m=2432 n=17024 mb=256,1,,2432,17024,,23.71,4246.4499,7.77e-16,PASS,,,,,,256,
+422b-production-mb.sh.log,30,PRODUCTION_MB round=1 m=17024 n=512 mb=64,1,,17024,512,,62.00,2393.3024,1.83e-15,PASS,,,,,,64,
+422b-production-mb.sh.log,36,PRODUCTION_MB round=1 m=17024 n=512 mb=128,1,,17024,512,,43.63,3401.3674,1.55e-15,PASS,,,,,,128,
+422b-production-mb.sh.log,42,PRODUCTION_MB round=1 m=17024 n=512 mb=192,1,,17024,512,,35.79,4146.3763,1.50e-15,PASS,,,,,,192,
+422b-production-mb.sh.log,48,PRODUCTION_MB round=1 m=17024 n=512 mb=256,1,,17024,512,,42.23,3513.4686,1.05e-15,PASS,,,,,,256,
+422b-production-mb.sh.log,54,PRODUCTION_MB round=2 m=2432 n=17024 mb=256,2,,2432,17024,,23.74,4242.2730,7.77e-16,PASS,,,,,,256,
+422b-production-mb.sh.log,60,PRODUCTION_MB round=2 m=2432 n=17024 mb=192,2,,2432,17024,,28.47,3536.9719,7.77e-16,PASS,,,,,,192,
+422b-production-mb.sh.log,66,PRODUCTION_MB round=2 m=2432 n=17024 mb=128,2,,2432,17024,,29.11,3459.3496,7.77e-16,PASS,,,,,,128,
+422b-production-mb.sh.log,72,PRODUCTION_MB round=2 m=2432 n=17024 mb=64,2,,2432,17024,,39.59,2543.3763,7.77e-16,PASS,,,,,,64,
+422b-production-mb.sh.log,78,PRODUCTION_MB round=2 m=17024 n=512 mb=256,2,,17024,512,,42.69,3476.2046,1.05e-15,PASS,,,,,,256,
+422b-production-mb.sh.log,84,PRODUCTION_MB round=2 m=17024 n=512 mb=192,2,,17024,512,,35.74,4152.0048,1.50e-15,PASS,,,,,,192,
+422b-production-mb.sh.log,90,PRODUCTION_MB round=2 m=17024 n=512 mb=128,2,,17024,512,,44.07,3367.0897,1.55e-15,PASS,,,,,,128,
+422b-production-mb.sh.log,96,PRODUCTION_MB round=2 m=17024 n=512 mb=64,2,,17024,512,,61.86,2398.6738,1.83e-15,PASS,,,,,,64,
+422b-production-mb.sh.log,118,PRODUCTION_MB_PROFILE m=2432 n=17024 mb=128,,,2432,17024,,29.65,3395.9044,7.77e-16,PASS,,,,,,128,
+422b-production-mb.sh.log,140,PRODUCTION_MB_PROFILE m=2432 n=17024 mb=192,,,2432,17024,,29.08,3462.0787,7.77e-16,PASS,,,,,,192,
+422b-production-mb.sh.log,162,PRODUCTION_MB_PROFILE m=2432 n=17024 mb=256,,,2432,17024,,24.52,4106.1668,7.77e-16,PASS,,,,,,256,
+422b-production-mb.sh.log,184,PRODUCTION_MB_PROFILE m=17024 n=512 mb=128,,,17024,512,,44.17,3359.7248,1.55e-15,PASS,,,,,,128,
+422b-production-mb.sh.log,206,PRODUCTION_MB_PROFILE m=17024 n=512 mb=192,,,17024,512,,36.29,4089.3434,1.50e-15,PASS,,,,,,192,
+422b-production-mb.sh.log,228,PRODUCTION_MB_PROFILE m=17024 n=512 mb=256,,,17024,512,,43.05,3447.0486,1.05e-15,PASS,,,,,,256,
+424-special-mb.sh.log,6,SPECIAL_MB round=1 m=2432 n=17024 mb=64 special=2,1,,2432,17024,,33.34,3020.1729,7.77e-16,PASS,,,,,,64,2
+424-special-mb.sh.log,12,SPECIAL_MB round=1 m=2432 n=17024 mb=128 special=2,1,,2432,17024,,25.85,3894.6345,7.77e-16,PASS,,,,,,128,2
+424-special-mb.sh.log,18,SPECIAL_MB round=1 m=2432 n=17024 mb=192 special=2,1,,2432,17024,,24.32,4139.8967,7.77e-16,PASS,,,,,,192,2
+424-special-mb.sh.log,24,SPECIAL_MB round=1 m=2432 n=17024 mb=256 special=2,1,,2432,17024,,23.76,4237.7923,7.77e-16,PASS,,,,,,256,2
+424-special-mb.sh.log,30,SPECIAL_MB round=1 m=17024 n=512 mb=64 special=4,1,,17024,512,,51.38,2888.2093,1.83e-15,PASS,,,,,,64,4
+424-special-mb.sh.log,36,SPECIAL_MB round=1 m=17024 n=512 mb=128 special=4,1,,17024,512,,38.43,3861.5931,1.55e-15,PASS,,,,,,128,4
+424-special-mb.sh.log,42,SPECIAL_MB round=1 m=17024 n=512 mb=192 special=4,1,,17024,512,,35.99,4122.7513,1.50e-15,PASS,,,,,,192,4
+424-special-mb.sh.log,48,SPECIAL_MB round=1 m=17024 n=512 mb=256 special=4,1,,17024,512,,35.80,4145.1567,1.05e-15,PASS,,,,,,256,4
+424-special-mb.sh.log,54,SPECIAL_MB round=2 m=2432 n=17024 mb=256 special=2,2,,2432,17024,,23.76,4237.1389,7.77e-16,PASS,,,,,,256,2
+424-special-mb.sh.log,60,SPECIAL_MB round=2 m=2432 n=17024 mb=192 special=2,2,,2432,17024,,23.95,4203.8483,7.77e-16,PASS,,,,,,192,2
+424-special-mb.sh.log,66,SPECIAL_MB round=2 m=2432 n=17024 mb=128 special=2,2,,2432,17024,,25.91,3886.3688,7.77e-16,PASS,,,,,,128,2
+424-special-mb.sh.log,72,SPECIAL_MB round=2 m=2432 n=17024 mb=64 special=2,2,,2432,17024,,33.38,3016.0950,7.77e-16,PASS,,,,,,64,2
+424-special-mb.sh.log,78,SPECIAL_MB round=2 m=17024 n=512 mb=256 special=4,2,,17024,512,,35.80,4145.4385,1.05e-15,PASS,,,,,,256,4
+424-special-mb.sh.log,84,SPECIAL_MB round=2 m=17024 n=512 mb=192 special=4,2,,17024,512,,35.85,4139.0008,1.50e-15,PASS,,,,,,192,4
+424-special-mb.sh.log,90,SPECIAL_MB round=2 m=17024 n=512 mb=128 special=4,2,,17024,512,,38.78,3826.8054,1.55e-15,PASS,,,,,,128,4
+424-special-mb.sh.log,96,SPECIAL_MB round=2 m=17024 n=512 mb=64 special=4,2,,17024,512,,51.35,2889.8180,1.83e-15,PASS,,,,,,64,4
+424-special-mb.sh.log,118,SPECIAL_MB_PROFILE m=2432 n=17024 mb=64 special=2,,,2432,17024,,33.68,2989.9671,7.77e-16,PASS,,,,,,64,2
+424-special-mb.sh.log,140,SPECIAL_MB_PROFILE m=2432 n=17024 mb=128 special=2,,,2432,17024,,26.24,3836.7845,7.77e-16,PASS,,,,,,128,2
+424-special-mb.sh.log,162,SPECIAL_MB_PROFILE m=2432 n=17024 mb=192 special=2,,,2432,17024,,24.78,4063.0634,7.77e-16,PASS,,,,,,192,2
+424-special-mb.sh.log,184,SPECIAL_MB_PROFILE m=2432 n=17024 mb=256 special=2,,,2432,17024,,24.15,4168.7217,7.77e-16,PASS,,,,,,256,2
+424-special-mb.sh.log,206,SPECIAL_MB_PROFILE m=17024 n=512 mb=64 special=4,,,17024,512,,51.81,2863.9680,1.83e-15,PASS,,,,,,64,4
+424-special-mb.sh.log,228,SPECIAL_MB_PROFILE m=17024 n=512 mb=128 special=4,,,17024,512,,39.22,3783.0462,1.55e-15,PASS,,,,,,128,4
+424-special-mb.sh.log,250,SPECIAL_MB_PROFILE m=17024 n=512 mb=192 special=4,,,17024,512,,36.24,4094.1934,1.50e-15,PASS,,,,,,192,4
+424-special-mb.sh.log,272,SPECIAL_MB_PROFILE m=17024 n=512 mb=256 special=4,,,17024,512,,36.38,4078.8317,1.05e-15,PASS,,,,,,256,4

@@ -1,0 +1,30 @@
+DENSE_CONTEXT cold_library
+FPCR phase=0 tid=0 fpcr=0000000000000000
+FPCR phase=0 tid=1 fpcr=0000000000000000
+FPCR phase=0 tid=37 fpcr=0000000000000000
+FPCR phase=1 tid=1 fpcr=0000000000000000
+FPCR phase=1 tid=0 fpcr=0000000000000000
+FPCR phase=1 tid=37 fpcr=0000000000000000
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=1.282311 bpack_ms=1.875001 compute_region_ms=37.205999 kernel_mean_ms=26.244675 kernel_max_ms=28.316420 output_mean_ms=10.280866 zero_mean_ms=0.494849 total_ms=40.363311
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.150083 bpack_ms=1.234770 compute_region_ms=27.105213 kernel_mean_ms=26.319044 kernel_max_ms=26.531560 output_mean_ms=0.434355 zero_mean_ms=0.143282 total_ms=28.490066
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.148482 bpack_ms=1.230440 compute_region_ms=27.087064 kernel_mean_ms=26.302372 kernel_max_ms=26.506710 output_mean_ms=0.442123 zero_mean_ms=0.139688 total_ms=28.465986
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.143562 bpack_ms=1.235680 compute_region_ms=27.065433 kernel_mean_ms=26.300525 kernel_max_ms=26.581820 output_mean_ms=0.421317 zero_mean_ms=0.141369 total_ms=28.444675
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=40.561164 leaf_ms=40.560214 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1241.2188 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=28.640419 leaf_ms=28.639779 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1757.8402 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=28.589848 leaf_ms=28.588348 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1760.9495 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=2 total_ms=28.561217 leaf_ms=28.560447 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1762.7148 error=2.665e-15 coverage=128-samples PASS
+DENSE_CONTEXT after_library
+FPCR phase=0 tid=0 fpcr=0000000000000000
+FPCR phase=0 tid=1 fpcr=0000000000000000
+FPCR phase=0 tid=37 fpcr=0000000000000000
+FPCR phase=1 tid=1 fpcr=0000000000000000
+FPCR phase=1 tid=0 fpcr=0000000000000000
+FPCR phase=1 tid=37 fpcr=0000000000000000
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=2.171845 bpack_ms=1.910591 compute_region_ms=27.147725 kernel_mean_ms=26.164666 kernel_max_ms=26.515090 output_mean_ms=0.284973 zero_mean_ms=0.492982 total_ms=31.230161
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.148753 bpack_ms=1.237530 compute_region_ms=27.061213 kernel_mean_ms=26.293067 kernel_max_ms=26.501950 output_mean_ms=0.411419 zero_mean_ms=0.145299 total_ms=28.447496
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.151233 bpack_ms=1.230540 compute_region_ms=27.035812 kernel_mean_ms=26.300264 kernel_max_ms=26.516890 output_mean_ms=0.401722 zero_mean_ms=0.139876 total_ms=28.417585
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.141642 bpack_ms=1.232791 compute_region_ms=27.170674 kernel_mean_ms=26.350351 kernel_max_ms=26.584930 output_mean_ms=0.436826 zero_mean_ms=0.147468 total_ms=28.545107
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=31.451985 leaf_ms=31.451145 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1600.7028 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=28.596198 leaf_ms=28.595668 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1760.5585 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=28.544837 leaf_ms=28.544167 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1763.7263 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=2 total_ms=28.669149 leaf_ms=28.668369 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1756.0786 error=2.665e-15 coverage=128-samples PASS

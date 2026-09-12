@@ -1,0 +1,133 @@
+DENSE_TASKS threads=1 mb=192 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=1 ncpu=1 cpu_first=38 cpu_last=38 apack_setup_ms=2.641223 bpack_ms=30.228692 compute_region_ms=1104.605459 kernel_mean_ms=1083.980360 kernel_max_ms=1083.980360 output_mean_ms=15.157510 zero_mean_ms=5.047180 total_ms=1137.475374
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=1 ncpu=1 cpu_first=38 cpu_last=38 apack_setup_ms=1.047977 bpack_ms=22.366714 compute_region_ms=973.459715 kernel_mean_ms=959.262940 kernel_max_ms=959.262940 output_mean_ms=8.945130 zero_mean_ms=4.878570 total_ms=996.874406
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=1 ncpu=1 cpu_first=38 cpu_last=38 apack_setup_ms=1.060237 bpack_ms=22.335323 compute_region_ms=973.391554 kernel_mean_ms=959.173760 kernel_max_ms=959.173760 output_mean_ms=8.949810 zero_mean_ms=4.925090 total_ms=996.787114
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=1137.678077 leaf_ms=1137.677027 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=44.2527 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=996.991848 leaf_ms=996.990628 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.4972 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=996.903446 leaf_ms=996.902716 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.5017 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS threads=19 mb=192 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=19 ncpu=19 cpu_first=38 cpu_last=56 apack_setup_ms=0.832233 bpack_ms=3.357845 compute_region_ms=68.829270 kernel_mean_ms=50.529963 kernel_max_ms=50.677970 output_mean_ms=17.555018 zero_mean_ms=0.577854 total_ms=73.019348
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=19 ncpu=19 cpu_first=38 cpu_last=56 apack_setup_ms=0.243514 bpack_ms=2.296847 compute_region_ms=52.550396 kernel_mean_ms=50.799086 kernel_max_ms=50.873980 output_mean_ms=1.334259 zero_mean_ms=0.322144 total_ms=55.090757
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=19 ncpu=19 cpu_first=38 cpu_last=56 apack_setup_ms=0.240594 bpack_ms=2.296178 compute_region_ms=52.353712 kernel_mean_ms=50.714643 kernel_max_ms=50.784570 output_mean_ms=1.228407 zero_mean_ms=0.316356 total_ms=54.890484
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=73.244693 leaf_ms=73.244013 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=687.3574 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=55.233429 leaf_ms=55.231559 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=911.5002 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=55.016566 leaf_ms=55.015416 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=915.0931 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS threads=38 mb=192 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.785093 bpack_ms=1.895950 compute_region_ms=36.358462 kernel_mean_ms=25.304046 kernel_max_ms=27.872240 output_mean_ms=10.382802 zero_mean_ms=0.478130 total_ms=39.039505
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.157523 bpack_ms=1.234440 compute_region_ms=26.226467 kernel_mean_ms=25.365985 kernel_max_ms=25.603020 output_mean_ms=0.461568 zero_mean_ms=0.188136 total_ms=27.618430
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.156993 bpack_ms=1.234040 compute_region_ms=26.192406 kernel_mean_ms=25.353418 kernel_max_ms=25.525990 output_mean_ms=0.451600 zero_mean_ms=0.184247 total_ms=27.583439
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=39.265629 leaf_ms=39.264269 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1282.1717 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=27.776542 leaf_ms=27.775512 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1812.5107 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=27.712531 leaf_ms=27.711791 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1816.6973 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=64 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.764153 bpack_ms=1.892161 compute_region_ms=32.425507 kernel_mean_ms=16.657034 kernel_max_ms=18.084750 output_mean_ms=15.072289 zero_mean_ms=0.477172 total_ms=35.081821
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.159263 bpack_ms=1.236400 compute_region_ms=17.330322 kernel_mean_ms=16.645606 kernel_max_ms=16.815520 output_mean_ms=0.365505 zero_mean_ms=0.129910 total_ms=18.725985
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.151262 bpack_ms=1.236190 compute_region_ms=17.157210 kernel_mean_ms=16.498720 kernel_max_ms=16.648440 output_mean_ms=0.351759 zero_mean_ms=0.128603 total_ms=18.544662
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=35.289135 leaf_ms=35.288285 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1426.6510 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=18.873127 leaf_ms=18.872287 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2667.5643 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=18.671884 leaf_ms=18.670974 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2696.3149 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=64 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.655460 bpack_ms=1.979233 compute_region_ms=20.867539 kernel_mean_ms=18.661715 kernel_max_ms=19.253610 output_mean_ms=1.497785 zero_mean_ms=0.476568 total_ms=23.502232
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.164622 bpack_ms=1.240850 compute_region_ms=19.679531 kernel_mean_ms=18.892914 kernel_max_ms=19.015310 output_mean_ms=0.459788 zero_mean_ms=0.132969 total_ms=21.085003
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.150772 bpack_ms=1.232010 compute_region_ms=19.617209 kernel_mean_ms=18.838730 kernel_max_ms=19.014160 output_mean_ms=0.463425 zero_mean_ms=0.132447 total_ms=20.999991
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=23.728907 leaf_ms=23.728077 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2121.6856 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=21.235615 leaf_ms=21.234755 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2370.7945 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=21.128204 leaf_ms=21.127444 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2382.8471 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=128 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.809463 bpack_ms=1.892551 compute_region_ms=28.122908 kernel_mean_ms=12.907794 kernel_max_ms=14.121240 output_mean_ms=14.539809 zero_mean_ms=0.486288 total_ms=30.824922
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.159153 bpack_ms=1.230720 compute_region_ms=14.084179 kernel_mean_ms=13.167081 kernel_max_ms=13.297250 output_mean_ms=0.551519 zero_mean_ms=0.202630 total_ms=15.474052
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.160103 bpack_ms=1.230430 compute_region_ms=14.124020 kernel_mean_ms=13.203949 kernel_max_ms=13.306970 output_mean_ms=0.550136 zero_mean_ms=0.199057 total_ms=15.514553
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=31.043415 leaf_ms=31.042285 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1621.7700 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=15.623864 leaf_ms=15.622814 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3222.3322 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=15.640845 leaf_ms=15.640095 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3218.8337 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=128 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.897775 bpack_ms=1.916391 compute_region_ms=15.363350 kernel_mean_ms=12.385522 kernel_max_ms=13.005490 output_mean_ms=2.264524 zero_mean_ms=0.480212 total_ms=18.177516
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.382597 bpack_ms=1.228480 compute_region_ms=13.013741 kernel_mean_ms=12.301735 kernel_max_ms=12.482060 output_mean_ms=0.372620 zero_mean_ms=0.130173 total_ms=14.624818
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.386607 bpack_ms=1.225520 compute_region_ms=13.025202 kernel_mean_ms=12.298317 kernel_max_ms=12.443500 output_mean_ms=0.373624 zero_mean_ms=0.134093 total_ms=14.637329
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=18.423780 leaf_ms=18.422790 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2732.6249 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=14.771081 leaf_ms=14.770191 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3408.3680 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=14.757951 leaf_ms=14.757241 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3411.4004 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=192 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.912075 bpack_ms=1.893821 compute_region_ms=36.648936 kernel_mean_ms=25.271454 kernel_max_ms=27.181840 output_mean_ms=10.691003 zero_mean_ms=0.504244 total_ms=39.454832
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.154403 bpack_ms=1.232440 compute_region_ms=26.340699 kernel_mean_ms=25.425837 kernel_max_ms=25.638660 output_mean_ms=0.514691 zero_mean_ms=0.192358 total_ms=27.727542
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.146893 bpack_ms=1.233400 compute_region_ms=26.129435 kernel_mean_ms=25.322141 kernel_max_ms=25.535100 output_mean_ms=0.457120 zero_mean_ms=0.166563 total_ms=27.509728
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=39.694386 leaf_ms=39.693326 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1268.3224 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=27.887494 leaf_ms=27.886784 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1805.2995 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=27.632750 leaf_ms=27.631960 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1821.9424 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=192 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.855884 bpack_ms=1.929091 compute_region_ms=28.854830 kernel_mean_ms=25.123656 kernel_max_ms=26.180420 output_mean_ms=2.600067 zero_mean_ms=0.474135 total_ms=31.639805
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.315716 bpack_ms=1.227989 compute_region_ms=26.198107 kernel_mean_ms=25.131536 kernel_max_ms=25.732010 output_mean_ms=0.294129 zero_mean_ms=0.139561 total_ms=27.741812
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.311735 bpack_ms=1.225530 compute_region_ms=26.230647 kernel_mean_ms=25.157907 kernel_max_ms=25.749760 output_mean_ms=0.297796 zero_mean_ms=0.139489 total_ms=27.767912
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=31.859748 leaf_ms=31.858348 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1580.2159 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=27.900185 leaf_ms=27.899184 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1804.4783 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=27.891304 leaf_ms=27.890414 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1805.0529 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=256 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.815923 bpack_ms=1.884501 compute_region_ms=42.468941 kernel_mean_ms=32.046912 kernel_max_ms=35.526370 output_mean_ms=9.312302 zero_mean_ms=0.479386 total_ms=45.169365
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.167772 bpack_ms=1.230940 compute_region_ms=33.243432 kernel_mean_ms=32.021092 kernel_max_ms=32.700720 output_mean_ms=0.418151 zero_mean_ms=0.146041 total_ms=34.642144
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.155293 bpack_ms=1.225590 compute_region_ms=33.341012 kernel_mean_ms=32.077218 kernel_max_ms=32.726350 output_mean_ms=0.433662 zero_mean_ms=0.161526 total_ms=34.721895
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=45.400369 leaf_ms=45.398549 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1108.9178 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=34.795846 leaf_ms=34.795046 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1446.8761 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=34.853857 leaf_ms=34.853147 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1444.4680 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=1 threads=38 mb=256 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.941516 bpack_ms=1.917601 compute_region_ms=36.643976 kernel_mean_ms=31.776388 kernel_max_ms=33.627500 output_mean_ms=3.399470 zero_mean_ms=0.491112 total_ms=39.503093
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.274354 bpack_ms=1.230460 compute_region_ms=33.222541 kernel_mean_ms=31.765984 kernel_max_ms=32.807490 output_mean_ms=0.282893 zero_mean_ms=0.128246 total_ms=34.727355
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.274205 bpack_ms=1.222880 compute_region_ms=33.180430 kernel_mean_ms=31.750001 kernel_max_ms=32.706700 output_mean_ms=0.273133 zero_mean_ms=0.129739 total_ms=34.677515
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=39.719367 leaf_ms=39.717957 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1267.5247 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=34.872837 leaf_ms=34.872087 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1443.6818 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=34.787157 leaf_ms=34.786427 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1447.2375 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=64 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.821493 bpack_ms=1.883201 compute_region_ms=31.967250 kernel_mean_ms=16.709639 kernel_max_ms=18.142020 output_mean_ms=14.584897 zero_mean_ms=0.461130 total_ms=34.671944
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.152812 bpack_ms=1.233411 compute_region_ms=17.282381 kernel_mean_ms=16.616665 kernel_max_ms=16.778850 output_mean_ms=0.358224 zero_mean_ms=0.127682 total_ms=18.668604
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.148763 bpack_ms=1.233030 compute_region_ms=17.283321 kernel_mean_ms=16.614256 kernel_max_ms=16.763740 output_mean_ms=0.360906 zero_mean_ms=0.130133 total_ms=18.665114
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=34.902838 leaf_ms=34.902058 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1442.4409 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=18.827126 leaf_ms=18.826196 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2674.0820 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=18.788876 leaf_ms=18.788166 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2679.5259 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=64 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.809133 bpack_ms=1.907271 compute_region_ms=20.830739 kernel_mean_ms=18.637641 kernel_max_ms=19.079790 output_mean_ms=1.482707 zero_mean_ms=0.492984 total_ms=23.547143
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.168332 bpack_ms=1.235900 compute_region_ms=19.505908 kernel_mean_ms=18.743134 kernel_max_ms=18.896780 output_mean_ms=0.459306 zero_mean_ms=0.132115 total_ms=20.910140
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.160713 bpack_ms=1.237490 compute_region_ms=19.654020 kernel_mean_ms=18.881221 kernel_max_ms=19.047800 output_mean_ms=0.457910 zero_mean_ms=0.133202 total_ms=21.052223
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=23.771357 leaf_ms=23.770527 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2117.8967 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=21.059592 leaf_ms=21.058522 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2390.6104 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=21.172045 leaf_ms=21.171115 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2377.9129 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=128 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.775893 bpack_ms=1.879690 compute_region_ms=27.425617 kernel_mean_ms=12.973512 kernel_max_ms=14.448770 output_mean_ms=13.784496 zero_mean_ms=0.475907 total_ms=30.081200
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.160023 bpack_ms=1.230680 compute_region_ms=14.066579 kernel_mean_ms=13.165031 kernel_max_ms=13.300410 output_mean_ms=0.537228 zero_mean_ms=0.199619 total_ms=15.457282
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.154112 bpack_ms=1.234350 compute_region_ms=14.045389 kernel_mean_ms=13.183370 kernel_max_ms=13.309270 output_mean_ms=0.521940 zero_mean_ms=0.188734 total_ms=15.433851
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=30.292593 leaf_ms=30.291563 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1661.9667 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=15.600024 leaf_ms=15.599184 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3227.2565 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=15.552083 leaf_ms=15.551243 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3237.2049 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=128 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.689372 bpack_ms=1.863470 compute_region_ms=15.209958 kernel_mean_ms=12.342697 kernel_max_ms=13.127720 output_mean_ms=2.139727 zero_mean_ms=0.486686 total_ms=17.762800
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.382746 bpack_ms=1.230480 compute_region_ms=13.018962 kernel_mean_ms=12.299763 kernel_max_ms=12.466570 output_mean_ms=0.365262 zero_mean_ms=0.130183 total_ms=14.632188
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.381056 bpack_ms=1.227610 compute_region_ms=13.023362 kernel_mean_ms=12.313819 kernel_max_ms=12.512160 output_mean_ms=0.367370 zero_mean_ms=0.131103 total_ms=14.632028
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=17.982293 leaf_ms=17.981123 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2799.7141 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=14.779870 leaf_ms=14.778950 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3406.3411 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=14.751460 leaf_ms=14.750010 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3412.9015 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=192 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.831534 bpack_ms=1.876960 compute_region_ms=37.153425 kernel_mean_ms=25.240636 kernel_max_ms=28.632900 output_mean_ms=11.233813 zero_mean_ms=0.501552 total_ms=39.861919
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.154913 bpack_ms=1.236360 compute_region_ms=26.177786 kernel_mean_ms=25.337715 kernel_max_ms=25.493880 output_mean_ms=0.465395 zero_mean_ms=0.183803 total_ms=27.569059
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.147083 bpack_ms=1.231490 compute_region_ms=26.230187 kernel_mean_ms=25.360866 kernel_max_ms=25.540070 output_mean_ms=0.494279 zero_mean_ms=0.184866 total_ms=27.608760
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=40.088642 leaf_ms=40.087842 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1255.8490 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=27.717891 leaf_ms=27.716971 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1816.3460 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=27.732942 leaf_ms=27.732172 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1815.3602 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=192 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.784933 bpack_ms=1.872280 compute_region_ms=28.852960 kernel_mean_ms=25.151369 kernel_max_ms=25.960480 output_mean_ms=2.511893 zero_mean_ms=0.476915 total_ms=31.510173
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.317246 bpack_ms=1.228030 compute_region_ms=26.230047 kernel_mean_ms=25.145500 kernel_max_ms=25.775920 output_mean_ms=0.304110 zero_mean_ms=0.140693 total_ms=27.775323
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.309505 bpack_ms=1.227710 compute_region_ms=26.258487 kernel_mean_ms=25.155065 kernel_max_ms=25.746120 output_mean_ms=0.307553 zero_mean_ms=0.144009 total_ms=27.795702
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=31.739477 leaf_ms=31.737317 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1586.2038 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=27.923525 leaf_ms=27.922505 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1802.9701 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=27.925994 leaf_ms=27.925294 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1802.8107 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=256 order=0
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.706321 bpack_ms=1.885501 compute_region_ms=41.569167 kernel_mean_ms=31.829136 kernel_max_ms=35.338150 output_mean_ms=8.648423 zero_mean_ms=0.471098 total_ms=44.160989
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.153022 bpack_ms=1.235510 compute_region_ms=33.262582 kernel_mean_ms=31.941205 kernel_max_ms=32.527040 output_mean_ms=0.495096 zero_mean_ms=0.176064 total_ms=34.651114
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.162282 bpack_ms=1.224220 compute_region_ms=33.018538 kernel_mean_ms=31.842684 kernel_max_ms=32.518280 output_mean_ms=0.390324 zero_mean_ms=0.140608 total_ms=34.405040
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=44.386452 leaf_ms=44.385532 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1134.2488 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=34.798697 leaf_ms=34.797566 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1446.7576 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=34.519152 leaf_ms=34.518532 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1458.4738 error=2.665e-15 coverage=128-samples PASS
+DENSE_TASKS round=2 threads=38 mb=256 order=1
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.832033 bpack_ms=1.878301 compute_region_ms=36.636226 kernel_mean_ms=31.950624 kernel_max_ms=33.795610 output_mean_ms=3.220683 zero_mean_ms=0.463789 total_ms=39.346560
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.275165 bpack_ms=1.226530 compute_region_ms=33.393033 kernel_mean_ms=31.942500 kernel_max_ms=32.939480 output_mean_ms=0.285365 zero_mean_ms=0.131547 total_ms=34.894728
+DENSE_PROFILE m=1216 n=17024 k=1216 nth=38 ncpu=38 cpu_first=38 cpu_last=75 apack_setup_ms=0.273665 bpack_ms=1.231060 compute_region_ms=33.334373 kernel_mean_ms=31.928128 kernel_max_ms=32.878700 output_mean_ms=0.292492 zero_mean_ms=0.130052 total_ms=34.839098
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=39.582214 leaf_ms=39.581124 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1271.9167 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=35.038260 leaf_ms=35.037530 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1436.8659 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=34.950139 leaf_ms=34.949559 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1440.4887 error=2.665e-15 coverage=128-samples PASS

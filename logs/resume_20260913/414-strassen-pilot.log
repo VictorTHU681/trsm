@@ -1,0 +1,50 @@
+STRASSEN_PILOT shape=64 96 80
+STRASSEN m=64 n=96 k=80 depth=2 rep=-1 total_ms=26.295671 leaf_ms=1.657226 sum_ms=10.964265 output_ms=13.652580 nominal_GFLOPS=0.0374 error=3.081e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=1 rep=-1 total_ms=4.023844 leaf_ms=0.053031 sum_ms=1.686067 output_ms=2.282036 nominal_GFLOPS=0.2443 error=1.971e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=0 rep=-1 total_ms=0.012770 leaf_ms=0.012370 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=76.9804 error=1.554e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=0 rep=0 total_ms=0.010391 leaf_ms=0.009911 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=94.6050 error=1.554e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=1 rep=0 total_ms=4.288128 leaf_ms=0.026550 sum_ms=1.872699 output_ms=2.386329 nominal_GFLOPS=0.2292 error=1.971e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=2 rep=0 total_ms=139.145738 leaf_ms=0.132194 sum_ms=77.200185 output_ms=61.793369 nominal_GFLOPS=0.0071 error=3.081e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=2 rep=1 total_ms=22.592171 leaf_ms=0.130943 sum_ms=9.637251 output_ms=12.804086 nominal_GFLOPS=0.0435 error=3.081e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=1 rep=1 total_ms=2.804215 leaf_ms=0.028201 sum_ms=1.107407 output_ms=1.665927 nominal_GFLOPS=0.3506 error=1.971e-15 coverage=full PASS
+STRASSEN m=64 n=96 k=80 depth=0 rep=1 total_ms=0.012330 leaf_ms=0.011930 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=79.7278 error=1.554e-15 coverage=full PASS
+STRASSEN_PILOT shape=65 97 81
+STRASSEN m=65 n=97 k=81 depth=2 rep=-1 total_ms=0.206674 leaf_ms=0.205474 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=4.9421 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=1 rep=-1 total_ms=0.024390 leaf_ms=0.023880 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=41.8782 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=0 rep=-1 total_ms=0.020000 leaf_ms=0.019640 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=51.0704 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=0 rep=0 total_ms=0.020150 leaf_ms=0.019790 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.6904 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=1 rep=0 total_ms=0.020140 leaf_ms=0.019750 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.7154 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=2 rep=0 total_ms=0.020000 leaf_ms=0.019610 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=51.0706 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=2 rep=1 total_ms=0.020090 leaf_ms=0.019730 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.8418 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=1 rep=1 total_ms=0.020091 leaf_ms=0.019711 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.8391 error=1.776e-15 coverage=full PASS
+STRASSEN m=65 n=97 k=81 depth=0 rep=1 total_ms=0.020060 leaf_ms=0.019710 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=50.9178 error=1.776e-15 coverage=full PASS
+STRASSEN_PILOT shape=256 19968 256
+STRASSEN m=256 n=19968 k=256 depth=2 rep=-1 total_ms=49.937950 leaf_ms=13.027232 sum_ms=15.907664 output_ms=20.954574 nominal_GFLOPS=52.4100 error=5.274e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=1 rep=-1 total_ms=9.091096 leaf_ms=3.379585 sum_ms=2.372228 output_ms=3.327203 nominal_GFLOPS=287.8911 error=2.942e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=0 rep=-1 total_ms=1.423263 leaf_ms=1.422123 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1838.9051 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=0 rep=0 total_ms=1.451484 leaf_ms=1.450653 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1803.1516 error=2.665e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=1 rep=0 total_ms=8.810951 leaf_ms=3.314692 sum_ms=2.323827 output_ms=3.160611 nominal_GFLOPS=297.0446 error=2.942e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=2 rep=0 total_ms=43.522847 leaf_ms=11.303442 sum_ms=13.763636 output_ms=18.413877 nominal_GFLOPS=60.1350 error=5.274e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=2 rep=1 total_ms=44.100296 leaf_ms=11.413514 sum_ms=13.777008 output_ms=18.863624 nominal_GFLOPS=59.3476 error=5.274e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=1 rep=1 total_ms=9.009304 leaf_ms=3.356483 sum_ms=2.444611 output_ms=3.196530 nominal_GFLOPS=290.5048 error=2.942e-15 coverage=128-samples PASS
+STRASSEN m=256 n=19968 k=256 depth=0 rep=1 total_ms=1.401953 leaf_ms=1.401213 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=1866.8570 error=2.665e-15 coverage=128-samples PASS
+STRASSEN_PILOT shape=1216 17024 1216
+STRASSEN m=1216 n=17024 k=1216 depth=2 rep=-1 total_ms=84.396172 leaf_ms=39.178446 sum_ms=19.061184 output_ms=26.046101 nominal_GFLOPS=596.5351 error=2.731e-14 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=1 rep=-1 total_ms=29.697966 leaf_ms=20.296674 sum_ms=3.828201 output_ms=5.558291 nominal_GFLOPS=1695.2434 error=1.044e-14 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=-1 total_ms=15.999526 leaf_ms=15.998786 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3146.6732 error=4.441e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=0 total_ms=15.659671 leaf_ms=15.658821 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3214.9641 error=4.441e-15 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=1 rep=0 total_ms=30.099762 leaf_ms=20.287845 sum_ms=3.910882 output_ms=5.887734 nominal_GFLOPS=1672.6139 error=1.044e-14 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=2 rep=0 total_ms=79.512753 leaf_ms=36.480208 sum_ms=17.748788 output_ms=25.179217 nominal_GFLOPS=633.1724 error=2.731e-14 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=2 rep=1 total_ms=79.531314 leaf_ms=36.942040 sum_ms=17.824347 output_ms=24.662756 nominal_GFLOPS=633.0246 error=2.731e-14 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=1 rep=1 total_ms=29.800227 leaf_ms=20.254493 sum_ms=3.967494 output_ms=5.563990 nominal_GFLOPS=1689.4260 error=1.044e-14 coverage=128-samples PASS
+STRASSEN m=1216 n=17024 k=1216 depth=0 rep=1 total_ms=15.627620 leaf_ms=15.626670 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=3221.5577 error=4.441e-15 coverage=128-samples PASS
+STRASSEN_PILOT shape=8512 512 8512
+STRASSEN m=8512 n=512 k=8512 depth=2 rep=-1 total_ms=127.302219 leaf_ms=67.547260 sum_ms=38.493097 output_ms=21.163979 nominal_GFLOPS=582.8103 error=8.027e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=1 rep=-1 total_ms=55.589930 leaf_ms=42.314187 sum_ms=10.061653 output_ms=3.197880 nominal_GFLOPS=1334.6490 error=4.086e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=0 rep=-1 total_ms=29.462952 leaf_ms=29.461742 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2518.1809 error=1.998e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=0 rep=0 total_ms=29.368701 leaf_ms=29.367831 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2526.2623 error=1.998e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=1 rep=0 total_ms=58.773182 leaf_ms=42.207237 sum_ms=10.099942 output_ms=6.452112 nominal_GFLOPS=1262.3622 error=4.086e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=2 rep=0 total_ms=126.160201 leaf_ms=67.690486 sum_ms=37.061394 output_ms=21.317348 nominal_GFLOPS=588.0860 error=8.027e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=2 rep=1 total_ms=124.179839 leaf_ms=65.974891 sum_ms=37.625808 output_ms=20.489719 nominal_GFLOPS=597.4645 error=8.027e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=1 rep=1 total_ms=55.974067 leaf_ms=42.684445 sum_ms=10.049731 output_ms=3.222611 nominal_GFLOPS=1325.4896 error=4.086e-14 coverage=128-samples PASS
+STRASSEN m=8512 n=512 k=8512 depth=0 rep=1 total_ms=29.900719 leaf_ms=29.899809 sum_ms=0.000000 output_ms=0.000000 nominal_GFLOPS=2481.3130 error=1.998e-14 coverage=128-samples PASS
