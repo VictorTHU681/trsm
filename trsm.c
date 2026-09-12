@@ -3569,12 +3569,17 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
     const long cs = ncp * 8;
     const long ntile = 4;
     const svbool_t pg = svptrue_b64();
-    for (long p = 0; p < c->npan; p++) {
-        const long c0 = p * nc;
-        long nci = c->n - c0; if (nci > nc) nci = nc;
+    // 反对角线序（s = p + i）：低块条带先行进入后续面板，波前流水才能填充——
+    // 若按 (p 升, i 升)，每线程都要等完本面板高块才进下一面板，全体退化为每面板串行链（实测 11×）
+    const long smax = c->npan + c->nrb;
+    for (long sdiag = 0; sdiag < smax; sdiag++) {
         for (long idx = c->woff[tid]; idx < c->woff[tid + 1]; idx++) {
             const long g = c->wlist[idx];
             const long i = (16 * g) / mb, i0 = i * mb;
+            const long p = sdiag - i;
+            if (p < 0 || p >= c->npan) continue;
+            const long c0 = p * nc;
+            long nci = c->n - c0; if (nci > nc) nci = nc;
             const int r = (int)((16 * g - i0) / 16);
             const long S = c->S_of[i];
             double* slot = c->wbuf + ((size_t)i * 2 + (p & 1)) * mb * ncp;
