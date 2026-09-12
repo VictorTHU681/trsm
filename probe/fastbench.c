@@ -77,12 +77,26 @@ static double sampled_residual(int m, int n, const double* L, int lda, const dou
     return worst;
 }
 
+// FB_XOFF：控制解矩阵 X 的 64B 对齐偏移（字节，0..63）。未设置 = 原样 malloc（大块 mmap → 恒定 +16B）。
+// 用途：定价 X 回写 partial-line NT 写的端到端代价（FB_XOFF=0 为全对齐上界，16 ≈ malloc 现状）。
+static void* g_xbase = NULL;
+static double* alloc_x(size_t bytes)
+{
+    const char* e = getenv("FB_XOFF");
+    if (!e) { g_xbase = malloc(bytes); return (double*)g_xbase; }
+    long off = atol(e) & 63;
+    size_t sz = (bytes + off + 8191) & ~(size_t)4095;
+    char* p = aligned_alloc(4096, sz);
+    g_xbase = p;
+    return p ? (double*)(p + off) : NULL;
+}
+
 static int run_case(int m, int n, int reps, int ns)
 {
     int lda = m + 64, ldb = n + 64;
     double* L = malloc((size_t)lda * m * sizeof(double));
     double* B = malloc((size_t)ldb * m * sizeof(double));
-    double* X = malloc((size_t)ldb * m * sizeof(double));
+    double* X = alloc_x((size_t)ldb * m * sizeof(double));
     if (!L || !B || !X) { printf("malloc failed\n"); return 1; }
     double tg0 = omp_get_wtime();
     generate_matrix(m, m, L, lda, true, 12345);
@@ -112,7 +126,7 @@ static int run_case(int m, int n, int reps, int ns)
     printf("%6d x%6d  min %8.3f ms %9.2f GFLOPS | avg %8.3f ms %9.2f GFLOPS | 预热 %.1f ms 生成 %.2f s | 抽样残差 %.2e (行 %d) %s\n",
            m, n, tmin * 1e3, (double)m * m * n / tmin * 1e-9, tavg * 1e3, (double)m * m * n / tavg * 1e-9,
            (tw1 - tw0) * 1e3, tg1 - tg0, res, wrow, verdict);
-    free(L); free(B); free(X);
+    free(L); free(B); free(g_xbase);
     return strcmp(verdict, "FAIL") == 0;
 }
 
