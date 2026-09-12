@@ -12,8 +12,8 @@ for MN in "512 19968" "2432 17024"; do
   read -r M N <<<"$MN"
   echo "--- perf $M x $N (3 轮)"
   for i in 1 2 3; do
-    perf stat -e cycles,instructions,mem_stall_anyload,mem_stall_l1miss,mem_stall_l2miss,exe_stall_cycle,fsu_stall \
-      -- env OMP_WAIT_POLICY=passive GOMP_SPINCOUNT=0 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $M $N 1 2>&1 | grep -E "PASS|cycles|instructions|stall|seconds" | head -11
+    perf stat -e cycles,instructions,r7001,r7004,r7006,r7007 \
+      -- env OMP_WAIT_POLICY=passive GOMP_SPINCOUNT=0 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $M $N 1 2>&1 | grep -E "PASS|cycles|instructions|r70|seconds" | head -11
   done
 done
 echo "=== DONE $(date +%H:%M:%S)"
