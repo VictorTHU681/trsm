@@ -1489,6 +1489,7 @@ typedef struct {
     volatile int* pflags;   // 每条的打包完成标志（ppmode=1；nobar 时 ppmode=0 也用）
     volatile int* dcnt;     // 每个行块已完成的对角条数（nobar：任务对角阶段前等它等于 S_of[i]）
     int nobar;              // 预处理阶段不设全局 barrier：预处理项按行块顺序动态领取，消费者用 pflags/dcnt 等（TRSM_NOBAR）
+    int tbuild;             // 任务表构建推迟到并行区线程 0（与其余线程的对角预处理重叠，TRSM_TBUILD）
     double* pp[2];          // 预打包（0 主副本，1 副副本，可为 NULL）
     size_t* pp_off;         // 每 16 行条起点（double 下标）
     long nstrip;
@@ -1587,6 +1588,7 @@ static size_t g_pflags_cap = 0;
 static int* g_dcnt = NULL; static size_t g_dcnt_cap = 0;
 static int* g_seg_cnt = NULL;
 static task_t* g_tasks = NULL;
+static volatile int g_tables_ready = 0;   // 并行区内任务表构建完成标志（TRSM_TBUILD）
 static size_t g_tasks_cap = 0;
 static double* g_part = NULL;
 static size_t g_part_cap = 0;
@@ -5249,6 +5251,144 @@ static inline __attribute__((always_inline)) void kloop_owner_cursor4(const doub
  "\n\t"
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 
+
+// 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
+// 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)。
+// 写 c->tasks / ntask_items / part / owner_bound；TRSM_TBUILD=1（默认）时由并行区线程 0 调用（与其他线程的
+// 对角预处理重叠，g_tables_ready 发布），=0 时在 setup 串行调用（旧行为）。
+static void build_tasks(ctx_t* c, int nth)
+{
+    const int mb = c->mb, nc = c->nc, kc = c->kc;
+    const long n = c->n;
+
+        long ntile_full = (nc + 31) / 32;
+        double total = 0;
+        double* cost = malloc(sizeof(double) * c->nrb);
+        for (long i = 0; i < c->nrb; i++) {
+            long S = c->S_of[i];
+            cost[i] = (double)S * (i * mb) + 8.0 * S * (S + 1);   // 每列块的 k 步数 / ntile
+            total += cost[i] * c->npan;
+        }
+        int splitf = c->owner ? 0 : env_int("TRSM_SPLITF", 12);   // 面板驻留模式不分裂 K
+        int maxseg = env_int("TRSM_MAXSEG", 8);
+        // Narrow RHS panels leave too few long tasks at the end of the solve.
+        // Split only the last two row blocks more finely to shorten that tail.
+        int tailrows = env_int("TRSM_TAIL_ROWS", 2);
+        int tailseg = env_int("TRSM_TAIL_SEG", 6);
+        // 宽 n（面板数 ≥ 线程数）时最后 tailrows_w 个行块也分裂成 tailseg_w 段：最后一个行块的任务最长（case2 约 1.7 ms），
+        // 不分裂时尾部平均空闲约半个任务
+        int tailrows_w = env_int("TRSM_TAILW_ROWS", 1);
+        int tailseg_w = env_int("TRSM_TAILW_SEG", 1);   // 实测 case2 分裂最后行块：尾部空闲 0.36→0.26 ms 但归约与部分和流量多 0.6 ms，净负，默认关
+        long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
+        double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
+        long nitems = 0;
+        size_t part_doubles = 0;
+        for (long i = 0; i < c->nrb; i++) {
+            long nch = (i * mb) / kc;
+            int nseg = 1;
+            if (splitf > 0 && nch >= minch) {
+                nseg = (int)(cost[i] / target + 0.5);
+                if (c->npan < nth && i >= c->nrb - tailrows && nseg < tailseg) nseg = tailseg;
+                if (c->npan >= nth && i >= c->nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
+                if (nseg > maxseg) nseg = maxseg;
+                if (nseg > nch) nseg = (int)nch;
+                if (nseg < 1) nseg = 1;
+            }
+            nitems += (long)nseg * c->npan;
+            if (nseg > 1) part_doubles += (size_t)nseg * c->npan * mb * c->ncp;
+        }
+        if (c->ppmode == 1) nitems += c->nstrip;   // 打包任务
+        if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
+        if (g_part_cap < part_doubles) { trsm_free_buffer(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
+        long q = 0;
+        size_t poff = 0;
+        // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块
+        int LA = env_int("TRSM_PACK_LA", 2);
+        long gnext = 0;   // 下一个待派发的打包条
+        // 任务项显式初始化（不 memset）：任务表每次调用重建（TC1 1664 项 / TC3 1604 项），memset+补填约占 setup 的一半
+        #define TASK_INIT(t_, kind_, g_, i_, p_, seg_, nseg_, ch0_, ch1_, poff_) do { \
+            task_t* _t = (t_); _t->kind = (kind_); _t->g = (g_); _t->i = (i_); _t->p = (p_); \
+            _t->seg = (seg_); _t->nseg = (nseg_); _t->ch0 = (ch0_); _t->ch1 = (ch1_); _t->part_off = (poff_); } while (0)
+        if (c->ppmode == 1) {
+            long gend = (long)(LA + 1) * mb / 16; if (gend > c->nstrip) gend = c->nstrip;
+            for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
+        }
+        if (c->owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
+            const long chunks_per_block = mb / kc;
+            for (long p = 0; p < c->npan; p++)
+                for (long i = 0; i < c->nrb; i++)
+                    TASK_INIT(&g_tasks[q++], 0, 0, (int)i, (int)p, 0, 1, 0, i * chunks_per_block, 0);
+            double c0 = env_int("TRSM_OWNER_C0", c->special == 5 && c->pf2 ? 160 : 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
+            double rowsum = 0;
+            for (long i = 0; i < c->nrb; i++) {
+                cost[i] = ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
+                rowsum += cost[i];
+            }
+            // cshift>0 时首/末奇面板更窄，按面板宽度加权（Σ 权重 = n/nc）
+            double ototal = rowsum * ((double)n / nc);
+            c->owner_bound = malloc(sizeof(long) * (nth + 1));
+            double cum = 0;
+            int tb_ = 1;
+            c->owner_bound[0] = 0;
+            // Each panel repeats the same row costs. Reuse those costs and
+            // update the next boundary only when advancing to another thread.
+            long row = 0, pan = 0;
+            double pw = (double)pan_nci(c, 0) / nc;
+            double next_bound = ototal / nth;
+            for (long qq = 0; qq < q && tb_ < nth; qq++) {
+                cum += cost[row] * pw;
+                if (++row == c->nrb) { row = 0; if (++pan < c->npan) pw = (double)pan_nci(c, pan) / nc; }
+                while (tb_ < nth && cum >= next_bound) {
+                    c->owner_bound[tb_++] = qq + 1;
+                    next_bound = ototal * tb_ / nth;
+                }
+            }
+            while (tb_ <= nth) c->owner_bound[tb_++] = q;
+        } else
+        for (long i = 0; i < c->nrb; i++) {
+            if (c->ppmode == 1) {
+                long gend = (long)(i + LA + 1) * mb / 16; if (gend > c->nstrip) gend = c->nstrip;
+                for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
+            }
+            long nch = (i * mb) / kc;
+            int nseg = 1;
+            if (splitf > 0 && nch >= minch) {
+                nseg = (int)(cost[i] / target + 0.5);
+                if (c->npan < nth && i >= c->nrb - tailrows && nseg < tailseg) nseg = tailseg;
+                if (c->npan >= nth && i >= c->nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
+                if (nseg > maxseg) nseg = maxseg;
+                if (nseg > nch) nseg = (int)nch;
+                if (nseg < 1) nseg = 1;
+            }
+            // 分裂任务的派发顺序：TRSM_LASTLATE=1 时先派发各面板的非末段（不依赖前一行块），末段（含最后一个 K 段、要等前一行块 flag）放到最后，
+            // 让末段更晚到达等待点、独立工作更早开始
+            const int lastlate = nseg > 1 && env_int("TRSM_LASTLATE", 1);
+            size_t poff0 = poff;
+            for (int pass = 0; pass < (lastlate ? 2 : 1); pass++) {
+                poff = poff0;
+                for (long p = 0; p < c->npan; p++) {
+                    for (int s = 0; s < nseg; s++) {
+                        int is_last = s == nseg - 1;
+                        if (lastlate && (pass == 0) == is_last) continue;   // pass 0：非末段；pass 1：末段
+                        task_t* t = &g_tasks[q++];
+                        t->kind = 0; t->g = 0;
+                        t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
+                        t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
+                        t->part_off = poff;
+                    }
+                    if (nseg > 1) poff += (size_t)nseg * mb * c->ncp;
+                }
+            }
+        }
+        nitems = q;
+        c->tasks = g_tasks;
+        c->ntask_items = nitems;
+        c->part = g_part;
+        free(cost);
+        (void)ntile_full;
+    }
+}
+
 // ---------------------------------------------------------------- 主流程
 static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
 {
@@ -5496,136 +5636,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     TSUB(3);
     c.nobar = env_int("TRSM_NOBAR", 1);
 
-    // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
-    // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)
-    {
-        long ntile_full = (nc + 31) / 32;
-        double total = 0;
-        double* cost = malloc(sizeof(double) * c.nrb);
-        for (long i = 0; i < c.nrb; i++) {
-            long S = c.S_of[i];
-            cost[i] = (double)S * (i * mb) + 8.0 * S * (S + 1);   // 每列块的 k 步数 / ntile
-            total += cost[i] * c.npan;
-        }
-        int splitf = c.owner ? 0 : env_int("TRSM_SPLITF", 12);   // 面板驻留模式不分裂 K
-        int maxseg = env_int("TRSM_MAXSEG", 8);
-        // Narrow RHS panels leave too few long tasks at the end of the solve.
-        // Split only the last two row blocks more finely to shorten that tail.
-        int tailrows = env_int("TRSM_TAIL_ROWS", 2);
-        int tailseg = env_int("TRSM_TAIL_SEG", 6);
-        // 宽 n（面板数 ≥ 线程数）时最后 tailrows_w 个行块也分裂成 tailseg_w 段：最后一个行块的任务最长（case2 约 1.7 ms），
-        // 不分裂时尾部平均空闲约半个任务
-        int tailrows_w = env_int("TRSM_TAILW_ROWS", 1);
-        int tailseg_w = env_int("TRSM_TAILW_SEG", 1);   // 实测 case2 分裂最后行块：尾部空闲 0.36→0.26 ms 但归约与部分和流量多 0.6 ms，净负，默认关
-        long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
-        double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
-        long nitems = 0;
-        size_t part_doubles = 0;
-        for (long i = 0; i < c.nrb; i++) {
-            long nch = (i * mb) / kc;
-            int nseg = 1;
-            if (splitf > 0 && nch >= minch) {
-                nseg = (int)(cost[i] / target + 0.5);
-                if (c.npan < nth && i >= c.nrb - tailrows && nseg < tailseg) nseg = tailseg;
-                if (c.npan >= nth && i >= c.nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
-                if (nseg > maxseg) nseg = maxseg;
-                if (nseg > nch) nseg = (int)nch;
-                if (nseg < 1) nseg = 1;
-            }
-            nitems += (long)nseg * c.npan;
-            if (nseg > 1) part_doubles += (size_t)nseg * c.npan * mb * c.ncp;
-        }
-        if (c.ppmode == 1) nitems += c.nstrip;   // 打包任务
-        if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
-        if (g_part_cap < part_doubles) { trsm_free_buffer(g_part, g_part_cap * 8); g_part = alloc_on(part_doubles * 8 + 4096, -1); g_part_cap = part_doubles; }
-        long q = 0;
-        size_t poff = 0;
-        // 流水式打包：行块 i+LA 的条在行块 i 的计算任务之前派发；开头先派发 1..LA 块
-        int LA = env_int("TRSM_PACK_LA", 2);
-        long gnext = 0;   // 下一个待派发的打包条
-        // 任务项显式初始化（不 memset）：任务表每次调用重建（TC1 1664 项 / TC3 1604 项），memset+补填约占 setup 的一半
-        #define TASK_INIT(t_, kind_, g_, i_, p_, seg_, nseg_, ch0_, ch1_, poff_) do { \
-            task_t* _t = (t_); _t->kind = (kind_); _t->g = (g_); _t->i = (i_); _t->p = (p_); \
-            _t->seg = (seg_); _t->nseg = (nseg_); _t->ch0 = (ch0_); _t->ch1 = (ch1_); _t->part_off = (poff_); } while (0)
-        if (c.ppmode == 1) {
-            long gend = (long)(LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
-            for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
-        }
-        if (c.owner) {   // 面板主序：面板 p 的行块 0..nrb-1 连续，q = p*nrb + i；线程区间按代价（GEMM k 步 + 对角 + 每任务固定装载/回写开销）均分
-            const long chunks_per_block = mb / kc;
-            for (long p = 0; p < c.npan; p++)
-                for (long i = 0; i < c.nrb; i++)
-                    TASK_INIT(&g_tasks[q++], 0, 0, (int)i, (int)p, 0, 1, 0, i * chunks_per_block, 0);
-            double c0 = env_int("TRSM_OWNER_C0", c.special == 5 && c.pf2 ? 160 : 192) * (double)mb * nc;   // 固定开销折算成 MAC 数（读 B 写 X 各 mb*nc*8 B，≈12 MAC/B）
-            double rowsum = 0;
-            for (long i = 0; i < c.nrb; i++) {
-                cost[i] = ((double)i * mb * mb + 0.5 * mb * mb) * nc + c0;
-                rowsum += cost[i];
-            }
-            // cshift>0 时首/末奇面板更窄，按面板宽度加权（Σ 权重 = n/nc）
-            double ototal = rowsum * ((double)n / nc);
-            c.owner_bound = malloc(sizeof(long) * (nth + 1));
-            double cum = 0;
-            int tb_ = 1;
-            c.owner_bound[0] = 0;
-            // Each panel repeats the same row costs. Reuse those costs and
-            // update the next boundary only when advancing to another thread.
-            long row = 0, pan = 0;
-            double pw = (double)pan_nci(&c, 0) / nc;
-            double next_bound = ototal / nth;
-            for (long qq = 0; qq < q && tb_ < nth; qq++) {
-                cum += cost[row] * pw;
-                if (++row == c.nrb) { row = 0; if (++pan < c.npan) pw = (double)pan_nci(&c, pan) / nc; }
-                while (tb_ < nth && cum >= next_bound) {
-                    c.owner_bound[tb_++] = qq + 1;
-                    next_bound = ototal * tb_ / nth;
-                }
-            }
-            while (tb_ <= nth) c.owner_bound[tb_++] = q;
-        } else
-        for (long i = 0; i < c.nrb; i++) {
-            if (c.ppmode == 1) {
-                long gend = (long)(i + LA + 1) * mb / 16; if (gend > c.nstrip) gend = c.nstrip;
-                for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
-            }
-            long nch = (i * mb) / kc;
-            int nseg = 1;
-            if (splitf > 0 && nch >= minch) {
-                nseg = (int)(cost[i] / target + 0.5);
-                if (c.npan < nth && i >= c.nrb - tailrows && nseg < tailseg) nseg = tailseg;
-                if (c.npan >= nth && i >= c.nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
-                if (nseg > maxseg) nseg = maxseg;
-                if (nseg > nch) nseg = (int)nch;
-                if (nseg < 1) nseg = 1;
-            }
-            // 分裂任务的派发顺序：TRSM_LASTLATE=1 时先派发各面板的非末段（不依赖前一行块），末段（含最后一个 K 段、要等前一行块 flag）放到最后，
-            // 让末段更晚到达等待点、独立工作更早开始
-            const int lastlate = nseg > 1 && env_int("TRSM_LASTLATE", 1);
-            size_t poff0 = poff;
-            for (int pass = 0; pass < (lastlate ? 2 : 1); pass++) {
-                poff = poff0;
-                for (long p = 0; p < c.npan; p++) {
-                    for (int s = 0; s < nseg; s++) {
-                        int is_last = s == nseg - 1;
-                        if (lastlate && (pass == 0) == is_last) continue;   // pass 0：非末段；pass 1：末段
-                        task_t* t = &g_tasks[q++];
-                        t->kind = 0; t->g = 0;
-                        t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
-                        t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
-                        t->part_off = poff;
-                    }
-                    if (nseg > 1) poff += (size_t)nseg * mb * c.ncp;
-                }
-            }
-        }
-        nitems = q;
-        c.tasks = g_tasks;
-        c.ntask_items = nitems;
-        c.part = g_part;
-        free(cost);
-        (void)ntile_full;
-        TSUB(4);
-    }
+    // 任务表构建：默认（TRSM_TBUILD=1）推迟到并行区由线程 0 完成，与其余线程的对角预处理重叠
+    //（TC1 任务表 ~33 µs ≈ 1.7% 串行时间；其余线程经 g_tables_ready 同步后再进任务阶段）
+    c.tbuild = env_int("TRSM_TBUILD", 1);
+    g_tables_ready = 0;
+    if (!c.tbuild) { build_tasks(&c, nth); __atomic_store_n(&g_tables_ready, 1, __ATOMIC_RELEASE); }
+    TSUB(4);
 
     // 预处理工作项：对角子块 (i, s) 与预打包条 g。nobar 时合成一张按行块顺序排列的表（对角项 ditem_s>=0，打包条 ditem_s=-1、ditem_i=g），
     // 各线程动态领取，做完自己领到的就直接进任务阶段（消费者按 pflags/dcnt 等，通常早已就绪）——省掉全局 barrier 等最慢线程
@@ -5662,6 +5678,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->n_swflush = tb->n_swq = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
+        // 任务表构建（TRSM_TBUILD=1）：线程 0 先建表（malloc/mbind 在流式模式之外），其余线程直接进对角预处理；
+        // 表就绪经 g_tables_ready 发布，消费点在任务阶段之前
+        if (c.tbuild && tid == 0) {
+            build_tasks(&c, nth);
+            __atomic_store_n(&g_tables_ready, 1, __ATOMIC_RELEASE);
+        }
         // 阶段 1：对角预处理（+ nobar 时的预打包条，同一张表、按行块顺序动态领取）
 #pragma omp for schedule(dynamic, 1) nowait
         for (long q = 0; q < nprep_items; q++) {
@@ -5700,6 +5722,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 #pragma omp barrier
         }
         if (c.prof >= 2) g_prep_cyc[tid] = cyc() - tp0;   // 预处理（+ barrier）
+        // 任务表就绪同步（tbuild：线程 0 在预处理期间建表，通常此刻早已就绪）
+        if (c.tbuild) while (!__atomic_load_n(&g_tables_ready, __ATOMIC_ACQUIRE)) asm volatile("yield");
         // 阶段 2：任务
         // 面板驻留模式的线程调度表在进入流式模式前建好（流式区内 malloc 等系统调用会清 PSTATE.SM → 后续 SME 指令 SIGILL）：
         // 线程 tid 的连续区间 [a, b)（面板主序）。区间两端可能各含一个不完整面板：
