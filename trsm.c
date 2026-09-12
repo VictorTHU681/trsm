@@ -3748,7 +3748,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 面板驻留模式：打包 L 复制 N 份（同在 HBM），线程按 tid%N 选副本，消掉 38 核流读同一小缓冲的共享读惩罚
         c.lrep = 1;
         if (c.owner && c.ppmode == 0 && !split) {
-            int lr = env_int("TRSM_LREP", 8);
+            int lr = env_int("TRSM_LREP", 1);   // 实测 N=4/8/19/38 单调变差（TC1 1.86→2.00）：共享读不是瓶颈，副本反而摊薄 DRAM 行缓冲局部性，默认关
             if (lr < 1) lr = 1;
             if (lr > nth) lr = nth;
             while (lr > 1 && (size_t)lr * (off * 8) > ((size_t)256 << 20)) lr--;
