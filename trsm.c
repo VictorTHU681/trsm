@@ -1437,15 +1437,24 @@ static void diag_prep_sub(const double* L, long lda, long i0, int mbi, int s, do
     if (vr > 16) vr = 16;
     for (int sp = 0; sp < s; sp++) {
         const double* Lb = L + r0 * lda + i0 + 16 * sp;   // L_{s,sp}[t][q] = Lb[t*lda + q]
-        double* d = pk + (size_t)16 * sp * 16;
-        for (int q = 0; q < 16; q++) {
-            for (int r = 0; r < 16; r++) {
-                double v = 0.0;
-                int tmax = r < vr ? r : vr - 1;
-                for (int t = 0; t <= tmax; t++) v += Linv[r][t] * Lb[t * lda + q];
-                d[q * 16 + r] = -v;
+        // 先把 16×16 子块按行主序拷进本地：原内层沿 t 步长 lda（case3 行距 ~136 KB），每个元素一条冷 cache 行，
+        // 是 TC3 prep 0.72 ms/线程的主体；拷贝后计算全在 L1，q 内层可被编译器自动向量化
+        double LbT[16][16];
+        int tcap = vr < 16 ? (vr < 0 ? 0 : vr) : 16;
+        for (int t = 0; t < tcap; t++)
+            for (int q = 0; q < 16; q++) LbT[t][q] = Lb[t * lda + q];
+        double tmp[16][16];
+        for (int r = 0; r < 16; r++) {
+            int tmax = r < vr ? r : vr - 1;
+            for (int q = 0; q < 16; q++) tmp[r][q] = 0.0;
+            for (int t = 0; t <= tmax; t++) {
+                double lr = Linv[r][t];
+                for (int q = 0; q < 16; q++) tmp[r][q] += lr * LbT[t][q];
             }
         }
+        double* d = pk + (size_t)16 * sp * 16;
+        for (int q = 0; q < 16; q++)
+            for (int r = 0; r < 16; r++) d[q * 16 + r] = -tmp[r][q];
     }
     double* d = pk + (size_t)16 * s * 16;
     for (int q = 0; q < 16; q++)
