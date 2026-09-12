@@ -508,6 +508,12 @@ v38 直写设计正确；(2) `TRSM_KHEADW`（khead 拷贝代价计入 owner 均�
 (3) owner X 回写托管（见 zgemm 审计条）。**基建**：submit.sh 拉黑 cn20482；ARM 语法检查改在登录节点做
 （x86 -DTRSM_NO_SME_ASM 编译不覆盖 SME 段，曾漏掉一个花括号错误直到作业编译失败）。
 
+**EXTLD 证伪（2026-09-12 深夜，fresh23 留档）**：装载阶段 svext 拼接（对齐装载+移位消跨行向量，面板 0 越界守卫，
+奇偶偏移 8 路特化）。gen ×5 全过；fastbench min 显示 TC1 +1.2%（5/5），但官方口径 4 节点正式 6 轮：−1.1/−1.25/−1.5/+2.5%（离群）
+→ 中位 −1%，证伪不合入。机制：svext 占 FP 发射槽 + va→vb 串行链，在真实预取下超过跨行装载的双 L1 访问代价。
+**教训（第三次）：fastbench min-of-3 的 TC1 信号（TBUILD +2%→官方 +0.14%、EXTLD +1.2%→官方 −1%）不可作为合入依据，
+TC1 只认官方多节点中位。**
+
 **zgemm 交叉审计（2026-09-12 深夜，fresh21）**：把 zgemm NOTES（877 行）逐项对照 trsm，可移植项全数处理完：
 NT 卫生/NOBAR/NEXTA/预取均匀铺开/条件绑核（pin_self 已是 getcpu 判等）/OMP 导出（run.sh 已带）均早已移植；
 CINTL/EVICT 类放置对 trsm 无标的（X 在首调用前已分配首触）；packB 循环内预取≈PACKPF 已证伪；EPI 摊薄对应的 epi 托管节奏是内核级（PMU 封顶）。
