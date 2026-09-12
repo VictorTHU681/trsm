@@ -3597,9 +3597,13 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
                     } else for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
                 }
             }
-            if (i0 > 0) {   // GEMM：本条带 × 全 K
+            if (i0 > 0) {   // GEMM：本条带 × 全 K——C 累加在线程本地 cbuf 16 行区（L2）；
+                // duplex 内核每 K 段回灌一次 C，若直写共享 HBM 槽则 C 流量 ×段数（实测 46GB≈150ms 灾难）
                 while (__atomic_load_n(&c->pflags[g], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
-                double* dst = slot + (size_t)16 * r * ncp;
+                double* dst = tb->cbuf;   // 本地 16×ncp 累加区（装载值已在槽中，先拷进来）
+                for (long rr = 0; rr < 16; rr++)
+                    for (long j = 0; j < nc; j += 8)
+                        svst1_f64(pg, dst + rr * ncp + j, svld1_f64(pg, slot + ((size_t)16 * r + rr) * ncp + j));
                 int pend = 0; double* pend_c = NULL;
                 sme_zero_za();
                 const long nch = i0 / kc;
@@ -3615,6 +3619,9 @@ static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
                     }
                 }
                 if (pend) za_flush_duplex_bank4(pend_c + 16, cs);
+                for (long rr = 0; rr < 16; rr++)   // 结果一次性写回共享槽（16×nc ≈ 16KB/条带/面板）
+                    for (long j = 0; j < nc; j += 8)
+                        svstnt1_f64(pg, slot + ((size_t)16 * r + rr) * ncp + j, svld1_f64(pg, dst + rr * ncp + j));
                 if (c->prof >= 2) tb->n_kstep += i0;
             }
             int done = __atomic_add_fetch(&c->wcnt[i * c->npan + p], 1, __ATOMIC_ACQ_REL);
