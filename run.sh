@@ -58,6 +58,9 @@ if [[ -n "$hbm" ]] && numactl -N $cpunode --preferred=$hbm true >/dev/null 2>&1;
     # 实测两轮配对三用例持平——cn20484：TC1 1.94/1.95 vs 1.94/2.01、TC2 23.41 vs 23.35、TC3 35.83 vs 35.76 ms）
     export TRSM_XNODE=-1
     export TRSM_REHUGE=0
+    # glibc ≥2.35 时让 malloc 的大块 mmap 自带 MADV_HUGEPAGE（等效替代 REHUGE 的大页覆盖）；
+    # 2.34 及以下（本集群 Kylin V10 系统库）静默忽略此 tunable，无副作用
+    export GLIBC_TUNABLES=glibc.malloc.hugetlb=1
 fi
 echo "[run.sh] numactl -N $cpunode $MEMOPT" >&2
 
