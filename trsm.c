@@ -1464,6 +1464,12 @@ typedef struct {
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
+    int wave;               // TC2 A 驻留波前（TRSM_WAVE）：strip 静态所有权 + 面板波前
+    const long* wlist;      // 波前：按线程分组的条带列表（woff 界定，组内 i 升序）
+    const long* woff;       // 波前：每线程列表区间 [woff[t], woff[t+1])
+    volatile int* wcnt;     // 波前：每 (块,面板) 已完成条带数（末完成者做对角）
+    volatile int* wdiag;    // 波前：每块已完成对角的面板数（暂存槽复用守卫）
+    double* wbuf;           // 波前：共享 C 暂存槽（每块 2 槽 × mb×ncp，按面板奇偶复用）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -1578,6 +1584,11 @@ static task_t* g_tasks = NULL;
 static size_t g_tasks_cap = 0;
 static double* g_part = NULL;
 static size_t g_part_cap = 0;
+// 波前（TRSM_WAVE）全局缓冲
+static double* g_wbuf = NULL; static size_t g_wbuf_cap = 0;
+static int* g_wcnt = NULL; static size_t g_wcnt_cap = 0;
+static int* g_wdiag = NULL; static size_t g_wdiag_cap = 0;
+static int* g_wowner = NULL; static long* g_wlist = NULL; static long* g_woff = NULL; static size_t g_wmap_cap = 0;
 static double* g_xp = NULL;
 static size_t g_xp_cap = 0;
 static int g_xp_node = -3;
@@ -3485,6 +3496,128 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
 }
 
 static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1,0);}
+
+// ===== TC2 A 驻留波前（TRSM_WAVE）：strip 静态所有权（LPT 配平）+ 面板波前流水 =====
+// 线程的 A 分片（其条带的打包 L，≈0.6 MB）跨全部面板驻留自有 L2；C 暂存在共享槽（每块 2 槽按面板奇偶复用），
+// 末完成条带的线程做对角+回写+发 flag。依赖：条带 GEMM 逐 K 段等 flag(块,面板)；槽复用等 wdiag。
+static void wave_finish_block(const ctx_t* c, tbuf_t* tb, long i, long p, double* cb)
+{
+    const long mb = 256, nc = 128, kc = 64, ncp = 128;
+    const long ldb = c->ldb;
+    const long cs = ncp * 8;
+    const long i0 = i * mb;
+    long mbi = c->m - i0; if (mbi > mb) mbi = mb;
+    const long c0 = p * nc;
+    long nci = c->n - c0; if (nci > nc) nci = nc;
+    const long ntile = (nci + 31) / 32;
+    const long S = c->S_of[i];
+    double* scratch = tb->scratch;
+    const pf_t pf_dummy = { (const char*)tb->scratch2, 1, -64, (const char*)tb->scratch2, (const char*)tb->scratch2, 0, &tb->sw };
+    const svbool_t pg = svptrue_b64();
+    if (c->nobar) while (__atomic_load_n(&c->dcnt[i], __ATOMIC_ACQUIRE) < S) asm volatile("yield");
+    {
+        const double* D = c->diag + c->diag_off[i];
+        int pend = 0; double* pend_c = NULL; long pend_cols = 0;
+        for (int s = 0; s < S; s++) {
+            const double* A = D + diag_strip_off(s);
+            long K = 16L * (s + 1);
+            for (long t = 0; t < ntile; t++) {
+                pf_t pf = pf_dummy;
+                long cols = nci - 32 * t; if (cols > 32) cols = 32;
+                sme_zero_za();
+                if (pend && K >= 65) kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols);
+                else if (pend && K == 64) kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols);
+                else {
+                    if (pend) epi_set_std(scratch, pend_c, cs, pend_cols);
+                    kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf);
+                }
+                za_dump(scratch);
+                pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
+            }
+            if (pend) { epi_set_std(scratch, pend_c, cs, pend_cols); pend = 0; }
+        }
+    }
+    double* Bout = c->B + i0 * ldb + c0;
+    const int last_rb = (i + 1 == c->nrb);
+    if (!last_rb) for (long r = 0; r < mbi; r++) {   // Xp（K×16 微面板，tile 主序）
+        long gr = i0 + r;
+        double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
+        const double* srow = cb + r * ncp;
+        for (long j = 0; j < nc; j += 8) {
+            double* dj = d - (gr % kc) * ncp + (j / 16) * kc * 16 + (gr % kc) * 16 + j % 16;
+            svst1_f64(pg, dj, svld1_f64(pg, srow + j));
+        }
+    }
+    __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    for (long r = 0; r < mbi; r++) {   // X 回写（stnt1d 按 64B 对齐行）
+        const double* srow = cb + r * ncp;
+        double* d = Bout + r * ldb;
+        long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);
+        if (pre > nci) pre = nci;
+        long j = 0;
+        if (pre) { svbool_t ph = svwhilelt_b64(0L, pre); svstnt1_f64(ph, d, svld1_f64(ph, srow)); j = pre; }
+        for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, srow + j));
+        if (j < nci) { svbool_t pj = svwhilelt_b64((long)j, (long)nci); svstnt1_f64(pj, d + j, svld1_f64(pj, srow + j)); }
+    }
+    __atomic_store_n(&c->wdiag[i], (int)(p + 1), __ATOMIC_RELEASE);   // 槽释放（对角+回写全部完成后）
+}
+
+static void run_wave_thread(const ctx_t* c, tbuf_t* tb, int tid)
+{
+    const long mb = 256, nc = 128, kc = 64, ncp = 128;
+    const long ldb = c->ldb;
+    const long cs = ncp * 8;
+    const long ntile = 4;
+    const svbool_t pg = svptrue_b64();
+    for (long p = 0; p < c->npan; p++) {
+        const long c0 = p * nc;
+        long nci = c->n - c0; if (nci > nc) nci = nc;
+        for (long idx = c->woff[tid]; idx < c->woff[tid + 1]; idx++) {
+            const long g = c->wlist[idx];
+            const long i = (16 * g) / mb, i0 = i * mb;
+            const int r = (int)((16 * g - i0) / 16);
+            const long S = c->S_of[i];
+            double* slot = c->wbuf + ((size_t)i * 2 + (p & 1)) * mb * ncp;
+            if (p >= 2) while (__atomic_load_n(&c->wdiag[i], __ATOMIC_ACQUIRE) < (int)(p - 1)) asm volatile("yield");
+            {   // 装载本条带 16 行 B → 槽（越界行/列补零）
+                long rows = c->m - (i0 + 16L * r); if (rows > 16) rows = 16;
+                for (long rr = 0; rr < 16; rr++) {
+                    double* d = slot + ((size_t)16 * r + rr) * ncp;
+                    if (rr < rows) {
+                        const double* srow = c->B + (size_t)(i0 + 16 * r + rr) * ldb + c0;
+                        long j = 0;
+                        for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, srow + j));
+                        if (j < nci) { svbool_t pj = svwhilelt_b64((long)j, (long)nci); svst1_f64(pj, d + j, svld1_f64(pj, srow + j)); j += 8; }
+                        for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                    } else for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
+                }
+            }
+            if (i0 > 0) {   // GEMM：本条带 × 全 K
+                while (__atomic_load_n(&c->pflags[g], __ATOMIC_ACQUIRE) == 0) asm volatile("yield");
+                double* dst = slot + (size_t)16 * r * ncp;
+                int pend = 0; double* pend_c = NULL;
+                sme_zero_za();
+                const long nch = i0 / kc;
+                for (long ch = 0; ch < nch; ch++) {
+                    wait_flag(c, (ch * kc / mb) * c->npan + p);
+                    const double* A = c->pp[0] + c->pp_off[i0 / 16] + ((size_t)ch * S + r) * 1024;
+                    const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;
+                    for (long t = 0; t < ntile; t++) {
+                        double* cur = dst + 32 * t;
+                        kloop_duplex_bank0(A, Xk + 32 * t * kc, (pend ? pend_c : cur) + 16, (const char*)tb->scratch2, (const char*)tb->scratch2, (const char*)cur);
+                        kloop_duplex_bank4(A, Xk + 32 * t * kc + 1024, cur, (const char*)tb->scratch2 + 1024, (const char*)tb->scratch2 + 1024, (const char*)(cur + 16 * ncp));
+                        pend = 1; pend_c = cur;
+                    }
+                }
+                if (pend) za_flush_duplex_bank4(pend_c + 16, cs);
+                if (c->prof >= 2) tb->n_kstep += i0;
+            }
+            int done = __atomic_add_fetch(&c->wcnt[i * c->npan + p], 1, __ATOMIC_ACQ_REL);
+            if (done == (int)S) wave_finish_block(c, tb, i, p, slot);
+        }
+    }
+}
+
 static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,0);}
 static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0);}
 static long run_task_hoist2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,1);}
@@ -5598,6 +5731,49 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     }
     uint64_t t1 = c.prof ? cyc() : 0;
 
+    // TC2 A 驻留波前（TRSM_WAVE，默认关）：准入 = special2 + 每线程 A 分片 ≤ 700KB + 线程数下限 + 整条带
+    c.wave = 0;
+    if (env_int("TRSM_WAVE", 0) && c.special == 2 && !c.jit && c.ppmode == 0 && c.nobar
+        && nth >= 16 && nth <= 1024 && m % 16 == 0 && (size_t)m * m * 4 <= (size_t)nth * 700 * 1024) {
+        if (g_wmap_cap < (size_t)c.nstrip) {
+            free(g_wowner); free(g_wlist); free(g_woff);
+            g_wowner = malloc(sizeof(int) * c.nstrip);
+            g_wlist = malloc(sizeof(long) * c.nstrip);
+            g_woff = malloc(sizeof(long) * 1025);
+            g_wmap_cap = c.nstrip;
+        }
+        {   // LPT：条带按 K 降序入当前最轻线程（nstrip ≤ ~164，O(n²) 可忽略）
+            static long wload[1024];
+            static unsigned char taken[4096];
+            memset(wload, 0, sizeof(long) * nth);
+            memset(taken, 0, c.nstrip);
+            for (long q = 0; q < c.nstrip; q++) {
+                long best_g = -1, best_w = -1;
+                for (long g = 0; g < c.nstrip; g++) if (!taken[g]) { long w = (16 * g / mb) * (long)mb; if (w > best_w) { best_w = w; best_g = g; } }
+                int bt = 0;
+                for (int t = 1; t < nth; t++) if (wload[t] < wload[bt]) bt = t;
+                g_wowner[best_g] = bt; wload[bt] += best_w ? best_w : 1; taken[best_g] = 1;
+            }
+        }
+        {   // 每线程列表（g 升 ⇒ i 升）
+            long off = 0;
+            for (int t = 0; t < nth; t++) {
+                g_woff[t] = off;
+                for (long g = 0; g < c.nstrip; g++) if (g_wowner[g] == t) g_wlist[off++] = g;
+            }
+            g_woff[nth] = off;
+        }
+        size_t wbytes = (size_t)c.nrb * 2 * mb * c.ncp;
+        if (g_wbuf_cap < wbytes) { trsm_free_buffer(g_wbuf, g_wbuf_cap * 8); g_wbuf = alloc_on(wbytes * 8, g_hbm_node); g_wbuf_cap = wbytes; }
+        size_t wcnt_n = (size_t)c.nrb * c.npan;
+        if (g_wcnt_cap < wcnt_n) { free(g_wcnt); g_wcnt = calloc(wcnt_n, sizeof(int)); g_wcnt_cap = wcnt_n; }
+        memset(g_wcnt, 0, wcnt_n * sizeof(int));
+        if (g_wdiag_cap < (size_t)c.nrb) { free(g_wdiag); g_wdiag = calloc(c.nrb, sizeof(int)); g_wdiag_cap = c.nrb; }
+        memset(g_wdiag, 0, c.nrb * sizeof(int));
+        c.wlist = g_wlist; c.woff = g_woff; c.wcnt = g_wcnt; c.wdiag = g_wdiag; c.wbuf = g_wbuf;
+        c.wave = 1;
+    }
+
 #pragma omp parallel num_threads(nth)
     {
         int tid = omp_get_thread_num();
@@ -5700,6 +5876,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 }
                 (c.special == 5 ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], &c.tasks[sched[s]], s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
             }
+        } else if (c.wave) {
+            run_wave_thread(&c, &g_tb[tid], tid);
         } else {
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
