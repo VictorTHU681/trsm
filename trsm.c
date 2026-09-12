@@ -1473,6 +1473,7 @@ typedef struct {
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
+    int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -2068,11 +2069,29 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 tb->n_swq += rows * w.lpr;
             }
         } else if ((fast_owner ? 1 : c->ntstore)) {
+            // 下一任务 A 预取（fast_owner，TRSM_NEXTA）：任务只有 20–80 µs，任务开头的冷 A 摊不掉（按 i 凸增的任务耗时）；
+            // 借回写循环逐行发 prfm（zgemm"打包循环内预取"模式）。档位：1=首块前 16 KB；2=首块整 32 KB；
+            // 3=首块 32 KB + "新"块 chi 32 KB（chi 是下一任务相对当前任务唯一没读过的 A 块）
+            const char* na = NULL; const char* na2 = NULL; long nal = 0;
+            if (fast_owner && c->nexta && tkn && tkn->kind == 0 && tkn->i > 0) {
+                na = (const char*)c->pp[cpy] + c->pp_off[(long)tkn->i * (mb / 16)];
+                nal = c->nexta >= 2 ? 512 : 256;                     // 每行预取字节数（首块）
+                if (c->nexta >= 3 && tkn->i > 1)
+                    na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
+            }
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
                 double* d = Bout + r * ldb;
+                if (na) {
+                    const char* q = na + r * nal;
+                    for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
+                    if (na2) {
+                        const char* q2 = na2 + r * 512;
+                        for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
+                    }
+                }
                 long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
                 if (pre > nci) pre = nci;
                 long j = 0;
@@ -3519,7 +3538,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 每线程在自己的核上跑 ~20 ms 相依整数加法链；比中位数慢 25% 的核视为被外来进程分时，从核表剔除（最多 6 个）。
     // case1 是静态区间调度，一个被占的核拖慢整个调用（zgemm 实测邻居忙核 case1 −48%，探测剔除后 −0.5%）。空闲节点上全过、零影响。
     static int cprobe_done = 0;
-    if (!cprobe_done && g_ncpu >= 8 && env_int("TRSM_CPROBE", 1)) {
+    if (!cprobe_done && g_ncpu >= 8 && env_int("TRSM_CPROBE", 0)) {   // 默认关：用户确认判题机 NUMA 节点独占，无需剔除忙核
         cprobe_done = 1;
         static uint64_t probe_cyc[1024];
 #pragma omp parallel num_threads(g_ncpu)
@@ -3584,6 +3603,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.eflag = env_int("TRSM_EFLAG", 1);
+        c.nexta = env_int("TRSM_NEXTA", 1);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     {
