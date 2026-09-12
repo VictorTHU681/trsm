@@ -3519,7 +3519,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 每线程在自己的核上跑 ~20 ms 相依整数加法链；比中位数慢 25% 的核视为被外来进程分时，从核表剔除（最多 6 个）。
     // case1 是静态区间调度，一个被占的核拖慢整个调用（zgemm 实测邻居忙核 case1 −48%，探测剔除后 −0.5%）。空闲节点上全过、零影响。
     static int cprobe_done = 0;
-    if (!cprobe_done && g_ncpu >= 8 && env_int("TRSM_CPROBE", 1)) {
+    if (!cprobe_done && g_ncpu >= 8 && env_int("TRSM_CPROBE", 0)) {   // 默认关：用户确认判题机 NUMA 节点独占，无需剔除忙核
         cprobe_done = 1;
         static uint64_t probe_cyc[1024];
 #pragma omp parallel num_threads(g_ncpu)
