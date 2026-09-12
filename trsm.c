@@ -239,16 +239,6 @@ static size_t node_free_bytes(int node)
 }
 
 // 把已映射区间 [p, p+bytes) 的页迁到 node（页对齐向内收缩）。用 PREFERRED + MF_MOVE：尽力迁移，放不下不致命
-static int move_range_to_node(void* p, size_t bytes, int node)
-{
-    uintptr_t a = ((uintptr_t)p + 4095) & ~(uintptr_t)4095;
-    uintptr_t e = ((uintptr_t)p + bytes) & ~(uintptr_t)4095;
-    if (e <= a || node < 0) return -1;
-    unsigned long mask[16] = {0};
-    mask[node / 64] |= 1UL << (node % 64);
-    return (int)syscall(SYS_mbind, (void*)a, (unsigned long)(e - a), MPOL_PREFERRED_, mask,
-                        (unsigned long)(sizeof(mask) * 8), MPOL_MF_MOVE_);
-}
 
 // ---------------------------------------------------------------- 通用回退（无 SME）
 static void trsm_generic(long m, long n, const double* L, long lda, double* B, long ldb)
@@ -5338,34 +5328,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 
     g_align_owner_buffers = c.owner || env_int("TRSM_ALIGN_ALL", 0);   // 2 MiB 对齐所有缓冲：专用路径实测 case2 持平、case3 −0.1 ms 但出现 44 ms 异常轮，默认关
 
-    // HBM 容量规划：自己的缓冲（Xp、打包 L）都想进 HBM；不够时先把 bench 的 L（只在打包时顺序读一遍，放 DDR 无妨）迁去 DDR 腾位置。
+    // HBM 容量规划：自己的缓冲（Xp、打包 L）尽量进 HBM，空间不够就退本地 DDR（算子不移动调用方内存）。
     // TRSM_HBM_MARGIN_MB：保留余量（默认 256）
     const size_t hbm_margin = (size_t)env_int("TRSM_HBM_MARGIN_MB", 256) << 20;
 #define HBM_ROOM(bytes) (g_hbm_node >= 0 && node_free_bytes(g_hbm_node) > (bytes) + hbm_margin)
-#define HBM_MAKE_ROOM(bytes) do { \
-        if (g_hbm_node >= 0 && !HBM_ROOM(bytes) && page_node_of(L) == g_hbm_node && g_cpu_node >= 0) \
-            move_range_to_node((void*)L, (size_t)m * lda * 8, g_cpu_node); \
-    } while (0)
-    // X 的内存放置：判题命令 `numactl -N 1` 不带 -m，B/X 落在本地 DDR（160 GB/s）；X 的跨行读写是 case1/2 的主要流量，
-    // 放到 HBM 快 10–25%。每次调用都检查：不在 HBM 且 HBM 空余足够时迁过去（只有第一次真的搬页，之后是一次 get_mempolicy）。
-    // TRSM_XNODE：-3 自动（默认），-1 不动，-2 迁到本地 DDR，≥0 指定节点
-    // 迁页只做一次（按 (B, 大小) 记忆）：bench 只有第一次（不计时）调用适合搬页；若第一次没搬成（HBM 没位置 / 首页没迁到），
-    // 后面的计时调用绝不能再去搬 82 MB——复验中出现过一次计时轮 51 ms（正常 2.3 ms）的极端值，就是第二次调用里重新走了 mbind(MF_MOVE)
-    {
-        int xn = env_int("TRSM_XNODE", -3);
-        size_t xbytes = (size_t)m * ldb * 8;
-        int target = -1;
-        static double* xmig_ptr = NULL; static size_t xmig_bytes = 0;
-        int first_here = !(xmig_ptr == B && xmig_bytes == xbytes);
-        if (first_here) {
-            if (xn == -3) {
-                if (g_hbm_node >= 0 && page_node_of(B) != g_hbm_node) { HBM_MAKE_ROOM(xbytes); if (HBM_ROOM(xbytes)) target = g_hbm_node; }
-            } else if (xn == -2) target = g_cpu_node;
-            else target = xn;
-            if (target >= 0 && page_node_of(B) != target) move_range_to_node(B, xbytes, target);
-            xmig_ptr = B; xmig_bytes = xbytes;
-        }
-    }
+
     if (env_int("TRSM_SMAPS", 0)) {   // 诊断：X / L / 打包缓冲所在 VMA 的透明大页覆盖率（每次调用打印）
         const void* tgt[4] = { B, L, g_pp[0], (const char*)B + (4 << 20) };
         const char* nm[4] = { "X", "L", "pp0", "X+4M" };
@@ -5414,7 +5381,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         int node;
         if (xn == -9) {   // 自动：B 操作数流对延迟敏感，尽量进 HBM（判题命令不带 -m，"默认策略"意味着 DDR）
             if (g_xp_cap >= need && g_xp_node == g_hbm_node && g_hbm_node >= 0) node = g_hbm_node;   // 已在 HBM，沿用
-            else { HBM_MAKE_ROOM(need * 8); node = HBM_ROOM(need * 8) ? g_hbm_node : (g_cpu_node >= 0 ? g_cpu_node : -1); }
+            else node = HBM_ROOM(need * 8) ? g_hbm_node : (g_cpu_node >= 0 ? g_cpu_node : -1);
         }
         else if (xn == -2) node = g_cpu_node;
         else node = xn;
@@ -5446,7 +5413,6 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         int node0 = g_hbm_node >= 0 ? g_hbm_node : -1;
         int node1 = g_hbm_node >= 0 ? g_cpu_node : -1;
         if (node0 >= 0 && !(g_pp_cap[0] >= off && g_pp_node[0] == node0)) {   // 主副本进 HBM 需有位置，不够就腾 L / 退 DDR
-            HBM_MAKE_ROOM(off * 8 + 4096);
             if (!HBM_ROOM(off * 8 + 4096)) node0 = g_cpu_node >= 0 ? g_cpu_node : -1;
         }
         if (env_int("TRSM_LNODE0", -3) != -3) node0 = env_int("TRSM_LNODE0", -3);

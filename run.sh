@@ -54,9 +54,6 @@ fi
 MEMOPT=""
 if [[ -n "$hbm" ]] && numactl -N $cpunode --preferred=$hbm true >/dev/null 2>&1; then
     MEMOPT="--preferred=$hbm"
-    # 启动级内存策略已保证 X/L 分配落 HBM：关闭算子内的页迁移回退（仅无 --preferred 启动时才需要；
-    # 实测两轮配对三用例持平——cn20484：TC1 1.94/1.95 vs 1.94/2.01、TC2 23.41 vs 23.35、TC3 35.83 vs 35.76 ms）
-    export TRSM_XNODE=-1
     # glibc ≥2.35 时让 malloc 的大块 mmap 自带 MADV_HUGEPAGE（提高 X 的透明大页覆盖率）；
     # 2.34 及以下（本集群 Kylin V10 系统库）静默忽略此 tunable，无副作用
     export GLIBC_TUNABLES=glibc.malloc.hugetlb=1
