@@ -1464,6 +1464,7 @@ typedef struct {
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
     int eflag;              // 专用路径：Xp 写完即发布 flag，X 回写放在 flag 之后（TRSM_EFLAG）
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
+    int pcd;                // 游标 3（C 行触碰）指 dummy（TRSM_PCD 消融：区分触碰价值与发射成本）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
@@ -1876,7 +1877,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
-            if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
+            if (pf_on) { pf.pc = c->pcd ? (const char*)tb->scratch2 : (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             if (fast_owner) {
                 // Adjacent row strips share one 16-column X tile in L1.
                 double* cur = acc + 16L * r * ncp + 16 * t;
@@ -2006,7 +2007,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     nb_done += rows_this;
                 }
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
-                if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
+                if (pf_on) { pf.pc = c->pcd ? (const char*)tb->scratch2 : (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
                 sme_zero_za();
                 // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
@@ -3241,7 +3242,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
-            if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
+            if (pf_on) { pf.pc = c->pcd ? (const char*)tb->scratch2 : (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             if((mode==2 || mode==4)) {
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc+16L*r*ncp+32*t;
@@ -3371,7 +3372,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     nb_done += rows_this;
                 }
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
-                if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
+                if (pf_on) { pf.pc = c->pcd ? (const char*)tb->scratch2 : (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
                 sme_zero_za();
                 if (pend && K >= 65) {
@@ -5301,6 +5302,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.eflag = env_int("TRSM_EFLAG", 1);
         c.nexta = env_int("TRSM_NEXTA", 1);
+        c.pcd = env_int("TRSM_PCD", 0);
         c.pf2 = env_int("TRSM_OWNER_PF2", 1);
     }
     {
