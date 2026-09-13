@@ -699,6 +699,50 @@ node20，但 numactl 用不了 → `--preferred` 失败 → MEMOPT 空。半小�
 `--preferred` 探测门本就优雅兜底（能用则用、被砍退 DDR 不报错）。判题机 v53r ×1.17 已证其对 HBM 开放，不踩此坑。
 账本原"候选加 HBM 约束（无 HBM 节点 −30~50%）"表述据此订正：约束仍保留（防呆），但触发场景是 mems 屏蔽而非拓扑缺失。
 
+### 10p. v56：owner 边界形状惩罚（SHAPEP）——"慢线程绑定 (ia,ib)"之谜定案（2026-09-13 深夜，fresh30）
+
+**定位工具**：`TRSM_PROFILE=4` 每线程分相（khead 独立计时 + span/resid/idle + 区间形状 ia/ib，默认零开销），诊断作业
+[logs/trsm_thrdiag_1598157.out](logs/trsm_thrdiag_1598157.out)（cn20481）。
+**根因（历史之谜定案）**：TC1 owner 收尾最晚的线程恒为区间起点切在面板深处（ia=5/6）的线程；相对 ia=0 的 span 超额（µs @1.55 GHz）：
+ia=1..7 → 56/37/60/70/149/112/78。其中 khead 拷贝严格线性（≈9.5 µs×ia），大头是头部残段全为高 i 长 K 任务的冷 A kloop 超额
+（ia=5 时 kloop +99 µs）。线性 a·i+b 代价模型没有这一项 → 深 ia 形状落到谁头上谁最慢——一并解释了 C0 扫描 / 凸代价模型 /
+KHEADW / 面板置换 / ADAPT 全部"消不掉、偏差随边界重分布"的历史现象（§9/§10c）。
+**修法（v56，`TRSM_SHAPEP` 百分比档，默认 100，0=关）**：`build_owner_bounds` 把 pen(ia) 经验表（µs ÷ 8.7 µs/a 折成 a 单位，
+频率不变量；nrb≠8 按相位比例映射）计入线程份额，前向扫描 + 3 轮定点迭代（target_t = t·total/nth + Σ_{s<t}(penbar − pen(ia_s))，
+单调性钳制）。纯调度改动，FP64 内核与任务语义不变。
+**档位**：50 居中、150 过矫（2517/2629，工作过度搬离深 ia 线程反转偏斜）→ 100 为甜点。
+**正式认证**（官方 bench，同二进制开关交错 ×6，每进程 7 次计时）：
+[筛选 cn20483](logs/trsm_shapep_1598309.out) off 中位 2739.1 → on 2773.9（配对几何 **+1.09%**，6/6 正）；
+[正式 cn20483](logs/trsm_shapef1_1598387.out) 2701.5 → 2733.4（中位 **+1.18%**，配对 +1.59%，6/6 正）；
+[正式 cn20484](logs/trsm_shapef2_1598388.out) 2752.3 → 2765.8（中位 **+0.49%**，配对 +0.39%，4/6 正）。
+TC2/TC3 守护 PASS（两用例不走 build_owner_bounds，无结构扰动）；gen_test 双节点 × 6 配置（默认 / SHAPEP=0 / 强制 owner /
+owner 关 / 5 线程 / SWHOST MB64）共 340 形状全 0 failures。机制验证（PROFILE=4）：深 ia 线程任务数 43→42.2–42.6、
+ia=0 线程 44.8→45.6，重分配按设计兑现。
+**残余（挂账）**：on 模式下 ia=5 span 仍略高（等化到 mean+40–70 µs，未完全平）；惩罚表为 cn20481 单节点拟合。
+后续候选：边界 J(q)=|Δprefix|+pen 局部相位搜索、C0 与 pen 联动重标定（模型截距 3.0a vs 实测 2.06a）。
+**同轮记录（勿误读）**：TC2 每线程 resid ≈0.85 ms 是 PROF_T 插桩自身（每桶两次 cntvct），非真实可采空间；
+TC3 wait 1.0–1.2 / idle 0.65 复确认为依赖链/尾部结构（TAILW/WAVE/LASTLATE 已证伪或已收）。
+
+### TC1 线上不稳定：合规手段终局盘点（2026-09-13 深夜复核）
+
+线上 TC1 不稳定的两个来源（diag/diag3 判题机实锤，§10g-online 起）：**页税 ~6.5%**（openEuler 5.10 THP=madvise 下
+bench malloc 的 X fault 期拿不到大页、khugepaged 后台追赶，覆盖率 ∝ 用例时长，TC1 仅 25%）+ **共租户争用 ~5%±**
+（loadavg 89–128、kloop 效率 68–72% vs 本地 84%、极端唤醒 572 µs）。合规手段逐项复核：
+
+| 手段 | 状态 |
+|---|---|
+| REHUGE（算子内重铺 X 大页） | 判题机实测 −6.5%/−6.8%（真收益），**用户裁定合规性得不到保证，默认不做**（两次裁定，关闭） |
+| 压实助手（run.sh 级伙伴系统整理） | 判题机 buddyinfo 实测无碎片可压（953×order-10 空闲），前提不成立，**证伪关闭** |
+| `GLIBC_TUNABLES=glibc.malloc.hugetlb=1`（run.sh） | 已导出；判题机 glibc 2.34 不支持（2.35+），静默无效，无副作用保留 |
+| MADV_COLLAPSE / khugepaged 调参 | 内核 5.10 无该 madvise（6.1+）；khugepaged 参数 root 只读，不可行 |
+| 算子内对 X 做 madvise(MADV_HUGEPAGE) 等 khugepaged 折叠 | 速率杯水车薪（计时调用在进程前几秒，折叠按分钟级追赶），且触碰调用方缓冲的边界同 REHUGE，不做 |
+| LD_PRELOAD malloc→THP shim（run.sh 注入） | 技术可行（大块 malloc 走 MADV_HUGEPAGE mmap），但性质=修改测试程序内存分配行为，REHUGE 同一红线的 launcher 侧变体，**按既有裁定精神不做**（除非官方明确批准） |
+| CPU 绑定避争用（run.sh `numactl -N 7`） | **唯一存活的合规稳定器**（v55n7 已打包，待线上验证）；动态选点已被用户裁定回退 |
+| 算法侧抹平（NEXTA/SHAPEP 等） | 已在生产：降低对退化态的敏感度，但不消除页税/争用本身 |
+
+**结论：页税侧没有新的合规解决方案；争用侧的合规动作（node 7）已在 v55n7 包内。此项按用户"没有就算了"预期收口，
+除非评审对 LD_PRELOAD/REHUGE 类手段给出明确许可，不再投入。**
+
 ### 10o. LDPIPE 装载流水证伪 + TC1"访存管线满载"统一结论（2026-09-13，fresh29 留档）
 
 **立项**（§10n 活口）：load 相 0.30 ms/线程（48 KB/任务的 B→cbuf 拷入）串行于 GEMM，判题机退化态 ×2 也落在此；

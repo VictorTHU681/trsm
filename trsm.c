@@ -1863,6 +1863,7 @@ typedef struct {
     long n_task, n_kstep;
     uint64_t t_dump, t_ddump;
     long n_dkstep;
+    uint64_t t_khead;        // owner 头部残段：等上一线程 flag + 从 X 拷入面板缓冲（诊断慢线程用）
     // Keep counters from sharing a line with the next worker's pointers.
 } __attribute__((aligned(128))) tbuf_t;
 
@@ -5604,6 +5605,45 @@ static void build_owner_bounds(ctx_t* c, int nth)
     c->owner_bound=malloc(sizeof(long)*(nth+1));
     if(!c->owner_bound)abort();
     c->owner_bound[0]=0;c->owner_bound[nth]=count;
+    // 区间起点相位 ia 的形状惩罚（TRSM_SHAPEP，百分比，0 关）：起点切在面板深处（ia 大）的线程要
+    // 付 khead 拷贝（~9.5 µs/行块）+ 头部残段全是高 i 长 K 任务的冷 A kloop 超额（每线程分相实测，
+    // logs/trsm_thrdiag_1598157.out：ia=1..7 相对 ia=0 的 span 超额 56/37/60/70/149/112/78 µs @1.55 GHz）。
+    // 线性 a·i+b 模型不含此项 → 深 ia 形状落到谁头上谁收尾最晚（历史"慢线程绑定 (ia,ib)"之谜）。
+    // 把惩罚以 a 的倍数计入该线程份额（µs ÷ 每 i 斜率 8.7 µs，频率不变量），前向扫描 + 定点迭代。
+    int shapep = env_int("TRSM_SHAPEP", 100);
+    if (shapep > 0 && c->nrb >= 2) {
+        static const double PEN_US8[8] = {0, 56, 37, 60, 70, 149, 112, 78};   // nrb=8（TC1 形状）实测表
+        double pen[/*ia*/ 64];
+        long nrb = c->nrb; if (nrb > 64) nrb = 64;
+        for (long r = 0; r < nrb; r++) {
+            long idx = nrb == 8 ? r : (r * 8 + nrb / 2) / nrb;                // 其他 nrb 按相位比例映射
+            if (idx > 7) idx = 7;
+            pen[r] = PEN_US8[idx] / 8.7 * a * ((double)shapep / 100.0);
+        }
+        double penbar = 0;                                                    // 上一轮平均惩罚
+        long* bnd = c->owner_bound;
+        for (int iter = 0; iter < 3; iter++) {
+            double cum = 0, pensum = 0;                                       // cum = Σ_{s<t}(penbar − pen(ia_s))
+            for (int t = 1; t < nth; t++) {
+                long ia_prev = bnd[t - 1] % c->nrb;
+                cum += penbar - (ia_prev < nrb ? pen[ia_prev] : 0);
+                pensum += (ia_prev < nrb ? pen[ia_prev] : 0);
+                double target = total * t / nth + cum;
+                long lo = bnd[t - 1], hi = count;                             // 单调性钳制
+                while (lo < hi) {
+                    long q = lo + (hi - lo) / 2, r = q % c->nrb;
+                    double prefix = (q / c->nrb) * rowsum + a * r * (r - 1) / 2 + b * r;
+                    if (prefix >= target) hi = q; else lo = q + 1;
+                }
+                bnd[t] = lo;
+            }
+            long ia_last = bnd[nth - 1] % c->nrb;
+            pensum += (ia_last < nrb ? pen[ia_last] : 0);
+            penbar = pensum / nth;
+        }
+        c->tasks=NULL;c->ntask_items=count;c->part=NULL;
+        return;
+    }
     for(int t=1;t<nth;t++){
         double target=total*t/nth;
         long lo=0,hi=count;
@@ -6068,6 +6108,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->n_task = tb->n_kstep = tb->n_dkstep = 0;
             tb->t_dump = tb->t_ddump = 0;
             tb->n_swflush = tb->n_swq = 0;
+            tb->t_khead = 0;
         }
         uint64_t tp0 = c.prof >= 2 ? cyc() : 0;
         // 任务表构建（TRSM_TBUILD=1）：线程 0 先建表（malloc/mbind 在流式模式之外），其余线程直接进对角预处理；
@@ -6150,6 +6191,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (long s = 0; s < k; s++) {
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
+                    uint64_t tk0 = c.prof >= 2 ? cyc() : 0;
                     long pc0 = pan_c0(&c, pa), pnci = pan_nci(&c, pa); if (pnci > c.nc) pnci = c.nc;
                     for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
                     double* buf = g_tb[tid].cbuf;
@@ -6162,6 +6204,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         if (j < pnci) { svbool_t pj = svwhilelt_b64(j, pnci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
                         for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
                     }
+                    if (c.prof >= 2) g_tb[tid].t_khead += cyc() - tk0;
                 }
                 {   // cshift>0 时首/末奇面板（宽度 ≠ nc 或起点非对齐）路由到通用路径
                     task_t current_task, next_task;
@@ -6251,6 +6294,28 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sdump * f, sepi * f, sdkl * f, sddump * f, sdepi * f, sst * f, stask * f,
                     (tail_max - tail_min) / hz * 1e3, tail_idle * f, nks, ndks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
             fprintf(stderr, "[trsm prof]  托管回写：排队 %ld 行，同步收尾 %ld 行（%.1f%%）\n", nswq, nswf, nswq ? 100.0 * nswf / nswq : 0.0);
+            if (c.prof >= 4) {
+                // 每线程一行：定位慢线程的时间去向。span = 进并行区到任务收尾；resid = span 内未入桶的部分
+                // （调度表构建、khead 之外的派发间隙等）；idle = 相对最后一个线程的收尾空闲。
+                double fh = 1e3 / hz;
+                for (int t = 0; t < nth; t++) {
+                    tbuf_t* tb = &g_tb[t];
+                    long a = c.owner ? c.owner_bound[t] : 0, b2 = c.owner ? c.owner_bound[t + 1] : 0;
+                    long nrb_ = c.nrb > 0 ? c.nrb : 1;
+                    long ia_ = c.owner ? a % nrb_ : -1, ib_ = (c.owner && b2 > a) ? (b2 - 1) % nrb_ : -1;
+                    double span = (g_tail_cyc[t] - g_wake_cyc[t]) * fh;
+                    double bsum = (tb->t_load + tb->t_pack + tb->t_pf + tb->t_wait + tb->t_kloop + tb->t_dump + tb->t_epi
+                                   + tb->t_dkloop + tb->t_ddump + tb->t_depi + tb->t_store + tb->t_khead) * fh
+                                  + g_prep_cyc[t] * fh;
+                    fprintf(stderr,
+                            "[trsm thr] t%02d int[%4ld,%4ld) ia%2ld ib%2ld nt%3ld | wake %6.1fus prep %6.3f | load %6.3f wait %6.3f khead %6.3f kloop %6.3f dump %6.3f epi %6.3f dkl %6.3f ddu %6.3f dep %6.3f store %6.3f | span %6.3f resid %6.3f idle %6.3f\n",
+                            t, a, b2, ia_, ib_, tb->n_task,
+                            (g_wake_cyc[t] > t1 ? g_wake_cyc[t] - t1 : 0) / hz * 1e6, g_prep_cyc[t] * fh,
+                            tb->t_load * fh, tb->t_wait * fh, tb->t_khead * fh, tb->t_kloop * fh, tb->t_dump * fh,
+                            tb->t_epi * fh, tb->t_dkloop * fh, tb->t_ddump * fh, tb->t_depi * fh, tb->t_store * fh,
+                            span, span - bsum, (tail_max - g_tail_cyc[t]) * fh);
+                }
+            }
         }
     }
     free(ditem_i); free(ditem_s);

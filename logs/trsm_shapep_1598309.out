@@ -1,0 +1,217 @@
+=== HOST cn20483 02:00:25 a8ba905 owner 边界形状惩罚（TRSM_SHAPEP）：给区间起点相位 ia 定价（khead + 高 i 冷 A kloop 超额，实测表），定点迭代前向扫描；A/B 筛选作业
+[env] host=cn20483 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- RUN off_1
+   512 x 19968         1.91    2738.1061     3.33e-16     PASS
+--- RUN on_1
+   512 x 19968         1.88    2777.3074     3.33e-16     PASS
+--- RUN off_2
+   512 x 19968         1.91    2740.0287     3.33e-16     PASS
+--- RUN on_2
+   512 x 19968         1.89    2766.4952     3.33e-16     PASS
+--- RUN off_3
+   512 x 19968         1.92    2728.3093     3.33e-16     PASS
+--- RUN on_3
+   512 x 19968         1.88    2778.4993     3.33e-16     PASS
+--- RUN off_4
+   512 x 19968         1.91    2746.5603     3.33e-16     PASS
+--- RUN on_4
+   512 x 19968         1.89    2772.7173     3.33e-16     PASS
+--- RUN off_5
+   512 x 19968         1.90    2759.4903     3.33e-16     PASS
+--- RUN on_5
+   512 x 19968         1.89    2775.1378     3.33e-16     PASS
+--- RUN off_6
+   512 x 19968         1.92    2720.2402     3.33e-16     PASS
+--- RUN on_6
+   512 x 19968         1.91    2741.9442     3.33e-16     PASS
+--- RUN s50_1
+   512 x 19968         1.90    2752.4816     3.33e-16     PASS
+--- RUN s150_1
+   512 x 19968         2.08    2516.5641     3.33e-16     PASS
+--- RUN s50_2
+   512 x 19968         1.89    2766.9153     3.33e-16     PASS
+--- RUN s150_2
+   512 x 19968         1.99    2628.5758     3.33e-16     PASS
+--- PROFILE off
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 6.5 | xp+pp 缓冲 1.4 | flags 0.6 | 任务表 0.6 | ditem 0.9
+[trsm prof]  并行区唤醒：最慢线程 16.9 µs，平均 9.0 µs
+[trsm prof]  每线程平均 ms：prep 0.020 | load 0.299 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.020 dump 0.000 epi 0.004 dkloop 0.166 ddump 0.055 depi 0.000 store 0.124 | task 合计 1.718 | 尾部不均衡 0.228 ms（平均空闲 0.091 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm thr] t00 int[   0,  45) ia 0 ib 4 nt 45 | wake   16.9us prep  0.032 | load  0.310 wait  0.002 khead  0.000 kloop  0.977 dump  0.000 epi  0.004 dkl  0.167 ddu  0.056 dep  0.000 store  0.125 | span  1.748 resid  0.073 idle  0.130
+[trsm thr] t01 int[  45,  88) ia 5 ib 7 nt 43 | wake    7.1us prep  0.017 | load  0.316 wait  0.001 khead  0.054 kloop  1.064 dump  0.000 epi  0.004 dkl  0.162 ddu  0.054 dep  0.000 store  0.140 | span  1.888 resid  0.074 idle  0.000
+[trsm thr] t02 int[  88, 133) ia 0 ib 4 nt 45 | wake    7.1us prep  0.024 | load  0.304 wait  0.000 khead  0.000 kloop  0.987 dump  0.000 epi  0.004 dkl  0.160 ddu  0.055 dep  0.000 store  0.123 | span  1.727 resid  0.069 idle  0.161
+[trsm thr] t03 int[ 133, 176) ia 5 ib 7 nt 43 | wake    7.3us prep  0.021 | load  0.303 wait  0.002 khead  0.046 kloop  1.071 dump  0.000 epi  0.004 dkl  0.171 ddu  0.053 dep  0.000 store  0.126 | span  1.875 resid  0.078 idle  0.013
+[trsm thr] t04 int[ 176, 221) ia 0 ib 4 nt 45 | wake    7.5us prep  0.020 | load  0.300 wait  0.001 khead  0.000 kloop  0.977 dump  0.000 epi  0.004 dkl  0.174 ddu  0.055 dep  0.000 store  0.122 | span  1.723 resid  0.071 idle  0.164
+[trsm thr] t05 int[ 221, 264) ia 5 ib 7 nt 43 | wake    7.1us prep  0.021 | load  0.298 wait  0.001 khead  0.043 kloop  1.075 dump  0.000 epi  0.004 dkl  0.181 ddu  0.054 dep  0.000 store  0.128 | span  1.876 resid  0.071 idle  0.012
+[trsm thr] t06 int[ 264, 308) ia 0 ib 3 nt 44 | wake   10.7us prep  0.013 | load  0.284 wait  0.002 khead  0.000 kloop  0.950 dump  0.000 epi  0.004 dkl  0.154 ddu  0.054 dep  0.000 store  0.119 | span  1.656 resid  0.076 idle  0.228
+[trsm thr] t07 int[ 308, 351) ia 4 ib 6 nt 43 | wake    7.9us prep  0.021 | load  0.296 wait  0.001 khead  0.034 kloop  1.051 dump  0.000 epi  0.004 dkl  0.165 ddu  0.053 dep  0.000 store  0.118 | span  1.810 resid  0.066 idle  0.077
+[trsm thr] t08 int[ 351, 396) ia 7 ib 3 nt 45 | wake    7.1us prep  0.031 | load  0.305 wait  0.002 khead  0.053 kloop  1.010 dump  0.000 epi  0.005 dkl  0.165 ddu  0.055 dep  0.000 store  0.125 | span  1.820 resid  0.069 idle  0.067
+[trsm thr] t09 int[ 396, 439) ia 4 ib 6 nt 43 | wake    8.2us prep  0.018 | load  0.289 wait  0.001 khead  0.037 kloop  1.047 dump  0.000 epi  0.004 dkl  0.172 ddu  0.053 dep  0.000 store  0.121 | span  1.809 resid  0.066 idle  0.078
+[trsm thr] t10 int[ 439, 483) ia 7 ib 2 nt 44 | wake   10.3us prep  0.014 | load  0.296 wait  0.002 khead  0.061 kloop  1.020 dump  0.000 epi  0.004 dkl  0.155 ddu  0.054 dep  0.000 store  0.126 | span  1.798 resid  0.067 idle  0.086
+[trsm thr] t11 int[ 483, 527) ia 3 ib 6 nt 44 | wake    7.6us prep  0.022 | load  0.292 wait  0.002 khead  0.024 kloop  1.055 dump  0.000 epi  0.004 dkl  0.177 ddu  0.055 dep  0.000 store  0.121 | span  1.821 resid  0.070 idle  0.066
+[trsm thr] t12 int[ 527, 571) ia 7 ib 2 nt 44 | wake    7.3us prep  0.018 | load  0.304 wait  0.002 khead  0.059 kloop  0.991 dump  0.000 epi  0.004 dkl  0.156 ddu  0.055 dep  0.000 store  0.125 | span  1.790 resid  0.076 idle  0.097
+[trsm thr] t13 int[ 571, 614) ia 3 ib 5 nt 43 | wake    8.0us prep  0.018 | load  0.292 wait  0.001 khead  0.032 kloop  0.987 dump  0.000 epi  0.004 dkl  0.153 ddu  0.052 dep  0.000 store  0.116 | span  1.733 resid  0.076 idle  0.154
+[trsm thr] t14 int[ 614, 658) ia 6 ib 1 nt 44 | wake    9.2us prep  0.021 | load  0.304 wait  0.002 khead  0.051 kloop  1.028 dump  0.000 epi  0.004 dkl  0.172 ddu  0.054 dep  0.000 store  0.127 | span  1.836 resid  0.074 idle  0.050
+[trsm thr] t15 int[ 658, 702) ia 2 ib 5 nt 44 | wake   10.3us prep  0.018 | load  0.303 wait  0.001 khead  0.021 kloop  0.994 dump  0.000 epi  0.004 dkl  0.166 ddu  0.056 dep  0.000 store  0.123 | span  1.757 resid  0.071 idle  0.128
+[trsm thr] t16 int[ 702, 745) ia 6 ib 0 nt 43 | wake   10.9us prep  0.013 | load  0.293 wait  0.001 khead  0.052 kloop  1.036 dump  0.000 epi  0.004 dkl  0.168 ddu  0.055 dep  0.000 store  0.127 | span  1.827 resid  0.078 idle  0.057
+[trsm thr] t17 int[ 745, 790) ia 1 ib 5 nt 45 | wake    8.3us prep  0.012 | load  0.303 wait  0.002 khead  0.011 kloop  1.004 dump  0.000 epi  0.004 dkl  0.165 ddu  0.055 dep  0.000 store  0.123 | span  1.760 resid  0.080 idle  0.126
+[trsm thr] t18 int[ 790, 832) ia 6 ib 7 nt 42 | wake    9.6us prep  0.018 | load  0.307 wait  0.001 khead  0.062 kloop  1.034 dump  0.000 epi  0.004 dkl  0.155 ddu  0.053 dep  0.000 store  0.137 | span  1.848 resid  0.078 idle  0.037
+[trsm thr] t19 int[ 832, 877) ia 0 ib 4 nt 45 | wake   10.0us prep  0.025 | load  0.306 wait  0.001 khead  0.000 kloop  0.971 dump  0.000 epi  0.005 dkl  0.173 ddu  0.059 dep  0.000 store  0.129 | span  1.742 resid  0.072 idle  0.143
+[trsm thr] t20 int[ 877, 920) ia 5 ib 7 nt 43 | wake    9.0us prep  0.023 | load  0.297 wait  0.001 khead  0.047 kloop  1.066 dump  0.000 epi  0.004 dkl  0.177 ddu  0.055 dep  0.000 store  0.134 | span  1.876 resid  0.071 idle  0.010
+[trsm thr] t21 int[ 920, 965) ia 0 ib 4 nt 45 | wake    7.8us prep  0.021 | load  0.308 wait  0.001 khead  0.000 kloop  0.971 dump  0.000 epi  0.004 dkl  0.163 ddu  0.056 dep  0.000 store  0.125 | span  1.726 resid  0.078 idle  0.161
+[trsm thr] t22 int[ 965,1008) ia 5 ib 7 nt 43 | wake    9.7us prep  0.019 | load  0.298 wait  0.002 khead  0.043 kloop  1.086 dump  0.000 epi  0.004 dkl  0.170 ddu  0.056 dep  0.000 store  0.125 | span  1.877 resid  0.074 idle  0.008
+[trsm thr] t23 int[1008,1053) ia 0 ib 4 nt 45 | wake   10.1us prep  0.019 | load  0.296 wait  0.001 khead  0.000 kloop  0.970 dump  0.000 epi  0.004 dkl  0.179 ddu  0.055 dep  0.000 store  0.121 | span  1.720 resid  0.075 idle  0.165
+[trsm thr] t24 int[1053,1096) ia 5 ib 7 nt 43 | wake    8.8us prep  0.016 | load  0.290 wait  0.001 khead  0.043 kloop  1.087 dump  0.000 epi  0.004 dkl  0.183 ddu  0.058 dep  0.000 store  0.125 | span  1.878 resid  0.070 idle  0.009
+[trsm thr] t25 int[1096,1140) ia 0 ib 3 nt 44 | wake   10.8us prep  0.022 | load  0.290 wait  0.001 khead  0.000 kloop  0.945 dump  0.000 epi  0.004 dkl  0.156 ddu  0.053 dep  0.000 store  0.119 | span  1.657 resid  0.066 idle  0.227
+[trsm thr] t26 int[1140,1183) ia 4 ib 6 nt 43 | wake    9.3us prep  0.022 | load  0.294 wait  0.002 khead  0.034 kloop  1.046 dump  0.000 epi  0.004 dkl  0.162 ddu  0.053 dep  0.000 store  0.117 | span  1.808 resid  0.073 idle  0.077
+[trsm thr] t27 int[1183,1228) ia 7 ib 3 nt 45 | wake    9.0us prep  0.018 | load  0.305 wait  0.001 khead  0.058 kloop  0.986 dump  0.000 epi  0.004 dkl  0.166 ddu  0.056 dep  0.000 store  0.125 | span  1.793 resid  0.074 idle  0.093
+[trsm thr] t28 int[1228,1271) ia 4 ib 6 nt 43 | wake    9.5us prep  0.020 | load  0.291 wait  0.001 khead  0.035 kloop  1.047 dump  0.000 epi  0.004 dkl  0.162 ddu  0.053 dep  0.000 store  0.117 | span  1.806 resid  0.076 idle  0.079
+[trsm thr] t29 int[1271,1315) ia 7 ib 2 nt 44 | wake    9.4us prep  0.017 | load  0.303 wait  0.001 khead  0.057 kloop  1.003 dump  0.000 epi  0.004 dkl  0.155 ddu  0.054 dep  0.000 store  0.125 | span  1.794 resid  0.073 idle  0.092
+[trsm thr] t30 int[1315,1359) ia 3 ib 6 nt 44 | wake    8.4us prep  0.021 | load  0.293 wait  0.001 khead  0.024 kloop  1.046 dump  0.000 epi  0.004 dkl  0.180 ddu  0.057 dep  0.000 store  0.120 | span  1.827 resid  0.080 idle  0.060
+[trsm thr] t31 int[1359,1403) ia 7 ib 2 nt 44 | wake   10.4us prep  0.015 | load  0.302 wait  0.001 khead  0.058 kloop  1.004 dump  0.000 epi  0.004 dkl  0.158 ddu  0.054 dep  0.000 store  0.125 | span  1.792 resid  0.070 idle  0.093
+[trsm thr] t32 int[1403,1446) ia 3 ib 5 nt 43 | wake    6.6us prep  0.024 | load  0.293 wait  0.002 khead  0.034 kloop  0.984 dump  0.000 epi  0.004 dkl  0.161 ddu  0.052 dep  0.000 store  0.118 | span  1.737 resid  0.064 idle  0.151
+[trsm thr] t33 int[1446,1490) ia 6 ib 1 nt 44 | wake   10.1us prep  0.013 | load  0.296 wait  0.001 khead  0.051 kloop  1.035 dump  0.000 epi  0.004 dkl  0.176 ddu  0.055 dep  0.000 store  0.128 | span  1.834 resid  0.076 idle  0.051
+[trsm thr] t34 int[1490,1534) ia 2 ib 5 nt 44 | wake   10.6us prep  0.021 | load  0.296 wait  0.001 khead  0.020 kloop  0.994 dump  0.000 epi  0.004 dkl  0.156 ddu  0.055 dep  0.000 store  0.123 | span  1.751 resid  0.081 idle  0.133
+[trsm thr] t35 int[1534,1577) ia 6 ib 0 nt 43 | wake    6.8us prep  0.016 | load  0.291 wait  0.002 khead  0.052 kloop  1.042 dump  0.000 epi  0.004 dkl  0.180 ddu  0.054 dep  0.000 store  0.126 | span  1.840 resid  0.074 idle  0.048
+[trsm thr] t36 int[1577,1622) ia 1 ib 5 nt 45 | wake    9.9us prep  0.013 | load  0.307 wait  0.002 khead  0.010 kloop  1.008 dump  0.000 epi  0.004 dkl  0.160 ddu  0.056 dep  0.000 store  0.123 | span  1.755 resid  0.071 idle  0.130
+[trsm thr] t37 int[1622,1664) ia 6 ib 7 nt 42 | wake    6.6us prep  0.020 | load  0.290 wait  0.001 khead  0.046 kloop  1.101 dump  0.000 epi  0.004 dkl  0.167 ddu  0.054 dep  0.000 store  0.124 | span  1.879 resid  0.073 idle  0.009
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3330MB | setup 0.010 ms, parallel 1.985 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 6.2 | xp+pp 缓冲 1.2 | flags 0.6 | 任务表 0.5 | ditem 0.8
+[trsm prof]  并行区唤醒：最慢线程 19.7 µs，平均 9.3 µs
+[trsm prof]  每线程平均 ms：prep 0.018 | load 0.297 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.019 dump 0.000 epi 0.004 dkloop 0.168 ddump 0.054 depi 0.000 store 0.125 | task 合计 1.718 | 尾部不均衡 0.302 ms（平均空闲 0.176 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm thr] t00 int[   0,  45) ia 0 ib 4 nt 45 | wake   19.7us prep  0.009 | load  0.311 wait  0.002 khead  0.000 kloop  0.970 dump  0.000 epi  0.004 dkl  0.180 ddu  0.055 dep  0.000 store  0.123 | span  1.728 resid  0.074 idle  0.234
+[trsm thr] t01 int[  45,  88) ia 5 ib 7 nt 43 | wake    7.3us prep  0.021 | load  0.319 wait  0.001 khead  0.051 kloop  1.075 dump  0.000 epi  0.004 dkl  0.173 ddu  0.055 dep  0.000 store  0.138 | span  1.908 resid  0.070 idle  0.067
+[trsm thr] t02 int[  88, 133) ia 0 ib 4 nt 45 | wake    9.7us prep  0.021 | load  0.297 wait  0.001 khead  0.000 kloop  0.979 dump  0.000 epi  0.005 dkl  0.157 ddu  0.056 dep  0.000 store  0.124 | span  1.709 resid  0.070 idle  0.263
+[trsm thr] t03 int[ 133, 176) ia 5 ib 7 nt 43 | wake    7.8us prep  0.021 | load  0.298 wait  0.001 khead  0.044 kloop  1.083 dump  0.000 epi  0.004 dkl  0.175 ddu  0.056 dep  0.000 store  0.128 | span  1.889 resid  0.078 idle  0.085
+[trsm thr] t04 int[ 176, 221) ia 0 ib 4 nt 45 | wake    8.0us prep  0.015 | load  0.293 wait  0.001 khead  0.000 kloop  0.979 dump  0.000 epi  0.005 dkl  0.168 ddu  0.056 dep  0.000 store  0.122 | span  1.710 resid  0.071 idle  0.264
+[trsm thr] t05 int[ 221, 264) ia 5 ib 7 nt 43 | wake    9.8us prep  0.013 | load  0.295 wait  0.002 khead  0.044 kloop  1.098 dump  0.000 epi  0.004 dkl  0.185 ddu  0.054 dep  0.000 store  0.125 | span  1.889 resid  0.070 idle  0.084
+[trsm thr] t06 int[ 264, 308) ia 0 ib 3 nt 44 | wake    8.8us prep  0.015 | load  0.290 wait  0.002 khead  0.000 kloop  0.953 dump  0.000 epi  0.004 dkl  0.162 ddu  0.053 dep  0.000 store  0.121 | span  1.675 resid  0.075 idle  0.298
+[trsm thr] t07 int[ 308, 351) ia 4 ib 6 nt 43 | wake    8.2us prep  0.028 | load  0.289 wait  0.001 khead  0.041 kloop  1.025 dump  0.000 epi  0.004 dkl  0.151 ddu  0.053 dep  0.000 store  0.121 | span  1.778 resid  0.066 idle  0.196
+[trsm thr] t08 int[ 351, 396) ia 7 ib 3 nt 45 | wake    7.9us prep  0.021 | load  0.306 wait  0.002 khead  0.058 kloop  1.003 dump  0.000 epi  0.005 dkl  0.167 ddu  0.056 dep  0.000 store  0.127 | span  1.812 resid  0.068 idle  0.162
+[trsm thr] t09 int[ 396, 439) ia 4 ib 6 nt 43 | wake    7.5us prep  0.024 | load  0.287 wait  0.002 khead  0.041 kloop  1.020 dump  0.000 epi  0.004 dkl  0.158 ddu  0.053 dep  0.000 store  0.120 | span  1.775 resid  0.067 idle  0.199
+[trsm thr] t10 int[ 439, 483) ia 7 ib 2 nt 44 | wake    8.4us prep  0.016 | load  0.300 wait  0.001 khead  0.060 kloop  1.024 dump  0.000 epi  0.005 dkl  0.157 ddu  0.055 dep  0.000 store  0.127 | span  1.812 resid  0.069 idle  0.162
+[trsm thr] t11 int[ 483, 527) ia 3 ib 6 nt 44 | wake    8.9us prep  0.018 | load  0.300 wait  0.002 khead  0.027 kloop  1.020 dump  0.000 epi  0.005 dkl  0.167 ddu  0.052 dep  0.000 store  0.122 | span  1.788 resid  0.075 idle  0.186
+[trsm thr] t12 int[ 527, 571) ia 7 ib 2 nt 44 | wake    7.9us prep  0.024 | load  0.301 wait  0.002 khead  0.060 kloop  0.994 dump  0.000 epi  0.004 dkl  0.166 ddu  0.054 dep  0.000 store  0.123 | span  1.803 resid  0.074 idle  0.172
+[trsm thr] t13 int[ 571, 614) ia 3 ib 5 nt 43 | wake    8.3us prep  0.025 | load  0.292 wait  0.001 khead  0.035 kloop  0.991 dump  0.000 epi  0.004 dkl  0.158 ddu  0.053 dep  0.000 store  0.120 | span  1.756 resid  0.078 idle  0.218
+[trsm thr] t14 int[ 614, 658) ia 6 ib 1 nt 44 | wake   10.3us prep  0.014 | load  0.301 wait  0.002 khead  0.051 kloop  1.030 dump  0.000 epi  0.004 dkl  0.180 ddu  0.055 dep  0.000 store  0.128 | span  1.845 resid  0.079 idle  0.127
+[trsm thr] t15 int[ 658, 702) ia 2 ib 5 nt 44 | wake    8.2us prep  0.017 | load  0.298 wait  0.002 khead  0.019 kloop  1.006 dump  0.000 epi  0.004 dkl  0.164 ddu  0.056 dep  0.000 store  0.122 | span  1.759 resid  0.072 idle  0.215
+[trsm thr] t16 int[ 702, 745) ia 6 ib 0 nt 43 | wake    9.4us prep  0.018 | load  0.288 wait  0.001 khead  0.053 kloop  1.051 dump  0.000 epi  0.004 dkl  0.168 ddu  0.055 dep  0.000 store  0.127 | span  1.847 resid  0.082 idle  0.126
+[trsm thr] t17 int[ 745, 790) ia 1 ib 5 nt 45 | wake    8.5us prep  0.027 | load  0.309 wait  0.002 khead  0.011 kloop  0.988 dump  0.000 epi  0.004 dkl  0.171 ddu  0.054 dep  0.000 store  0.127 | span  1.771 resid  0.079 idle  0.203
+[trsm thr] t18 int[ 790, 832) ia 6 ib 7 nt 42 | wake   10.4us prep  0.023 | load  0.298 wait  0.001 khead  0.059 kloop  1.040 dump  0.000 epi  0.004 dkl  0.167 ddu  0.053 dep  0.000 store  0.133 | span  1.858 resid  0.079 idle  0.114
+[trsm thr] t19 int[ 832, 877) ia 0 ib 4 nt 45 | wake   10.0us prep  0.012 | load  0.308 wait  0.001 khead  0.000 kloop  0.984 dump  0.000 epi  0.004 dkl  0.183 ddu  0.057 dep  0.000 store  0.124 | span  1.748 resid  0.075 idle  0.225
+[trsm thr] t20 int[ 877, 920) ia 5 ib 7 nt 43 | wake   10.1us prep  0.017 | load  0.298 wait  0.002 khead  0.044 kloop  1.071 dump  0.000 epi  0.004 dkl  0.189 ddu  0.055 dep  0.000 store  0.139 | span  1.888 resid  0.069 idle  0.085
+[trsm thr] t21 int[ 920, 965) ia 0 ib 4 nt 45 | wake   11.1us prep  0.018 | load  0.298 wait  0.001 khead  0.000 kloop  0.975 dump  0.000 epi  0.004 dkl  0.158 ddu  0.055 dep  0.000 store  0.125 | span  1.717 resid  0.082 idle  0.254
+[trsm thr] t22 int[ 965,1008) ia 5 ib 7 nt 43 | wake   10.7us prep  0.019 | load  0.293 wait  0.001 khead  0.043 kloop  1.086 dump  0.000 epi  0.004 dkl  0.181 ddu  0.056 dep  0.000 store  0.127 | span  1.883 resid  0.074 idle  0.088
+[trsm thr] t23 int[1008,1053) ia 0 ib 4 nt 45 | wake    8.1us prep  0.017 | load  0.294 wait  0.002 khead  0.000 kloop  0.967 dump  0.000 epi  0.005 dkl  0.171 ddu  0.057 dep  0.000 store  0.119 | span  1.709 resid  0.077 idle  0.265
+[trsm thr] t24 int[1053,1096) ia 5 ib 7 nt 43 | wake    9.6us prep  0.014 | load  0.290 wait  0.000 khead  0.043 kloop  1.093 dump  0.000 epi  0.004 dkl  0.189 ddu  0.054 dep  0.000 store  0.128 | span  1.888 resid  0.071 idle  0.085
+[trsm thr] t25 int[1096,1140) ia 0 ib 3 nt 44 | wake   10.9us prep  0.015 | load  0.288 wait  0.002 khead  0.000 kloop  0.947 dump  0.000 epi  0.004 dkl  0.168 ddu  0.054 dep  0.000 store  0.120 | span  1.670 resid  0.070 idle  0.302
+[trsm thr] t26 int[1140,1183) ia 4 ib 6 nt 43 | wake    9.0us prep  0.019 | load  0.294 wait  0.002 khead  0.038 kloop  1.019 dump  0.000 epi  0.004 dkl  0.150 ddu  0.055 dep  0.000 store  0.118 | span  1.773 resid  0.075 idle  0.200
+[trsm thr] t27 int[1183,1228) ia 7 ib 3 nt 45 | wake   10.2us prep  0.026 | load  0.301 wait  0.000 khead  0.058 kloop  1.001 dump  0.000 epi  0.005 dkl  0.169 ddu  0.056 dep  0.000 store  0.126 | span  1.815 resid  0.072 idle  0.157
+[trsm thr] t28 int[1228,1271) ia 4 ib 6 nt 43 | wake    8.7us prep  0.016 | load  0.287 wait  0.001 khead  0.041 kloop  1.025 dump  0.000 epi  0.004 dkl  0.154 ddu  0.052 dep  0.000 store  0.117 | span  1.772 resid  0.075 idle  0.201
+[trsm thr] t29 int[1271,1315) ia 7 ib 2 nt 44 | wake    9.4us prep  0.016 | load  0.300 wait  0.002 khead  0.058 kloop  1.013 dump  0.000 epi  0.004 dkl  0.161 ddu  0.053 dep  0.000 store  0.126 | span  1.810 resid  0.078 idle  0.163
+[trsm thr] t30 int[1315,1359) ia 3 ib 6 nt 44 | wake   10.8us prep  0.011 | load  0.291 wait  0.001 khead  0.027 kloop  1.034 dump  0.000 epi  0.005 dkl  0.163 ddu  0.055 dep  0.000 store  0.121 | span  1.786 resid  0.079 idle  0.185
+[trsm thr] t31 int[1359,1403) ia 7 ib 2 nt 44 | wake   10.4us prep  0.011 | load  0.300 wait  0.001 khead  0.059 kloop  1.021 dump  0.000 epi  0.005 dkl  0.158 ddu  0.054 dep  0.000 store  0.128 | span  1.809 resid  0.071 idle  0.163
+[trsm thr] t32 int[1403,1446) ia 3 ib 5 nt 43 | wake   11.1us prep  0.012 | load  0.290 wait  0.002 khead  0.037 kloop  0.990 dump  0.000 epi  0.004 dkl  0.159 ddu  0.054 dep  0.000 store  0.118 | span  1.733 resid  0.067 idle  0.238
+[trsm thr] t33 int[1446,1490) ia 6 ib 1 nt 44 | wake    7.2us prep  0.015 | load  0.298 wait  0.001 khead  0.050 kloop  1.039 dump  0.000 epi  0.004 dkl  0.182 ddu  0.054 dep  0.000 store  0.129 | span  1.851 resid  0.079 idle  0.124
+[trsm thr] t34 int[1490,1534) ia 2 ib 5 nt 44 | wake    8.5us prep  0.018 | load  0.301 wait  0.002 khead  0.022 kloop  1.006 dump  0.000 epi  0.005 dkl  0.150 ddu  0.054 dep  0.000 store  0.122 | span  1.756 resid  0.077 idle  0.217
+[trsm thr] t35 int[1534,1577) ia 6 ib 0 nt 43 | wake    7.3us prep  0.020 | load  0.291 wait  0.002 khead  0.052 kloop  1.056 dump  0.000 epi  0.004 dkl  0.174 ddu  0.055 dep  0.000 store  0.128 | span  1.851 resid  0.070 idle  0.124
+[trsm thr] t36 int[1577,1622) ia 1 ib 5 nt 45 | wake    7.1us prep  0.018 | load  0.307 wait  0.000 khead  0.013 kloop  1.007 dump  0.000 epi  0.005 dkl  0.161 ddu  0.056 dep  0.000 store  0.123 | span  1.759 resid  0.069 idle  0.216
+[trsm thr] t37 int[1622,1664) ia 6 ib 7 nt 42 | wake   10.0us prep  0.014 | load  0.288 wait  0.001 khead  0.167 kloop  1.061 dump  0.000 epi  0.004 dkl  0.182 ddu  0.054 dep  0.000 store  0.125 | span  1.972 resid  0.075 idle  0.000
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.85    1834.4839     3.33e-16     PASS
+--- PROFILE on
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 6.7 | xp+pp 缓冲 1.2 | flags 0.6 | 任务表 0.5 | ditem 0.5
+[trsm prof]  并行区唤醒：最慢线程 23.7 µs，平均 10.1 µs
+[trsm prof]  每线程平均 ms：prep 0.019 | load 0.296 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.019 dump 0.000 epi 0.004 dkloop 0.164 ddump 0.055 depi 0.000 store 0.124 | task 合计 1.712 | 尾部不均衡 0.089 ms（平均空闲 0.062 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm thr] t00 int[   0,  46) ia 0 ib 5 nt 46 | wake   23.7us prep  0.021 | load  0.307 wait  0.002 khead  0.000 kloop  1.014 dump  0.000 epi  0.005 dkl  0.183 ddu  0.062 dep  0.000 store  0.135 | span  1.800 resid  0.073 idle  0.053
+[trsm thr] t01 int[  46,  88) ia 6 ib 7 nt 42 | wake    9.7us prep  0.026 | load  0.296 wait  0.001 khead  0.070 kloop  1.024 dump  0.000 epi  0.004 dkl  0.171 ddu  0.053 dep  0.000 store  0.129 | span  1.847 resid  0.073 idle  0.020
+[trsm thr] t02 int[  88, 134) ia 0 ib 5 nt 46 | wake    7.4us prep  0.018 | load  0.318 wait  0.002 khead  0.000 kloop  1.012 dump  0.000 epi  0.005 dkl  0.175 ddu  0.058 dep  0.000 store  0.128 | span  1.804 resid  0.088 idle  0.065
+[trsm thr] t03 int[ 134, 176) ia 6 ib 7 nt 42 | wake    7.9us prep  0.020 | load  0.291 wait  0.002 khead  0.068 kloop  1.009 dump  0.000 epi  0.004 dkl  0.162 ddu  0.051 dep  0.000 store  0.126 | span  1.822 resid  0.088 idle  0.047
+[trsm thr] t04 int[ 176, 222) ia 0 ib 5 nt 46 | wake    8.5us prep  0.022 | load  0.304 wait  0.001 khead  0.000 kloop  1.020 dump  0.000 epi  0.005 dkl  0.178 ddu  0.059 dep  0.000 store  0.124 | span  1.804 resid  0.090 idle  0.064
+[trsm thr] t05 int[ 222, 264) ia 6 ib 7 nt 42 | wake    7.5us prep  0.023 | load  0.288 wait  0.001 khead  0.071 kloop  1.010 dump  0.000 epi  0.004 dkl  0.155 ddu  0.052 dep  0.000 store  0.125 | span  1.820 resid  0.090 idle  0.049
+[trsm thr] t06 int[ 264, 310) ia 0 ib 5 nt 46 | wake    8.4us prep  0.022 | load  0.309 wait  0.003 khead  0.000 kloop  1.029 dump  0.000 epi  0.005 dkl  0.164 ddu  0.059 dep  0.000 store  0.126 | span  1.803 resid  0.087 idle  0.065
+[trsm thr] t07 int[ 310, 352) ia 6 ib 7 nt 42 | wake    7.8us prep  0.021 | load  0.281 wait  0.001 khead  0.070 kloop  1.025 dump  0.000 epi  0.004 dkl  0.165 ddu  0.052 dep  0.000 store  0.125 | span  1.832 resid  0.089 idle  0.037
+[trsm thr] t08 int[ 352, 398) ia 0 ib 5 nt 46 | wake    8.3us prep  0.023 | load  0.306 wait  0.001 khead  0.000 kloop  1.023 dump  0.000 epi  0.005 dkl  0.173 ddu  0.056 dep  0.000 store  0.123 | span  1.796 resid  0.084 idle  0.073
+[trsm thr] t09 int[ 398, 440) ia 6 ib 7 nt 42 | wake   11.5us prep  0.017 | load  0.284 wait  0.002 khead  0.077 kloop  1.034 dump  0.000 epi  0.004 dkl  0.147 ddu  0.052 dep  0.000 store  0.120 | span  1.820 resid  0.083 idle  0.045
+[trsm thr] t10 int[ 440, 486) ia 0 ib 5 nt 46 | wake    8.5us prep  0.018 | load  0.311 wait  0.001 khead  0.000 kloop  1.011 dump  0.000 epi  0.004 dkl  0.179 ddu  0.057 dep  0.000 store  0.126 | span  1.803 resid  0.096 idle  0.066
+[trsm thr] t11 int[ 486, 528) ia 6 ib 7 nt 42 | wake   10.1us prep  0.016 | load  0.286 wait  0.002 khead  0.070 kloop  1.015 dump  0.000 epi  0.004 dkl  0.160 ddu  0.053 dep  0.000 store  0.126 | span  1.817 resid  0.085 idle  0.050
+[trsm thr] t12 int[ 528, 574) ia 0 ib 5 nt 46 | wake   10.8us prep  0.019 | load  0.306 wait  0.001 khead  0.000 kloop  1.023 dump  0.000 epi  0.005 dkl  0.161 ddu  0.057 dep  0.000 store  0.123 | span  1.789 resid  0.093 idle  0.077
+[trsm thr] t13 int[ 574, 616) ia 6 ib 7 nt 42 | wake   11.4us prep  0.016 | load  0.286 wait  0.001 khead  0.068 kloop  1.026 dump  0.000 epi  0.004 dkl  0.156 ddu  0.051 dep  0.000 store  0.120 | span  1.811 resid  0.083 idle  0.055
+[trsm thr] t14 int[ 616, 661) ia 0 ib 4 nt 45 | wake    8.7us prep  0.019 | load  0.300 wait  0.001 khead  0.000 kloop  0.998 dump  0.000 epi  0.005 dkl  0.185 ddu  0.061 dep  0.000 store  0.119 | span  1.779 resid  0.092 idle  0.089
+[trsm thr] t15 int[ 661, 703) ia 5 ib 6 nt 42 | wake   10.4us prep  0.015 | load  0.288 wait  0.001 khead  0.059 kloop  0.999 dump  0.000 epi  0.004 dkl  0.163 ddu  0.053 dep  0.000 store  0.119 | span  1.794 resid  0.093 idle  0.072
+[trsm thr] t16 int[ 703, 747) ia 7 ib 2 nt 44 | wake   11.3us prep  0.017 | load  0.307 wait  0.002 khead  0.054 kloop  1.008 dump  0.000 epi  0.004 dkl  0.160 ddu  0.053 dep  0.000 store  0.126 | span  1.817 resid  0.085 idle  0.048
+[trsm thr] t17 int[ 747, 791) ia 3 ib 6 nt 44 | wake   10.4us prep  0.016 | load  0.299 wait  0.002 khead  0.025 kloop  1.067 dump  0.000 epi  0.004 dkl  0.162 ddu  0.055 dep  0.000 store  0.124 | span  1.839 resid  0.085 idle  0.028
+[trsm thr] t18 int[ 791, 834) ia 7 ib 1 nt 43 | wake    8.8us prep  0.022 | load  0.316 wait  0.001 khead  0.057 kloop  0.982 dump  0.000 epi  0.004 dkl  0.165 ddu  0.057 dep  0.000 store  0.134 | span  1.826 resid  0.088 idle  0.042
+[trsm thr] t19 int[ 834, 879) ia 2 ib 6 nt 45 | wake   10.7us prep  0.016 | load  0.310 wait  0.001 khead  0.016 kloop  1.059 dump  0.000 epi  0.004 dkl  0.176 ddu  0.055 dep  0.000 store  0.130 | span  1.866 resid  0.098 idle  0.000
+[trsm thr] t20 int[ 879, 922) ia 7 ib 1 nt 43 | wake   11.0us prep  0.021 | load  0.291 wait  0.001 khead  0.058 kloop  0.984 dump  0.000 epi  0.004 dkl  0.157 ddu  0.053 dep  0.000 store  0.125 | span  1.780 resid  0.085 idle  0.086
+[trsm thr] t21 int[ 922, 966) ia 2 ib 5 nt 44 | wake   11.4us prep  0.019 | load  0.307 wait  0.001 khead  0.019 kloop  1.014 dump  0.000 epi  0.004 dkl  0.155 ddu  0.054 dep  0.000 store  0.123 | span  1.780 resid  0.085 idle  0.086
+[trsm thr] t22 int[ 966,1008) ia 6 ib 7 nt 42 | wake    9.6us prep  0.017 | load  0.282 wait  0.001 khead  0.050 kloop  1.033 dump  0.000 epi  0.004 dkl  0.144 ddu  0.050 dep  0.000 store  0.117 | span  1.781 resid  0.083 idle  0.086
+[trsm thr] t23 int[1008,1054) ia 0 ib 5 nt 46 | wake    9.3us prep  0.022 | load  0.310 wait  0.002 khead  0.000 kloop  1.034 dump  0.000 epi  0.004 dkl  0.164 ddu  0.056 dep  0.000 store  0.124 | span  1.797 resid  0.082 idle  0.070
+[trsm thr] t24 int[1054,1096) ia 6 ib 7 nt 42 | wake   11.2us prep  0.014 | load  0.285 wait  0.001 khead  0.072 kloop  1.008 dump  0.000 epi  0.005 dkl  0.163 ddu  0.052 dep  0.000 store  0.119 | span  1.810 resid  0.092 idle  0.056
+[trsm thr] t25 int[1096,1142) ia 0 ib 5 nt 46 | wake   10.5us prep  0.016 | load  0.307 wait  0.002 khead  0.000 kloop  1.017 dump  0.000 epi  0.005 dkl  0.172 ddu  0.058 dep  0.000 store  0.123 | span  1.793 resid  0.094 idle  0.074
+[trsm thr] t26 int[1142,1184) ia 6 ib 7 nt 42 | wake   10.3us prep  0.015 | load  0.277 wait  0.001 khead  0.068 kloop  1.027 dump  0.000 epi  0.004 dkl  0.153 ddu  0.052 dep  0.000 store  0.118 | span  1.801 resid  0.086 idle  0.065
+[trsm thr] t27 int[1184,1230) ia 0 ib 5 nt 46 | wake    9.5us prep  0.015 | load  0.306 wait  0.001 khead  0.000 kloop  1.006 dump  0.000 epi  0.005 dkl  0.175 ddu  0.056 dep  0.000 store  0.129 | span  1.793 resid  0.100 idle  0.074
+[trsm thr] t28 int[1230,1272) ia 6 ib 7 nt 42 | wake   11.6us prep  0.021 | load  0.275 wait  0.000 khead  0.070 kloop  1.028 dump  0.000 epi  0.004 dkl  0.160 ddu  0.053 dep  0.000 store  0.118 | span  1.808 resid  0.078 idle  0.058
+[trsm thr] t29 int[1272,1318) ia 0 ib 5 nt 46 | wake    9.8us prep  0.015 | load  0.306 wait  0.001 khead  0.000 kloop  1.002 dump  0.000 epi  0.005 dkl  0.171 ddu  0.057 dep  0.000 store  0.126 | span  1.778 resid  0.095 idle  0.089
+[trsm thr] t30 int[1318,1360) ia 6 ib 7 nt 42 | wake   10.6us prep  0.025 | load  0.282 wait  0.002 khead  0.064 kloop  1.019 dump  0.000 epi  0.004 dkl  0.156 ddu  0.051 dep  0.000 store  0.125 | span  1.803 resid  0.077 idle  0.063
+[trsm thr] t31 int[1360,1406) ia 0 ib 5 nt 46 | wake    9.4us prep  0.018 | load  0.306 wait  0.002 khead  0.000 kloop  1.020 dump  0.000 epi  0.005 dkl  0.167 ddu  0.057 dep  0.000 store  0.122 | span  1.788 resid  0.092 idle  0.080
+[trsm thr] t32 int[1406,1448) ia 6 ib 7 nt 42 | wake    7.6us prep  0.022 | load  0.286 wait  0.001 khead  0.065 kloop  1.015 dump  0.000 epi  0.005 dkl  0.169 ddu  0.051 dep  0.000 store  0.122 | span  1.818 resid  0.082 idle  0.051
+[trsm thr] t33 int[1448,1494) ia 0 ib 5 nt 46 | wake    9.6us prep  0.017 | load  0.299 wait  0.001 khead  0.000 kloop  1.024 dump  0.000 epi  0.004 dkl  0.162 ddu  0.056 dep  0.000 store  0.124 | span  1.782 resid  0.095 idle  0.085
+[trsm thr] t34 int[1494,1536) ia 6 ib 7 nt 42 | wake    7.4us prep  0.026 | load  0.272 wait  0.001 khead  0.067 kloop  1.014 dump  0.000 epi  0.004 dkl  0.145 ddu  0.053 dep  0.000 store  0.117 | span  1.780 resid  0.081 idle  0.089
+[trsm thr] t35 int[1536,1581) ia 0 ib 4 nt 45 | wake    8.8us prep  0.016 | load  0.291 wait  0.002 khead  0.000 kloop  1.036 dump  0.000 epi  0.005 dkl  0.169 ddu  0.056 dep  0.000 store  0.118 | span  1.779 resid  0.086 idle  0.089
+[trsm thr] t36 int[1581,1623) ia 5 ib 6 nt 42 | wake   11.3us prep  0.021 | load  0.282 wait  0.000 khead  0.060 kloop  1.032 dump  0.000 epi  0.004 dkl  0.152 ddu  0.052 dep  0.000 store  0.119 | span  1.805 resid  0.083 idle  0.060
+[trsm thr] t37 int[1623,1664) ia 7 ib 7 nt 41 | wake   11.5us prep  0.018 | load  0.277 wait  0.001 khead  0.055 kloop  1.031 dump  0.000 epi  0.004 dkl  0.164 ddu  0.054 dep  0.000 store  0.122 | span  1.813 resid  0.086 idle  0.053
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3328MB | setup 0.010 ms, parallel 1.871 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 6.7 | xp+pp 缓冲 1.4 | flags 0.6 | 任务表 0.6 | ditem 0.8
+[trsm prof]  并行区唤醒：最慢线程 21.9 µs，平均 9.0 µs
+[trsm prof]  每线程平均 ms：prep 0.016 | load 0.296 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.016 dump 0.000 epi 0.004 dkloop 0.161 ddump 0.055 depi 0.000 store 0.123 | task 合计 1.705 | 尾部不均衡 0.100 ms（平均空闲 0.066 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm thr] t00 int[   0,  46) ia 0 ib 5 nt 46 | wake   21.9us prep  0.021 | load  0.305 wait  0.001 khead  0.000 kloop  1.017 dump  0.000 epi  0.005 dkl  0.173 ddu  0.059 dep  0.000 store  0.136 | span  1.796 resid  0.079 idle  0.052
+[trsm thr] t01 int[  46,  88) ia 6 ib 7 nt 42 | wake    7.0us prep  0.022 | load  0.293 wait  0.000 khead  0.069 kloop  1.022 dump  0.000 epi  0.004 dkl  0.172 ddu  0.053 dep  0.000 store  0.136 | span  1.848 resid  0.078 idle  0.015
+[trsm thr] t02 int[  88, 134) ia 0 ib 5 nt 46 | wake    6.8us prep  0.018 | load  0.317 wait  0.001 khead  0.000 kloop  1.004 dump  0.000 epi  0.005 dkl  0.173 ddu  0.058 dep  0.000 store  0.126 | span  1.788 resid  0.087 idle  0.075
+[trsm thr] t03 int[ 134, 176) ia 6 ib 7 nt 42 | wake    7.5us prep  0.021 | load  0.291 wait  0.001 khead  0.064 kloop  1.019 dump  0.000 epi  0.004 dkl  0.153 ddu  0.055 dep  0.000 store  0.128 | span  1.820 resid  0.084 idle  0.042
+[trsm thr] t04 int[ 176, 222) ia 0 ib 5 nt 46 | wake    7.1us prep  0.013 | load  0.304 wait  0.002 khead  0.000 kloop  1.018 dump  0.000 epi  0.005 dkl  0.176 ddu  0.057 dep  0.000 store  0.123 | span  1.791 resid  0.095 idle  0.072
+[trsm thr] t05 int[ 222, 264) ia 6 ib 7 nt 42 | wake    6.9us prep  0.019 | load  0.280 wait  0.001 khead  0.070 kloop  1.023 dump  0.000 epi  0.004 dkl  0.145 ddu  0.050 dep  0.000 store  0.117 | span  1.797 resid  0.088 idle  0.066
+[trsm thr] t06 int[ 264, 310) ia 0 ib 5 nt 46 | wake    6.7us prep  0.022 | load  0.306 wait  0.002 khead  0.000 kloop  1.023 dump  0.000 epi  0.005 dkl  0.172 ddu  0.055 dep  0.000 store  0.126 | span  1.796 resid  0.085 idle  0.068
+[trsm thr] t07 int[ 310, 352) ia 6 ib 7 nt 42 | wake    8.0us prep  0.023 | load  0.281 wait  0.001 khead  0.067 kloop  1.018 dump  0.000 epi  0.004 dkl  0.162 ddu  0.053 dep  0.000 store  0.122 | span  1.817 resid  0.085 idle  0.045
+[trsm thr] t08 int[ 352, 398) ia 0 ib 5 nt 46 | wake    7.4us prep  0.018 | load  0.308 wait  0.002 khead  0.000 kloop  0.998 dump  0.000 epi  0.005 dkl  0.174 ddu  0.059 dep  0.000 store  0.127 | span  1.781 resid  0.091 idle  0.081
+[trsm thr] t09 int[ 398, 440) ia 6 ib 7 nt 42 | wake    8.7us prep  0.013 | load  0.281 wait  0.001 khead  0.068 kloop  1.019 dump  0.000 epi  0.004 dkl  0.154 ddu  0.052 dep  0.000 store  0.121 | span  1.802 resid  0.089 idle  0.059
+[trsm thr] t10 int[ 440, 486) ia 0 ib 5 nt 46 | wake   10.2us prep  0.016 | load  0.308 wait  0.001 khead  0.000 kloop  1.007 dump  0.000 epi  0.005 dkl  0.170 ddu  0.056 dep  0.000 store  0.126 | span  1.782 resid  0.093 idle  0.077
+[trsm thr] t11 int[ 486, 528) ia 6 ib 7 nt 42 | wake    7.5us prep  0.021 | load  0.283 wait  0.002 khead  0.070 kloop  1.013 dump  0.000 epi  0.004 dkl  0.159 ddu  0.054 dep  0.000 store  0.122 | span  1.810 resid  0.082 idle  0.053
+[trsm thr] t12 int[ 528, 574) ia 0 ib 5 nt 46 | wake   10.3us prep  0.013 | load  0.309 wait  0.001 khead  0.000 kloop  1.005 dump  0.000 epi  0.005 dkl  0.158 ddu  0.058 dep  0.000 store  0.123 | span  1.768 resid  0.095 idle  0.091
+[trsm thr] t13 int[ 574, 616) ia 6 ib 7 nt 42 | wake    7.5us prep  0.018 | load  0.282 wait  0.001 khead  0.070 kloop  1.017 dump  0.000 epi  0.004 dkl  0.154 ddu  0.052 dep  0.000 store  0.120 | span  1.799 resid  0.081 idle  0.063
+[trsm thr] t14 int[ 616, 661) ia 0 ib 4 nt 45 | wake    8.0us prep  0.015 | load  0.298 wait  0.001 khead  0.000 kloop  1.004 dump  0.000 epi  0.004 dkl  0.171 ddu  0.060 dep  0.000 store  0.120 | span  1.764 resid  0.092 idle  0.098
+[trsm thr] t15 int[ 661, 703) ia 5 ib 6 nt 42 | wake    8.1us prep  0.019 | load  0.286 wait  0.001 khead  0.059 kloop  1.003 dump  0.000 epi  0.004 dkl  0.163 ddu  0.053 dep  0.000 store  0.118 | span  1.795 resid  0.089 idle  0.066
+[trsm thr] t16 int[ 703, 747) ia 7 ib 2 nt 44 | wake    8.1us prep  0.024 | load  0.303 wait  0.002 khead  0.054 kloop  1.012 dump  0.000 epi  0.004 dkl  0.163 ddu  0.056 dep  0.000 store  0.128 | span  1.824 resid  0.077 idle  0.037
+[trsm thr] t17 int[ 747, 791) ia 3 ib 6 nt 44 | wake    8.6us prep  0.013 | load  0.296 wait  0.002 khead  0.026 kloop  1.062 dump  0.000 epi  0.005 dkl  0.161 ddu  0.053 dep  0.000 store  0.122 | span  1.826 resid  0.086 idle  0.035
+[trsm thr] t18 int[ 791, 834) ia 7 ib 1 nt 43 | wake    9.5us prep  0.015 | load  0.316 wait  0.001 khead  0.056 kloop  0.989 dump  0.000 epi  0.004 dkl  0.166 ddu  0.056 dep  0.000 store  0.132 | span  1.827 resid  0.091 idle  0.033
+[trsm thr] t19 int[ 834, 879) ia 2 ib 6 nt 45 | wake   10.4us prep  0.014 | load  0.313 wait  0.001 khead  0.017 kloop  1.065 dump  0.000 epi  0.005 dkl  0.166 ddu  0.058 dep  0.000 store  0.128 | span  1.859 resid  0.093 idle  0.000
+[trsm thr] t20 int[ 879, 922) ia 7 ib 1 nt 43 | wake   10.2us prep  0.010 | load  0.300 wait  0.002 khead  0.057 kloop  0.983 dump  0.000 epi  0.004 dkl  0.159 ddu  0.055 dep  0.000 store  0.120 | span  1.785 resid  0.095 idle  0.075
+[trsm thr] t21 int[ 922, 966) ia 2 ib 5 nt 44 | wake    8.8us prep  0.012 | load  0.306 wait  0.002 khead  0.019 kloop  1.007 dump  0.000 epi  0.004 dkl  0.154 ddu  0.055 dep  0.000 store  0.122 | span  1.770 resid  0.089 idle  0.091
+[trsm thr] t22 int[ 966,1008) ia 6 ib 7 nt 42 | wake   10.4us prep  0.016 | load  0.276 wait  0.001 khead  0.050 kloop  1.027 dump  0.000 epi  0.004 dkl  0.147 ddu  0.051 dep  0.000 store  0.115 | span  1.764 resid  0.077 idle  0.096
+[trsm thr] t23 int[1008,1054) ia 0 ib 5 nt 46 | wake    8.4us prep  0.016 | load  0.304 wait  0.002 khead  0.000 kloop  1.024 dump  0.000 epi  0.005 dkl  0.165 ddu  0.058 dep  0.000 store  0.124 | span  1.784 resid  0.087 idle  0.077
+[trsm thr] t24 int[1054,1096) ia 6 ib 7 nt 42 | wake    9.2us prep  0.017 | load  0.275 wait  0.001 khead  0.071 kloop  1.021 dump  0.000 epi  0.005 dkl  0.151 ddu  0.050 dep  0.000 store  0.120 | span  1.796 resid  0.085 idle  0.064
+[trsm thr] t25 int[1096,1142) ia 0 ib 5 nt 46 | wake    8.2us prep  0.014 | load  0.297 wait  0.001 khead  0.000 kloop  1.017 dump  0.000 epi  0.005 dkl  0.162 ddu  0.061 dep  0.000 store  0.120 | span  1.772 resid  0.095 idle  0.089
+[trsm thr] t26 int[1142,1184) ia 6 ib 7 nt 42 | wake    9.8us prep  0.012 | load  0.277 wait  0.001 khead  0.067 kloop  1.025 dump  0.000 epi  0.005 dkl  0.144 ddu  0.052 dep  0.000 store  0.117 | span  1.785 resid  0.086 idle  0.075
+[trsm thr] t27 int[1184,1230) ia 0 ib 5 nt 46 | wake    9.1us prep  0.014 | load  0.303 wait  0.002 khead  0.000 kloop  0.996 dump  0.000 epi  0.005 dkl  0.167 ddu  0.057 dep  0.000 store  0.122 | span  1.761 resid  0.095 idle  0.100
+[trsm thr] t28 int[1230,1272) ia 6 ib 7 nt 42 | wake    9.7us prep  0.021 | load  0.280 wait  0.001 khead  0.060 kloop  1.027 dump  0.000 epi  0.005 dkl  0.167 ddu  0.054 dep  0.000 store  0.122 | span  1.819 resid  0.084 idle  0.041
+[trsm thr] t29 int[1272,1318) ia 0 ib 5 nt 46 | wake    8.3us prep  0.015 | load  0.296 wait  0.002 khead  0.000 kloop  1.017 dump  0.000 epi  0.005 dkl  0.157 ddu  0.056 dep  0.000 store  0.121 | span  1.762 resid  0.091 idle  0.100
+[trsm thr] t30 int[1318,1360) ia 6 ib 7 nt 42 | wake   10.6us prep  0.009 | load  0.280 wait  0.001 khead  0.061 kloop  1.012 dump  0.000 epi  0.004 dkl  0.153 ddu  0.051 dep  0.000 store  0.121 | span  1.781 resid  0.088 idle  0.079
+[trsm thr] t31 int[1360,1406) ia 0 ib 5 nt 46 | wake   10.2us prep  0.013 | load  0.301 wait  0.001 khead  0.000 kloop  1.025 dump  0.000 epi  0.005 dkl  0.160 ddu  0.055 dep  0.000 store  0.121 | span  1.777 resid  0.095 idle  0.083
+[trsm thr] t32 int[1406,1448) ia 6 ib 7 nt 42 | wake    6.7us prep  0.009 | load  0.280 wait  0.001 khead  0.062 kloop  1.029 dump  0.000 epi  0.004 dkl  0.161 ddu  0.055 dep  0.000 store  0.121 | span  1.815 resid  0.092 idle  0.049
+[trsm thr] t33 int[1448,1494) ia 0 ib 5 nt 46 | wake    9.2us prep  0.010 | load  0.296 wait  0.000 khead  0.000 kloop  1.007 dump  0.000 epi  0.005 dkl  0.164 ddu  0.058 dep  0.000 store  0.121 | span  1.761 resid  0.101 idle  0.100
+[trsm thr] t34 int[1494,1536) ia 6 ib 7 nt 42 | wake    8.8us prep  0.019 | load  0.286 wait  0.001 khead  0.061 kloop  1.017 dump  0.000 epi  0.004 dkl  0.155 ddu  0.054 dep  0.000 store  0.122 | span  1.805 resid  0.087 idle  0.056
+[trsm thr] t35 int[1536,1581) ia 0 ib 4 nt 45 | wake   10.5us prep  0.011 | load  0.291 wait  0.002 khead  0.000 kloop  1.018 dump  0.000 epi  0.005 dkl  0.171 ddu  0.056 dep  0.000 store  0.120 | span  1.760 resid  0.087 idle  0.099
+[trsm thr] t36 int[1581,1623) ia 5 ib 6 nt 42 | wake   10.0us prep  0.013 | load  0.284 wait  0.001 khead  0.060 kloop  1.036 dump  0.000 epi  0.004 dkl  0.146 ddu  0.052 dep  0.000 store  0.116 | span  1.800 resid  0.088 idle  0.060
+[trsm thr] t37 int[1623,1664) ia 7 ib 7 nt 41 | wake    6.7us prep  0.021 | load  0.347 wait  0.001 khead  0.055 kloop  0.982 dump  0.000 epi  0.004 dkl  0.156 ddu  0.052 dep  0.000 store  0.121 | span  1.826 resid  0.087 idle  0.038
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.83    1847.6196     3.33e-16     PASS
+=== DONE 02:00:52
