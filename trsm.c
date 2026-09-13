@@ -2159,7 +2159,7 @@ static long run_task_owner_cursor(const ctx_t* c,tbuf_t* tb,const task_t* tk,con
 // Constant block configurations let the compiler remove generic index and mode work.
 // Keep the general task independent; it handles all unmatched settings and layouts.
 static inline size_t special_l_offset(const ctx_t* c,int mode,long g,long k0) {
- long mb=mode==2?256:192;
+ long mb=mode==2?256:(mode==6?128:192);
  long i=16*g/mb,g0=i*mb/16;
  return c->pp_off[g0]+(size_t)(k0/64)*c->S_of[i]*1024+(g-g0)*1024+(k0%64)*16;
 }
@@ -3145,7 +3145,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
     const task_t* tkn = tkn_guess;
-    const long mb = (mode==2?256:192), nc = 128, kc = 64, ncp = 128;
+    const long mb = (mode==2?256:(mode==6?128:192)), nc = 128, kc = 64, ncp = 128;
     const long i = tk->i, p = tk->p;
     const long i0 = i * mb;
     long mbi = c->m - i0; if (mbi > mb) mbi = mb;
@@ -3234,7 +3234,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     // Prepacked traversal advances one strip at a time; no division by S is needed.
     // The first previous bank is zero; later kernels consume the preceding output.
-    if((mode==2 || mode==4))sme_zero_za();
+    if((mode==2 || mode==4 || mode==6))sme_zero_za();
     long strip_ch = chfirst;
     int strip_r = 0;
     for (long q = 0; q < nstrips; q++, strip_r = (strip_r + 1 == S ? (strip_ch++, 0) : strip_r + 1)) {
@@ -3273,7 +3273,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             A = Acur;
         } else {
             // Each full KC chunk contains S strips of 1024 doubles.
-            A = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
+            A = c->pp[cpy] + ((mode==2 || mode==4 || mode==6) ? (c->pp_off[i0/16]+((size_t)ch*S+r)*1024)
                     : special_l_offset(c,mode,i0/16+r,k0));
         }
         // 下一条（q+1）：能否在本条 K 循环里转置
@@ -3313,7 +3313,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
                 } else if (u < ntile || pfq + 1 < nstrips) {
-                    const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
+                    const double* An = c->pp[cpy] + ((mode==2 || mode==4 || mode==6) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
                     pf.p = (const char*)An + (size_t)u * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
@@ -3339,7 +3339,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
             if (pf_on) { pf.pc = (const char*)(acc_g + 16L * r * ncp + 32 * t); pf.pcs = cs; }
-            if((mode==2 || mode==4)) {
+            if((mode==2 || mode==4 || mode==6)) {
                 // Keep ZA live between strips; each call drains the other bank.
                 double* cur=acc_g+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
@@ -3400,7 +3400,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         }
     }
-    if((mode==2 || mode==4) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
+    if((mode==2 || mode==4 || mode==6) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
 
     if (split) {
@@ -3514,7 +3514,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         for (int g = 0; g < pgrp; g++) {
         const double* cbg = cb + g * pstride;
         const long pgn = p + g;
-        if (!last_rb && (mode==2 || mode==4) && c->xptm) {
+        if (!last_rb && (mode==2 || mode==4 || mode==6) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
@@ -3533,12 +3533,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + pgn) * kc * ncp + (gr % kc) * ncp;
             const double* s = cbg + r * ncp;
             if (c->xpnt) for (long j = 0; j < nc; j += 8) {
-                double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                double* dj=((mode==2 || mode==4 || mode==6))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svstnt1_f64(pg,dj,svld1_f64(pg,s+j));
             }
             else for (long j = 0; j < nc; j += 8) {
                 // Duplex modes pack Kx16 X tiles for the shared FP64 kernels.
-                double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
+                double* dj=((mode==2 || mode==4 || mode==6))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svst1_f64(pg,dj,svld1_f64(pg,s+j));
             }
         }
@@ -3610,6 +3610,12 @@ static long run_task_hoist4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const tas
 // 跨面板 A 复用（TRSM_PAIRP）：special=4 的配对任务包装（非 hoist / hoist）
 static long run_task_pair4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0,2);}
 static long run_task_pairh4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1,2);}
+// mode 6：mb=128 预打包 special（{mb, G·nc} 多重集换位：{256,128}→{128,256} 字节不变、对角 MAC ∝ mb 减半）。
+// pgrp 按任务读 task->g（build_tasks 对相邻整面板发 g=2 配对任务，奇数尾/奇宽面板发 g=0 单面板）
+static long run_task_special6(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid)
+{return run_task_special_impl(c,tb,tk,guess,tid,6,0,tk->kind==0&&tk->g==2?2:1);}
+static long run_task_hoist6(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid)
+{return run_task_special_impl(c,tb,tk,guess,tid,6,1,tk->kind==0&&tk->g==2?2:1);}
 // KC64 owner kernels: prefetch bases remain fixed and PRFM uses immediate
 // offsets. A/B loads, FP64 FMOPA order and hosted C stores match the old kernels.
 // This removes cursor ADD instructions without changing the addresses prefetched.
@@ -5367,35 +5373,52 @@ static void build_tasks(ctx_t* c, int nth)
             total += cost[i] * c->npan;
         }
         int splitf = c->owner ? 0 : env_int("TRSM_SPLITF", 12);   // 面板驻留模式不分裂 K
-        // 配对任务（pgrp=2）：每任务代价 ×2 → nseg 目标值 ×2（每段的 K 段数减半，行块间依赖环的末段工作量与单面板一致）；
-        // maxseg / tailseg 默认同步放大（显式环境变量仍为绝对值）
-        const int pg = c->pgrp > 0 ? c->pgrp : 1;
-        int maxseg = env_int("TRSM_MAXSEG", 8 * pg);
+        // 面板分组表 gs_[k]∈{1,2}：special=4 配对（准入保证 npan 偶、无 cshift）全部成对；
+        // special=6 配对时内部整面板贪心成对（cshift 的首/末奇宽面板与落单整面板单独成组，奇宽面板由派发路由到通用路径）；
+        // 其余全部单面板。配对组代价 ×2 → nseg 目标/上限 ×2（每段 K 段数减半，行块间依赖环的末段工作量与单面板一致）。
+        long ngrp = 0;
+        long* gp_ = malloc(sizeof(long) * (c->npan + 1));
+        int* gs_ = malloc(sizeof(int) * (c->npan + 1));
+        {
+            long p = 0;
+            long p0f = c->cshift ? 1 : 0, p1f = c->cshift ? c->npan - 2 : c->npan - 1;
+            while (p < c->npan) {
+                int g2 = c->pgrp == 2 && (c->special == 4 || (c->special == 6 && p >= p0f && p + 1 <= p1f));
+                gp_[ngrp] = p; gs_[ngrp] = g2 ? 2 : 1; ngrp++;
+                p += g2 ? 2 : 1;
+            }
+        }
+        int maxseg = env_int("TRSM_MAXSEG", 8);
         // Narrow RHS panels leave too few long tasks at the end of the solve.
         // Split only the last two row blocks more finely to shorten that tail.
         int tailrows = env_int("TRSM_TAIL_ROWS", 2);
-        int tailseg = env_int("TRSM_TAIL_SEG", 6 * pg);
+        int tailseg = env_int("TRSM_TAIL_SEG", 6);
         // 宽 n（面板数 ≥ 线程数）时最后 tailrows_w 个行块也分裂成 tailseg_w 段：最后一个行块的任务最长（case2 约 1.7 ms），
         // 不分裂时尾部平均空闲约半个任务
         int tailrows_w = env_int("TRSM_TAILW_ROWS", 1);
         int tailseg_w = env_int("TRSM_TAILW_SEG", 1);   // 实测 case2 分裂最后行块：尾部空闲 0.36→0.26 ms 但归约与部分和流量多 0.6 ms，净负，默认关
         long minch = env_int("TRSM_SPLIT_MINCH", 8);   // 少于这么多 K 段的任务不分裂（小问题分裂只增加归约开销）
         double target = splitf > 0 ? total / ((double)nth * splitf) : 1e300;
+#define GRP_NSEG(nseg_, i_, gsz_, nch_) do { \
+            nseg_ = 1; \
+            if (splitf > 0 && (nch_) >= minch) { \
+                nseg_ = (int)((gsz_) * cost[i_] / target + 0.5); \
+                if (c->npan < nth && (i_) >= c->nrb - tailrows && nseg_ < tailseg * (gsz_)) nseg_ = tailseg * (gsz_); \
+                if (c->npan >= nth && (i_) >= c->nrb - tailrows_w && nseg_ < tailseg_w * (gsz_)) nseg_ = tailseg_w * (gsz_); \
+                if (nseg_ > maxseg * (gsz_)) nseg_ = maxseg * (gsz_); \
+                if (nseg_ > (nch_)) nseg_ = (int)(nch_); \
+                if (nseg_ < 1) nseg_ = 1; \
+            } } while (0)
         long nitems = 0;
         size_t part_doubles = 0;
         for (long i = 0; i < c->nrb; i++) {
             long nch = (i * mb) / kc;
-            int nseg = 1;
-            if (splitf > 0 && nch >= minch) {
-                nseg = (int)(pg * cost[i] / target + 0.5);
-                if (c->npan < nth && i >= c->nrb - tailrows && nseg < tailseg) nseg = tailseg;
-                if (c->npan >= nth && i >= c->nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
-                if (nseg > maxseg) nseg = maxseg;
-                if (nseg > nch) nseg = (int)nch;
-                if (nseg < 1) nseg = 1;
+            for (long k = 0; k < ngrp; k++) {
+                int nseg;
+                GRP_NSEG(nseg, i, gs_[k], nch);
+                nitems += nseg;
+                if (nseg > 1) part_doubles += (size_t)nseg * gs_[k] * mb * c->ncp;
             }
-            nitems += (long)nseg * (c->npan / pg);
-            if (nseg > 1) part_doubles += (size_t)nseg * c->npan * mb * c->ncp;
         }
         if (c->ppmode == 1) nitems += c->nstrip;   // 打包任务
         if (g_tasks_cap < (size_t)nitems) { free(g_tasks); g_tasks = malloc(sizeof(task_t) * nitems); g_tasks_cap = nitems; }
@@ -5458,32 +5481,27 @@ static void build_tasks(ctx_t* c, int nth)
                 for (; gnext < gend; gnext++) TASK_INIT(&g_tasks[q++], 1, gnext, 0, 0, 0, 1, 0, 0, 0);
             }
             long nch = (i * mb) / kc;
-            int nseg = 1;
-            if (splitf > 0 && nch >= minch) {
-                nseg = (int)(pg * cost[i] / target + 0.5);
-                if (c->npan < nth && i >= c->nrb - tailrows && nseg < tailseg) nseg = tailseg;
-                if (c->npan >= nth && i >= c->nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
-                if (nseg > maxseg) nseg = maxseg;
-                if (nseg > nch) nseg = (int)nch;
-                if (nseg < 1) nseg = 1;
-            }
-            // 分裂任务的派发顺序：TRSM_LASTLATE=1 时先派发各面板的非末段（不依赖前一行块），末段（含最后一个 K 段、要等前一行块 flag）放到最后，
+            // 分裂任务的派发顺序：TRSM_LASTLATE=1 时先派发各面板组的非末段（不依赖前一行块），末段（含最后一个 K 段、要等前一行块 flag）放到最后，
             // 让末段更晚到达等待点、独立工作更早开始
-            const int lastlate = nseg > 1 && env_int("TRSM_LASTLATE", 1);
+            const int anylate = env_int("TRSM_LASTLATE", 1);
             size_t poff0 = poff;
-            for (int pass = 0; pass < (lastlate ? 2 : 1); pass++) {
+            for (int pass = 0; pass < (anylate ? 2 : 1); pass++) {
                 poff = poff0;
-                for (long p = 0; p < c->npan; p += pg) {   // 配对任务：p 为面板组首（p, p+1）
+                for (long k = 0; k < ngrp; k++) {   // 面板组：gs_[k]==2 为配对任务（面板 gp_[k], gp_[k]+1）
+                    int nseg;
+                    GRP_NSEG(nseg, i, gs_[k], nch);
+                    const int late = anylate && nseg > 1;
                     for (int s = 0; s < nseg; s++) {
                         int is_last = s == nseg - 1;
-                        if (lastlate && (pass == 0) == is_last) continue;   // pass 0：非末段；pass 1：末段
+                        if (late && (pass == 0) == is_last) continue;   // pass 0：非末段；pass 1：末段
+                        if (!late && pass == 1) continue;               // 不分裂/不延迟的组只在 pass 0 发射
                         task_t* t = &g_tasks[q++];
-                        t->kind = 0; t->g = 0;
-                        t->i = (int)i; t->p = (int)p; t->seg = s; t->nseg = nseg;
+                        t->kind = 0; t->g = gs_[k] == 2 ? 2 : 0;
+                        t->i = (int)i; t->p = (int)gp_[k]; t->seg = s; t->nseg = nseg;
                         t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
                         t->part_off = poff;
                     }
-                    if (nseg > 1) poff += (size_t)nseg * pg * mb * c->ncp;
+                    if (nseg > 1) poff += (size_t)nseg * gs_[k] * mb * c->ncp;
                 }
             }
         }
@@ -5492,6 +5510,8 @@ static void build_tasks(ctx_t* c, int nth)
         c->ntask_items = nitems;
         c->part = g_part;
         free(cost);
+        free(gp_); free(gs_);
+#undef GRP_NSEG
         (void)ntile_full;
 }
 
@@ -5603,6 +5623,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.special=4;
         c.swhost=0; // Kx16 Xp is copied to B directly after the diagonal solve.
       }
+      // mode 6：mb=128 预打包 special（mode2 语义、mb 减半）。与配对（PAIR2）组合时字节律不变
+      //（{mb, G·nc} = {128, 256} 与 mode2 的 {256, 128} 同多重集），对角 MAC ∝ m·mb·n 减半。
+      if(mb==128 && !c.direct && !c.ppmode && !c.swhost)c.special=6;
     }
     // 跨面板 A 复用（TRSM_PAIRP，§10g-pair，2026-09-13 证伪，默认关）：special=4 且偶数个等宽面板时，
     // 一个任务连做同一行块的相邻两个面板：打包 L 条带只从 DRAM 读一遍（第一面板 bank4 用 ld1d 保留驻留，
@@ -5610,6 +5633,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 实测 TC3 34.8→53.4 ms（kloop 效率 71%→46%）：双 C 块驻留 393 KB + 双 Xk 段把 L2 挤爆，
     // Xk/C 重读打回 DRAM，与 §10g0 nc256（+49%）同机制；mb 缩小则 Xp 读 ∝ m²/mb 反噬。留档勿再试。
     c.pgrp = (c.special == 4 && !c.cshift && c.npan % 2 == 0 && env_int("TRSM_PAIRP", 0)) ? 2 : 1;
+    if (c.special == 6 && env_int("TRSM_PAIR2", 1)) {
+        // mode6 配对：存在至少一对相邻整面板即可（奇数尾/奇宽面板由任务表落单）；pgrp 只决定缓冲扩容与分组开关
+        long p0f = c.cshift ? 1 : 0, p1f = c.cshift ? c.npan - 2 : c.npan - 1;
+        if (p1f > p0f) c.pgrp = 2;
+    }
 
     // Paired row strips require full 64-row tasks and full 96-column panels.
     if (c.owner && m % 64 == 0 && n % 96 == 0 && env_int("TRSM_SPECIAL", 1) && mb == 64 && nc == 96 && kc == 64 && c.ncp == 96
@@ -5895,6 +5923,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if(c.special==2)taskfn=g_abhoist ? run_task_hoist2 : run_task_special2;
         if(c.special==4)taskfn=c.pgrp==2 ? (g_abhoist ? run_task_pairh4 : run_task_pair4)
                                          : (g_abhoist ? run_task_hoist4 : run_task_special4);
+        if(c.special==6)taskfn=g_abhoist ? run_task_hoist6 : run_task_special6;
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号

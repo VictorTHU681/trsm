@@ -26,6 +26,13 @@ run TRSM_JIT_MB=0 TRSM_PAIRP=1 OMP_NUM_THREADS=5
 run TRSM_JIT_MB=0 TRSM_PAIRP=1 TRSM_ABHOIST=0
 # 7. xptm 变体（Xp 列块主序写）
 run TRSM_JIT_MB=0 TRSM_PAIRP=1 TRSM_XPTM=1
+# 8. mode6（mb=128 预打包 special，fresh25）：配对开/关、小 m 强制、分裂加压
+run TRSM_MB=128 TRSM_DIRECT=0
+run TRSM_MB=128 TRSM_DIRECT=0 TRSM_PAIR2=0
+run TRSM_MB=128 TRSM_DIRECT=0 TRSM_SPLITF=4 TRSM_SPLIT_MINCH=2
+run TRSM_MB=128 TRSM_DIRECT=0 TRSM_ABHOIST=0
+run TRSM_MB=128 TRSM_DIRECT=0 TRSM_CSHIFT=2
+run TRSM_MB=128 TRSM_DIRECT=0 OMP_NUM_THREADS=5
 echo "=== 原 gen_test 回归（默认环境 17 固定 + 40 随机）"
 timeout 900 numactl -N 1 ./probe/gen_test 40 2>&1 | tail -1
 echo "=== gen_test 强制流水打包"
