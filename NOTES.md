@@ -683,10 +683,19 @@ K 链融合（TRSM_ZGEO_CPC 档位，A 跨 chunk 跳、B 在 cbuf 行连续无�
 
 **v55dn 提交包**：`trsm_submit_v55dn_adb6d0d.zip` sha256 `3bafe5ed…`（trsm.c 同 1f6a3dc4 认证版）。
 run.sh **动态选最闲 CPU 节点**：/proc/stat 两次采样（150ms）按节点聚合空闲率，候选约束
-"CPU≥38 **且有近端 HBM 伙伴**"（首版只看空闲率踩到无 HBM 的 node 4：X/L 落 DDR，三用例 −30~50%，
-cn20483 实测 2.99/29.85/54.87——教训入档）；`TRSM_CPUNODE` 可强制，回退链 7（带 HBM 检查）→1。
+"CPU≥38 且有近端 HBM 伙伴"；`TRSM_CPUNODE` 可强制，回退链 7（带 HBM 检查）→1。
 验收 cn20483：选中 node0+HBM16，3 PASS（2.12/24.03/35.84）。与 v55n7（固定 node7）二选一提交，
 **建议 v55dn**（把判题机共租户抽签变成知情选择；各节点均匀时中性）。
+
+**首版 DDR 回退真因订正（2026-09-13，实证推翻"node4 无 HBM"）**：拓扑是干净 1:1——16 个 CPU 节点
+（0-15）各配一个 HBM 节点（+16），距离 61，cn20483/84 逐节点 `--preferred` 全 OK（hbm_job/cgroup_job 实测）。
+首版 v55dn 在 node4 掉 DDR（2.99/29.85/54.87）**不是缺 HBM 伙伴**，而是那次作业（1596693）的 cgroup
+`cpuset.mems` 被砍到 0-15（`numactl -H` 实报 `available: 16 nodes`），HBM 16-31 整体屏蔽——`/sys` 拓扑仍见
+node20，但 numactl 用不了 → `--preferred` 失败 → MEMOPT 空。半小时后重测同机 mems 恢复 0-31、node4 HBM 正常，
+证明是**共享机瞬时容量效应**（HBM 4GB×16 被他租占满时调度器缩 mems），非固定属性、非拓扑。
+**含义**：屏蔽是全机一致（要么全 HBM 可用要么全砍），换 CPU 节点救不回，选点逻辑无需改；当前包的
+`--preferred` 探测门本就优雅兜底（能用则用、被砍退 DDR 不报错）。判题机 v53r ×1.17 已证其对 HBM 开放，不踩此坑。
+账本原"候选加 HBM 约束（无 HBM 节点 −30~50%）"表述据此订正：约束仍保留（防呆），但触发场景是 mems 屏蔽而非拓扑缺失。
 
 ### 10o. LDPIPE 装载流水证伪 + TC1"访存管线满载"统一结论（2026-09-13，fresh29 留档）
 
