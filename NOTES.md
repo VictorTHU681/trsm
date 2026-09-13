@@ -682,10 +682,12 @@ K 链融合（TRSM_ZGEO_CPC 档位，A 跨 chunk 跳、B 在 cbuf 行连续无�
 对角包跨面板 L2 复用后冷读不主导。**判为结构性，不再立项**。
 
 **v55dn 提交包**：`trsm_submit_v55dn_adb6d0d.zip` sha256 `3bafe5ed…`（trsm.c 同 1f6a3dc4 认证版）。
-run.sh **动态选最闲 CPU 节点**：/proc/stat 两次采样（150ms）按节点聚合空闲率，候选约束
-"CPU≥38 且有近端 HBM 伙伴"；`TRSM_CPUNODE` 可强制，回退链 7（带 HBM 检查）→1。
-验收 cn20483：选中 node0+HBM16，3 PASS（2.12/24.03/35.84）。与 v55n7（固定 node7）二选一提交，
-**建议 v55dn**（把判题机共租户抽签变成知情选择；各节点均匀时中性）。
+run.sh 曾试**动态选最闲 CPU 节点**（/proc/stat 采样），**用户裁定回退固定 node 7**（2026-09-13）：
+动态选点收益不确定且增复杂度，判题机共租户抽签靠固定 node 7 避开默认 node 1 已足够。
+**终版 = v55n7**（`trsm_submit_v55n7_8104089.zip` sha256 `04482c1c…`，trsm.c 认证版 `1f6a3dc4`）：
+`cpunode=${TRSM_CPUNODE:-7}`，`numactl -N 7 true` 失败回退 node 1；HBM 由距离探测自适应；
+`--preferred` 探测门兜底（HBM 可用则用、被 cgroup 屏蔽则退 DDR）。验收 cn20481：`numactl -N 7 --preferred=23`
+生效，3 PASS（2.02/23.93/35.92）。动态选点代码与 v55dn 包已弃。
 
 **首版 DDR 回退真因订正（2026-09-13，实证推翻"node4 无 HBM"）**：拓扑是干净 1:1——16 个 CPU 节点
 （0-15）各配一个 HBM 节点（+16），距离 61，cn20483/84 逐节点 `--preferred` 全 OK（hbm_job/cgroup_job 实测）。
