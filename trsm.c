@@ -2001,6 +2001,7 @@ static inline void zgeo_flush(const double*,double*,long);
 // Select once per owner task; keep the original kernel for same-binary comparisons.
 static int g_owner_cursor;
 static int g_zgeo;   // TRSM_ZGEO：TC1 owner GEMM 段走 zgemm 几何（K 链融合 + 窗口化回写），默认关
+static int g_zgeo_cpc; // TRSM_ZGEO_CPC：每调用 chunk 数（0=整链）
 
 // Full 16x32 diagonal results can go straight from ZA to the resident panel.
 // All columns are independent; storing this tile before the next column tile
@@ -2139,22 +2140,29 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             double* zscr = tb->scratch;
             int zpend = 0; double* zpend_c = NULL;
             const double* Abase = c->pp[cpy] + c->pp_off[i0 / 16];
+            // CPC = 每调用 chunk 数（TRSM_ZGEO_CPC，0=整链融合）：小 CPC 保 A 的 L1/L2 近端复用（块内 6 微块共用），
+            // 大 CPC 稀释回写窗与调用边界。全融合实测 A 从 L2 重流 ×6，kloop +75%——权衡点待扫。
+            long cpc = g_zgeo_cpc > 0 ? g_zgeo_cpc : nchunks;
             for (int rr = 0; rr < 4; rr += 2) {
-                const double* Ab = Abase + (size_t)rr * 1024;
-                // 体循环每圈预取 4 KB 下一带 A；每调用错开 1/6 切片（rr=2 时无下一带，打哑地址）
-                const char* pfa0 = rr == 0 ? (const char*)(Abase + 2 * 1024) : (const char*)tb->scratch2;
-                const size_t pfslice = rr == 0 ? ((size_t)nchunks * 16384 / 6) & ~63UL : 0;
-                for (long t = 0; t < 6; t++) {
-                    const double* B0 = Xk0 + 16 * t;
-                    double* cur = acc + 16L * rr * ncp + 16 * t;
-                    if (zpend) { PROF_T(c, kloop_zgeo_head_wb(Ab, B0, zscr, zpend_c), t_kloop); }
-                    else       { PROF_T(c, kloop_zgeo_head(Ab, B0), t_kloop); }
-                    if (nchunks > 1)
-                        PROF_T(c, kloop_zgeo_body(Ab + 4096, B0 + 64 * ncp, nchunks - 1,
-                                                  pfa0 + (size_t)t * pfslice), t_kloop);
-                    PROF_T(c, kloop_zgeo_tail(zscr), t_kloop);
-                    zpend = 1; zpend_c = cur;
-                    if (c->prof >= 2) tb->n_kstep += 64 * nchunks;
+                for (long cb0 = 0; cb0 < nchunks; cb0 += cpc) {
+                    long nblk = nchunks - cb0; if (nblk > cpc) nblk = cpc;
+                    const double* Ab = Abase + (size_t)rr * 1024 + (size_t)cb0 * 4096;
+                    // 预取下一块 A（同带下一 chunk 块；带尾预取下一带首块；rr=2 尾打哑地址）
+                    const double* Apf = cb0 + cpc < nchunks ? Ab + (size_t)cpc * 4096
+                                       : rr == 0 ? Abase + 2 * 1024 : (const double*)tb->scratch2;
+                    const size_t pfslice = ((size_t)nblk * 16384 / 6) & ~63UL;
+                    for (long t = 0; t < 6; t++) {
+                        const double* B0 = Xk0 + (size_t)cb0 * 64 * ncp + 16 * t;
+                        double* cur = acc + 16L * rr * ncp + 16 * t;
+                        if (zpend) { PROF_T(c, kloop_zgeo_head_wb(Ab, B0, zscr, zpend_c), t_kloop); }
+                        else       { PROF_T(c, kloop_zgeo_head(Ab, B0), t_kloop); }
+                        if (nblk > 1)
+                            PROF_T(c, kloop_zgeo_body(Ab + 4096, B0 + 64 * ncp, nblk - 1,
+                                                      (const char*)Apf + (size_t)t * pfslice), t_kloop);
+                        PROF_T(c, kloop_zgeo_tail(zscr), t_kloop);
+                        zpend = 1; zpend_c = cur;
+                        if (c->prof >= 2) tb->n_kstep += 64 * nblk;
+                    }
                 }
             }
             if (zpend) PROF_T(c, zgeo_flush(zscr, zpend_c, ncp), t_epi);
@@ -6026,6 +6034,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.prof = env_int("TRSM_PROFILE", 0);
     g_owner_cursor=env_int("TRSM_OWNER_CURSOR",1); // Fixed KC64 prefetch offsets; 0 restores v48 owner kernels.
     g_zgeo=env_int("TRSM_ZGEO",0);
+    g_zgeo_cpc=env_int("TRSM_ZGEO_CPC",0);
     g_abhoist = env_int("TRSM_ABHOIST", 1); // 0 retains the original duplex kernels for comparisons
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
