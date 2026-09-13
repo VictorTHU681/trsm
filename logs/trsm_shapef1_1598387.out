@@ -1,0 +1,48 @@
+=== HOST cn20483 02:06:25 5e04311 SHAPEP 正式认证作业（双节点交错 + TC2/3 守护 + 泛化门禁）
+[env] host=cn20483 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+b68e192c87aa0e07d14abacc9de34386cb01745d151f9f52dadbfbf3d7a098b0  trsm.c
+fda41655dc0d45c5f6ffb24a357aba7cbfefedf558495b6a780797db96e04678  trsm_test
+=== TC2/TC3 守护（SHAPEP 只影响 owner 路径，确认无扰动）
+--- RUN tc2_on
+  2432 x 17024        23.57    4272.0077     7.77e-16     PASS
+--- RUN tc3_on
+ 17024 x   512        36.19    4099.9177     1.50e-15     PASS
+=== TC1 正式交错 ×6
+--- RUN off_1
+   512 x 19968         1.93    2708.8533     3.33e-16     PASS
+--- RUN on_1
+   512 x 19968         1.92    2724.7444     3.33e-16     PASS
+--- RUN off_2
+   512 x 19968         1.97    2654.2122     3.33e-16     PASS
+--- RUN on_2
+   512 x 19968         1.92    2725.0141     3.33e-16     PASS
+--- RUN off_3
+   512 x 19968         1.93    2715.8988     3.33e-16     PASS
+--- RUN on_3
+   512 x 19968         1.90    2750.6360     3.33e-16     PASS
+--- RUN off_4
+   512 x 19968         1.96    2670.1795     3.33e-16     PASS
+--- RUN on_4
+   512 x 19968         1.91    2733.5649     3.33e-16     PASS
+--- RUN off_5
+   512 x 19968         1.94    2694.1973     3.33e-16     PASS
+--- RUN on_5
+   512 x 19968         1.91    2743.5738     3.33e-16     PASS
+--- RUN off_6
+   512 x 19968         1.93    2711.1001     3.33e-16     PASS
+--- RUN on_6
+   512 x 19968         1.92    2733.2352     3.33e-16     PASS
+=== 泛化门禁
+[gen 默认(SHAPEP=100) 60]
+ALL PASS: 0 failures
+[gen SHAPEP=0 30]
+ALL PASS: 0 failures
+[gen 强制 owner + SHAPEP 30]
+ALL PASS: 0 failures
+[gen owner 关 20]
+ALL PASS: 0 failures
+[gen 5 线程 + SHAPEP 20]
+ALL PASS: 0 failures
+[gen SWHOST MB64 20]
+ALL PASS: 0 failures
+=== DONE 02:07:18
