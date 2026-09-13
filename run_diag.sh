@@ -56,7 +56,10 @@ if [[ -n "$hbm" ]] && numactl -N $cpunode --preferred=$hbm true >/dev/null 2>&1;
 fi
 echo "[run.sh] numactl -N $cpunode $MEMOPT" >&2
 
-export TRSM_PROFILE=2   # 算子只读分相计时（stderr；每次调用 ~1-3% 观测开销，诊断包分数不作数）
+export TRSM_PROFILE=2   # 算子只读分相计时（stderr；诊断包分数不作数）
+export TRSM_SMAPS=1     # 算子进程内 THP 覆盖率抽样（X/L/pp 所在 VMA；每调用一次 smaps 扫描，
+                        # 会把 TC1 计时抬 ~4ms/调用、TC2 的 prep 桶抬 ~190ms——只污染 setup/prep，
+                        # 判别所需的 kloop/load/store/dkloop 桶不受影响；进程外采样在 TC3 上会锁竞争挂死，勿用）
 
 D=diag_out
 rm -rf "$D"; mkdir -p "$D"
@@ -79,34 +82,9 @@ envsnap() {
     echo "gcc=$(gcc --version 2>/dev/null | head -1)"
 }
 
-# 进程外采样器：等 trsm_test 出现，每 3 s 抓一次（≤10 次）：大 VMA（≥64 MB）的
-# Size/Rss/AnonHugePages（THP 覆盖率）、numa_maps 大匿名段的节点分布、节点 MemFree、loadavg。
-# 读 /proc/<pid>/smaps 的页表遍历成本由采样器所在核承担，被测进程零开销。
-sampler() {
-    local tag="$1" out="$D/snap_$tag.txt" pid="" i t
-    for t in $(seq 1 200); do pid=$(pgrep -n -x trsm_test 2>/dev/null); [[ -n "$pid" ]] && break; sleep 0.2; done
-    [[ -z "$pid" ]] && { echo "no pid" > "$out"; return; }
-    for i in $(seq 1 10); do
-        kill -0 "$pid" 2>/dev/null || break
-        {
-            echo "--- snap $tag.$i $(date +%H:%M:%S) pid=$pid loadavg=$(cat /proc/loadavg 2>/dev/null)"
-            nodefree
-            awk '/^[0-9a-f]+-[0-9a-f]+/{hdr=$1; sz=0; rss=0} /^Size:/{sz=$2} /^Rss:/{rss=$2}
-                 /^AnonHugePages:/{if (sz>=65536) printf "vma %s size=%dMB rss=%dMB anonhuge=%dMB (%d%%)\n", hdr, sz/1024, rss/1024, $2/1024, (rss>0? $2*100/rss : 0)}' \
-                /proc/"$pid"/smaps 2>/dev/null
-            awk '{for(f=2;f<=NF;f++) if($f ~ /^anon=/){n=substr($f,6)+0; if(n>=16384){print; next}}}' \
-                /proc/"$pid"/numa_maps 2>/dev/null | head -8
-        } >> "$out" 2>/dev/null
-        sleep 3
-    done
-}
-
-run_case() {   # $1=名字 $2..=参数；结果行照常走 stdout，stderr 收进文件，采样器旁路
+run_case() {   # $1=名字 $2..=参数；结果行照常走 stdout，stderr 收进文件
     envsnap "before-$1" >> "$D/env.txt" 2>&1
-    sampler "$1" &
-    local sp=$!
     numactl -N $cpunode $MEMOPT ./trsm_test "${@:2}" 2> "$D/$1.err"
-    wait "$sp" 2>/dev/null
 }
 
 envsnap "before-all" > "$D/env.txt" 2>&1
@@ -119,8 +97,6 @@ envsnap "after-all" >> "$D/env.txt" 2>&1
 echo "===================== [trsm-diag] ====================="
 cat "$D/env.txt"
 for c in tc1 tc2 tc3; do
-    echo "--- [trsm-diag] $c 采样 ---"
-    cat "$D/snap_$c.txt" 2>/dev/null
     echo "--- [trsm-diag] $c stderr ---"
     cat "$D/$c.err" 2>/dev/null
 done
