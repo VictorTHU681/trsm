@@ -1,0 +1,73 @@
+file,line,context,round,m,n,level,time_ms,gflops,max_error,status,window
+428-recursive-trsm.sh.log,6,RECURSIVE_FORMAL round=1 m=512 n=19968 level=-1,1,512,19968,-1,1.96,2666.6219,3.33e-16,PASS,
+428-recursive-trsm.sh.log,12,RECURSIVE_FORMAL round=1 m=512 n=19968 level=0,1,512,19968,0,3.46,1512.3040,2.78e-16,PASS,
+428-recursive-trsm.sh.log,18,RECURSIVE_FORMAL round=1 m=512 n=19968 level=1,1,512,19968,1,6.42,815.4291,3.89e-16,PASS,
+428-recursive-trsm.sh.log,24,RECURSIVE_FORMAL round=1 m=2432 n=17024 level=-1,1,2432,17024,-1,24.03,4190.5445,7.77e-16,PASS,
+428-recursive-trsm.sh.log,30,RECURSIVE_FORMAL round=1 m=2432 n=17024 level=0,1,2432,17024,0,29.81,3377.7106,6.11e-16,PASS,
+428-recursive-trsm.sh.log,36,RECURSIVE_FORMAL round=1 m=2432 n=17024 level=1,1,2432,17024,1,38.62,2607.3390,6.11e-16,PASS,
+428-recursive-trsm.sh.log,42,RECURSIVE_FORMAL round=1 m=17024 n=512 level=-1,1,17024,512,-1,35.80,4144.3229,1.50e-15,PASS,
+428-recursive-trsm.sh.log,48,RECURSIVE_FORMAL round=1 m=17024 n=512 level=0,1,17024,512,0,44.83,3309.7673,7.22e-16,PASS,
+428-recursive-trsm.sh.log,54,RECURSIVE_FORMAL round=1 m=17024 n=512 level=1,1,17024,512,1,51.85,2862.0867,7.22e-16,PASS,
+428-recursive-trsm.sh.log,60,RECURSIVE_FORMAL round=2 m=512 n=19968 level=1,2,512,19968,1,6.44,813.1809,3.89e-16,PASS,
+428-recursive-trsm.sh.log,66,RECURSIVE_FORMAL round=2 m=512 n=19968 level=0,2,512,19968,0,3.45,1517.0955,2.78e-16,PASS,
+428-recursive-trsm.sh.log,72,RECURSIVE_FORMAL round=2 m=512 n=19968 level=-1,2,512,19968,-1,1.95,2681.4627,3.33e-16,PASS,
+428-recursive-trsm.sh.log,78,RECURSIVE_FORMAL round=2 m=2432 n=17024 level=1,2,2432,17024,1,39.13,2573.1778,6.11e-16,PASS,
+428-recursive-trsm.sh.log,84,RECURSIVE_FORMAL round=2 m=2432 n=17024 level=0,2,2432,17024,0,29.63,3398.4260,6.11e-16,PASS,
+428-recursive-trsm.sh.log,90,RECURSIVE_FORMAL round=2 m=2432 n=17024 level=-1,2,2432,17024,-1,23.83,4225.3693,7.77e-16,PASS,
+428-recursive-trsm.sh.log,96,RECURSIVE_FORMAL round=2 m=17024 n=512 level=1,2,17024,512,1,51.99,2853.9168,7.22e-16,PASS,
+428-recursive-trsm.sh.log,102,RECURSIVE_FORMAL round=2 m=17024 n=512 level=0,2,17024,512,0,44.52,3332.8171,7.22e-16,PASS,
+428-recursive-trsm.sh.log,108,RECURSIVE_FORMAL round=2 m=17024 n=512 level=-1,2,17024,512,-1,35.94,4128.6324,1.50e-15,PASS,
+428-recursive-trsm.sh.log,118,RECURSIVE_PROFILE m=512 n=19968 level=0,,512,19968,0,3.60,1453.5753,2.78e-16,PASS,
+428-recursive-trsm.sh.log,128,RECURSIVE_PROFILE m=512 n=19968 level=1,,512,19968,1,6.62,790.7892,3.89e-16,PASS,
+428-recursive-trsm.sh.log,138,RECURSIVE_PROFILE m=2432 n=17024 level=0,,2432,17024,0,29.45,3419.3069,6.11e-16,PASS,
+428-recursive-trsm.sh.log,148,RECURSIVE_PROFILE m=2432 n=17024 level=1,,2432,17024,1,38.69,2602.2926,6.11e-16,PASS,
+428-recursive-trsm.sh.log,158,RECURSIVE_PROFILE m=17024 n=512 level=0,,17024,512,0,44.38,3343.4714,7.22e-16,PASS,
+428-recursive-trsm.sh.log,168,RECURSIVE_PROFILE m=17024 n=512 level=1,,17024,512,1,51.93,2857.3309,7.22e-16,PASS,
+431-owner-front.sh.log,18,FRONT_FORMAL round=1 window=control,1,512,19968,,1.90,2753.2304,3.33e-16,PASS,control
+431-owner-front.sh.log,24,FRONT_FORMAL round=1 window=16,1,512,19968,,1.94,2702.0259,3.33e-16,PASS,16
+431-owner-front.sh.log,30,FRONT_FORMAL round=1 window=32,1,512,19968,,1.92,2727.4210,3.33e-16,PASS,32
+431-owner-front.sh.log,36,FRONT_FORMAL round=1 window=48,1,512,19968,,1.89,2763.6726,3.33e-16,PASS,48
+431-owner-front.sh.log,42,FRONT_FORMAL round=1 window=64,1,512,19968,,1.94,2701.7421,3.33e-16,PASS,64
+431-owner-front.sh.log,48,FRONT_FORMAL round=2 window=64,2,512,19968,,1.91,2739.5725,3.33e-16,PASS,64
+431-owner-front.sh.log,54,FRONT_FORMAL round=2 window=48,2,512,19968,,1.91,2739.0238,3.33e-16,PASS,48
+431-owner-front.sh.log,60,FRONT_FORMAL round=2 window=32,2,512,19968,,1.92,2725.2171,3.33e-16,PASS,32
+431-owner-front.sh.log,66,FRONT_FORMAL round=2 window=16,2,512,19968,,1.94,2701.7457,3.33e-16,PASS,16
+431-owner-front.sh.log,72,FRONT_FORMAL round=2 window=control,2,512,19968,,2.01,2604.3696,3.33e-16,PASS,control
+431-owner-front.sh.log,78,FRONT_FORMAL round=3 window=control,3,512,19968,,1.93,2706.1342,3.33e-16,PASS,control
+431-owner-front.sh.log,84,FRONT_FORMAL round=3 window=16,3,512,19968,,1.93,2715.9092,3.33e-16,PASS,16
+431-owner-front.sh.log,90,FRONT_FORMAL round=3 window=32,3,512,19968,,1.94,2702.8860,3.33e-16,PASS,32
+431-owner-front.sh.log,96,FRONT_FORMAL round=3 window=48,3,512,19968,,1.91,2737.4210,3.33e-16,PASS,48
+431-owner-front.sh.log,102,FRONT_FORMAL round=3 window=64,3,512,19968,,1.93,2719.0821,3.33e-16,PASS,64
+431-owner-front.sh.log,108,FRONT_FORMAL round=4 window=64,4,512,19968,,1.92,2733.0275,3.33e-16,PASS,64
+431-owner-front.sh.log,114,FRONT_FORMAL round=4 window=48,4,512,19968,,1.93,2710.9848,3.33e-16,PASS,48
+431-owner-front.sh.log,120,FRONT_FORMAL round=4 window=32,4,512,19968,,1.95,2686.4124,3.33e-16,PASS,32
+431-owner-front.sh.log,126,FRONT_FORMAL round=4 window=16,4,512,19968,,1.96,2676.1003,3.33e-16,PASS,16
+431-owner-front.sh.log,132,FRONT_FORMAL round=4 window=control,4,512,19968,,1.91,2736.2849,3.33e-16,PASS,control
+431-owner-front.sh.log,162,FRONT_PROFILE window=control,,512,19968,,2.39,2192.7319,3.33e-16,PASS,control
+431-owner-front.sh.log,192,FRONT_PROFILE window=16,,512,19968,,2.37,2204.2819,3.33e-16,PASS,16
+431-owner-front.sh.log,222,FRONT_PROFILE window=32,,512,19968,,2.33,2242.3320,3.33e-16,PASS,32
+431-owner-front.sh.log,252,FRONT_PROFILE window=48,,512,19968,,2.36,2213.6239,3.33e-16,PASS,48
+433-front-recheck.sh.log,74,FRONT_RECHECK round=1 window=control,1,512,19968,,1.91,2741.4062,3.33e-16,PASS,control
+433-front-recheck.sh.log,80,FRONT_RECHECK round=1 window=48,1,512,19968,,1.90,2749.3786,3.33e-16,PASS,48
+433-front-recheck.sh.log,86,FRONT_RECHECK round=1 window=64,1,512,19968,,1.95,2680.4898,3.33e-16,PASS,64
+433-front-recheck.sh.log,92,FRONT_RECHECK round=2 window=64,2,512,19968,,1.92,2729.6915,3.33e-16,PASS,64
+433-front-recheck.sh.log,98,FRONT_RECHECK round=2 window=48,2,512,19968,,1.92,2720.3607,3.33e-16,PASS,48
+433-front-recheck.sh.log,104,FRONT_RECHECK round=2 window=control,2,512,19968,,1.93,2718.7791,3.33e-16,PASS,control
+433-front-recheck.sh.log,110,FRONT_RECHECK round=3 window=control,3,512,19968,,1.99,2633.2228,3.33e-16,PASS,control
+433-front-recheck.sh.log,116,FRONT_RECHECK round=3 window=48,3,512,19968,,1.91,2738.9278,3.33e-16,PASS,48
+433-front-recheck.sh.log,122,FRONT_RECHECK round=3 window=64,3,512,19968,,1.92,2723.1365,3.33e-16,PASS,64
+433-front-recheck.sh.log,128,FRONT_RECHECK round=4 window=64,4,512,19968,,1.91,2735.1958,3.33e-16,PASS,64
+433-front-recheck.sh.log,134,FRONT_RECHECK round=4 window=48,4,512,19968,,1.89,2768.9627,3.33e-16,PASS,48
+433-front-recheck.sh.log,140,FRONT_RECHECK round=4 window=control,4,512,19968,,1.91,2737.3012,3.33e-16,PASS,control
+433-front-recheck.sh.log,146,FRONT_RECHECK round=5 window=control,5,512,19968,,1.89,2765.0519,3.33e-16,PASS,control
+433-front-recheck.sh.log,152,FRONT_RECHECK round=5 window=48,5,512,19968,,1.92,2731.4379,3.33e-16,PASS,48
+433-front-recheck.sh.log,158,FRONT_RECHECK round=5 window=64,5,512,19968,,1.95,2678.9647,3.33e-16,PASS,64
+433-front-recheck.sh.log,164,FRONT_RECHECK round=6 window=64,6,512,19968,,1.92,2719.7000,3.33e-16,PASS,64
+433-front-recheck.sh.log,170,FRONT_RECHECK round=6 window=48,6,512,19968,,1.89,2764.1452,3.33e-16,PASS,48
+433-front-recheck.sh.log,176,FRONT_RECHECK round=6 window=control,6,512,19968,,1.90,2751.7487,3.33e-16,PASS,control
+433-front-recheck.sh.log,182,FRONT_RECHECK round=7 window=control,7,512,19968,,1.92,2733.0601,3.33e-16,PASS,control
+433-front-recheck.sh.log,188,FRONT_RECHECK round=7 window=48,7,512,19968,,1.95,2689.3589,3.33e-16,PASS,48
+433-front-recheck.sh.log,194,FRONT_RECHECK round=7 window=64,7,512,19968,,1.93,2709.4374,3.33e-16,PASS,64
+433-front-recheck.sh.log,200,FRONT_RECHECK round=8 window=64,8,512,19968,,1.97,2659.4077,3.33e-16,PASS,64
+433-front-recheck.sh.log,206,FRONT_RECHECK round=8 window=48,8,512,19968,,1.93,2705.7097,3.33e-16,PASS,48
+433-front-recheck.sh.log,212,FRONT_RECHECK round=8 window=control,8,512,19968,,1.98,2646.7770,3.33e-16,PASS,control

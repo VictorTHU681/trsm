@@ -1,0 +1,252 @@
+FRONT_BOUNDARY window=16
+DUPLEX_BOUNDARY PASS comparisons=102400 maxdiff=0 protected A/B/C pages
+OWNER_BOUNDARY PASS comparisons=153600 maxdiff=0 protected A/B/C pages
+FRONT_BOUNDARY window=32
+DUPLEX_BOUNDARY PASS comparisons=102400 maxdiff=0 protected A/B/C pages
+OWNER_BOUNDARY PASS comparisons=153600 maxdiff=0 protected A/B/C pages
+FRONT_BOUNDARY window=48
+DUPLEX_BOUNDARY PASS comparisons=102400 maxdiff=0 protected A/B/C pages
+OWNER_BOUNDARY PASS comparisons=153600 maxdiff=0 protected A/B/C pages
+FRONT_BOUNDARY window=64
+DUPLEX_BOUNDARY PASS comparisons=102400 maxdiff=0 protected A/B/C pages
+OWNER_BOUNDARY PASS comparisons=153600 maxdiff=0 protected A/B/C pages
+FRONT_FORMAL round=1 window=control
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2753.2304     3.33e-16     PASS
+FRONT_FORMAL round=1 window=16
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2702.0259     3.33e-16     PASS
+FRONT_FORMAL round=1 window=32
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2727.4210     3.33e-16     PASS
+FRONT_FORMAL round=1 window=48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.89    2763.6726     3.33e-16     PASS
+FRONT_FORMAL round=1 window=64
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2701.7421     3.33e-16     PASS
+FRONT_FORMAL round=2 window=64
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2739.5725     3.33e-16     PASS
+FRONT_FORMAL round=2 window=48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2739.0238     3.33e-16     PASS
+FRONT_FORMAL round=2 window=32
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2725.2171     3.33e-16     PASS
+FRONT_FORMAL round=2 window=16
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2701.7457     3.33e-16     PASS
+FRONT_FORMAL round=2 window=control
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.01    2604.3696     3.33e-16     PASS
+FRONT_FORMAL round=3 window=control
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2706.1342     3.33e-16     PASS
+FRONT_FORMAL round=3 window=16
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2715.9092     3.33e-16     PASS
+FRONT_FORMAL round=3 window=32
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2702.8860     3.33e-16     PASS
+FRONT_FORMAL round=3 window=48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2737.4210     3.33e-16     PASS
+FRONT_FORMAL round=3 window=64
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2719.0821     3.33e-16     PASS
+FRONT_FORMAL round=4 window=64
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2733.0275     3.33e-16     PASS
+FRONT_FORMAL round=4 window=48
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2710.9848     3.33e-16     PASS
+FRONT_FORMAL round=4 window=32
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2686.4124     3.33e-16     PASS
+FRONT_FORMAL round=4 window=16
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2676.1003     3.33e-16     PASS
+FRONT_FORMAL round=4 window=control
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2736.2849     3.33e-16     PASS
+FRONT_PROFILE window=control
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3325MB | setup 3.016 ms, parallel 16.576 ms
+[trsm prof]  并行区唤醒：最慢线程 15.2 µs，平均 12.3 µs
+[trsm prof]  每线程平均 ms：prep 0.169 | load 1.427 pack 0.000 xcopy 0.000 wait 0.006 kloop 0.989 dump 0.000 epi 0.004 dkloop 0.154 ddump 0.054 depi 0.000 store 0.114 | task 合计 2.794 | 尾部不均衡 7.557 ms（平均空闲 2.369 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 62.6%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3325MB | setup 0.035 ms, parallel 1.914 ms
+[trsm prof]  并行区唤醒：最慢线程 19.3 µs，平均 14.0 µs
+[trsm prof]  每线程平均 ms：prep 0.064 | load 0.301 pack 0.000 xcopy 0.000 wait 0.010 kloop 1.008 dump 0.000 epi 0.004 dkloop 0.156 ddump 0.054 depi 0.000 store 0.124 | task 合计 1.703 | 尾部不均衡 0.196 ms（平均空闲 0.084 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3325MB | setup 0.026 ms, parallel 1.940 ms
+[trsm prof]  并行区唤醒：最慢线程 19.1 µs，平均 11.6 µs
+[trsm prof]  每线程平均 ms：prep 0.029 | load 0.305 pack 0.000 xcopy 0.000 wait 0.037 kloop 1.018 dump 0.000 epi 0.004 dkloop 0.168 ddump 0.055 depi 0.000 store 0.125 | task 合计 1.758 | 尾部不均衡 0.237 ms（平均空闲 0.093 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3325MB | setup 0.032 ms, parallel 1.903 ms
+[trsm prof]  并行区唤醒：最慢线程 14.1 µs，平均 9.6 µs
+[trsm prof]  每线程平均 ms：prep 0.023 | load 0.309 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.022 dump 0.000 epi 0.004 dkloop 0.163 ddump 0.054 depi 0.000 store 0.125 | task 合计 1.725 | 尾部不均衡 0.230 ms（平均空闲 0.100 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3325MB | setup 0.032 ms, parallel 1.903 ms
+[trsm prof]  并行区唤醒：最慢线程 12.5 µs，平均 9.1 µs
+[trsm prof]  每线程平均 ms：prep 0.021 | load 0.309 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.021 dump 0.000 epi 0.004 dkloop 0.165 ddump 0.055 depi 0.000 store 0.125 | task 合计 1.727 | 尾部不均衡 0.223 ms（平均空闲 0.099 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3325MB | setup 0.028 ms, parallel 1.868 ms
+[trsm prof]  并行区唤醒：最慢线程 18.8 µs，平均 10.6 µs
+[trsm prof]  每线程平均 ms：prep 0.022 | load 0.305 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.015 dump 0.000 epi 0.004 dkloop 0.160 ddump 0.054 depi 0.000 store 0.123 | task 合计 1.709 | 尾部不均衡 0.204 ms（平均空闲 0.081 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.0%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.39    2192.7319     3.33e-16     PASS
+FRONT_PROFILE window=16
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 2.019 ms, parallel 13.093 ms
+[trsm prof]  并行区唤醒：最慢线程 16.2 µs，平均 13.0 µs
+[trsm prof]  每线程平均 ms：prep 1.107 | load 0.775 pack 0.000 xcopy 0.000 wait 0.198 kloop 1.018 dump 0.000 epi 0.004 dkloop 0.154 ddump 0.054 depi 0.000 store 0.114 | task 合计 2.365 | 尾部不均衡 3.503 ms（平均空闲 1.608 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.034 ms, parallel 1.933 ms
+[trsm prof]  并行区唤醒：最慢线程 19.5 µs，平均 13.1 µs
+[trsm prof]  每线程平均 ms：prep 0.046 | load 0.298 pack 0.000 xcopy 0.000 wait 0.019 kloop 1.038 dump 0.000 epi 0.004 dkloop 0.162 ddump 0.055 depi 0.000 store 0.123 | task 合计 1.743 | 尾部不均衡 0.204 ms（平均空闲 0.085 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 59.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.033 ms, parallel 1.887 ms
+[trsm prof]  并行区唤醒：最慢线程 15.4 µs，平均 10.9 µs
+[trsm prof]  每线程平均 ms：prep 0.024 | load 0.301 pack 0.000 xcopy 0.000 wait 0.003 kloop 1.037 dump 0.000 epi 0.004 dkloop 0.161 ddump 0.054 depi 0.000 store 0.122 | task 合计 1.727 | 尾部不均衡 0.204 ms（平均空闲 0.080 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 59.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.027 ms, parallel 1.895 ms
+[trsm prof]  并行区唤醒：最慢线程 21.8 µs，平均 12.2 µs
+[trsm prof]  每线程平均 ms：prep 0.021 | load 0.304 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.043 dump 0.000 epi 0.004 dkloop 0.159 ddump 0.054 depi 0.000 store 0.124 | task 合计 1.735 | 尾部不均衡 0.191 ms（平均空闲 0.080 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 59.6%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.032 ms, parallel 1.880 ms
+[trsm prof]  并行区唤醒：最慢线程 14.9 µs，平均 9.5 µs
+[trsm prof]  每线程平均 ms：prep 0.023 | load 0.300 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.038 dump 0.000 epi 0.004 dkloop 0.158 ddump 0.055 depi 0.000 store 0.122 | task 合计 1.722 | 尾部不均衡 0.206 ms（平均空闲 0.082 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 59.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.031 ms, parallel 1.922 ms
+[trsm prof]  并行区唤醒：最慢线程 14.9 µs，平均 10.1 µs
+[trsm prof]  每线程平均 ms：prep 0.020 | load 0.303 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.050 dump 0.000 epi 0.004 dkloop 0.161 ddump 0.055 depi 0.000 store 0.123 | task 合计 1.743 | 尾部不均衡 0.227 ms（平均空闲 0.102 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 59.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.37    2204.2819     3.33e-16     PASS
+FRONT_PROFILE window=32
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 2.043 ms, parallel 11.121 ms
+[trsm prof]  并行区唤醒：最慢线程 14.1 µs，平均 11.2 µs
+[trsm prof]  每线程平均 ms：prep 0.072 | load 0.747 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.001 dump 0.000 epi 0.004 dkloop 0.152 ddump 0.054 depi 0.000 store 0.114 | task 合计 2.119 | 尾部不均衡 6.177 ms（平均空闲 2.704 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 62.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.034 ms, parallel 1.908 ms
+[trsm prof]  并行区唤醒：最慢线程 18.9 µs，平均 13.0 µs
+[trsm prof]  每线程平均 ms：prep 0.033 | load 0.299 pack 0.000 xcopy 0.000 wait 0.014 kloop 1.023 dump 0.000 epi 0.004 dkloop 0.167 ddump 0.055 depi 0.000 store 0.123 | task 合计 1.732 | 尾部不均衡 0.200 ms（平均空闲 0.084 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.031 ms, parallel 1.915 ms
+[trsm prof]  并行区唤醒：最慢线程 15.5 µs，平均 10.3 µs
+[trsm prof]  每线程平均 ms：prep 0.024 | load 0.308 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.035 dump 0.000 epi 0.004 dkloop 0.162 ddump 0.055 depi 0.000 store 0.124 | task 合计 1.736 | 尾部不均衡 0.225 ms（平均空闲 0.099 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 59.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.026 ms, parallel 1.876 ms
+[trsm prof]  并行区唤醒：最慢线程 18.7 µs，平均 10.5 µs
+[trsm prof]  每线程平均 ms：prep 0.022 | load 0.304 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.026 dump 0.000 epi 0.004 dkloop 0.160 ddump 0.054 depi 0.000 store 0.123 | task 合计 1.717 | 尾部不均衡 0.209 ms（平均空闲 0.083 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.028 ms, parallel 1.877 ms
+[trsm prof]  并行区唤醒：最慢线程 19.4 µs，平均 10.1 µs
+[trsm prof]  每线程平均 ms：prep 0.020 | load 0.305 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.029 dump 0.000 epi 0.004 dkloop 0.159 ddump 0.054 depi 0.000 store 0.123 | task 合计 1.721 | 尾部不均衡 0.193 ms（平均空闲 0.081 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.032 ms, parallel 1.868 ms
+[trsm prof]  并行区唤醒：最慢线程 13.1 µs，平均 10.0 µs
+[trsm prof]  每线程平均 ms：prep 0.019 | load 0.303 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.027 dump 0.000 epi 0.004 dkloop 0.160 ddump 0.055 depi 0.000 store 0.123 | task 合计 1.717 | 尾部不均衡 0.200 ms（平均空闲 0.077 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.33    2242.3320     3.33e-16     PASS
+FRONT_PROFILE window=48
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 2.124 ms, parallel 15.802 ms
+[trsm prof]  并行区唤醒：最慢线程 13.8 µs，平均 10.3 µs
+[trsm prof]  每线程平均 ms：prep 1.457 | load 0.969 pack 0.000 xcopy 0.000 wait 0.005 kloop 0.987 dump 0.000 epi 0.004 dkloop 0.152 ddump 0.054 depi 0.000 store 0.115 | task 合计 2.333 | 尾部不均衡 3.602 ms（平均空闲 1.309 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 62.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.028 ms, parallel 1.943 ms
+[trsm prof]  并行区唤醒：最慢线程 18.8 µs，平均 12.6 µs
+[trsm prof]  每线程平均 ms：prep 0.033 | load 0.308 pack 0.000 xcopy 0.000 wait 0.020 kloop 1.020 dump 0.000 epi 0.004 dkloop 0.169 ddump 0.055 depi 0.000 store 0.126 | task 合计 1.747 | 尾部不均衡 0.223 ms（平均空闲 0.102 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.2%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.032 ms, parallel 1.929 ms
+[trsm prof]  并行区唤醒：最慢线程 15.9 µs，平均 12.0 µs
+[trsm prof]  每线程平均 ms：prep 0.024 | load 0.308 pack 0.000 xcopy 0.000 wait 0.018 kloop 1.020 dump 0.000 epi 0.005 dkloop 0.170 ddump 0.055 depi 0.000 store 0.126 | task 合计 1.746 | 尾部不均衡 0.226 ms（平均空闲 0.098 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.2%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.027 ms, parallel 1.882 ms
+[trsm prof]  并行区唤醒：最慢线程 20.4 µs，平均 10.8 µs
+[trsm prof]  每线程平均 ms：prep 0.018 | load 0.306 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.017 dump 0.000 epi 0.005 dkloop 0.161 ddump 0.054 depi 0.000 store 0.124 | task 合计 1.713 | 尾部不均衡 0.221 ms（平均空闲 0.094 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.8%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.033 ms, parallel 1.894 ms
+[trsm prof]  并行区唤醒：最慢线程 14.3 µs，平均 10.2 µs
+[trsm prof]  每线程平均 ms：prep 0.021 | load 0.309 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.017 dump 0.000 epi 0.005 dkloop 0.162 ddump 0.054 depi 0.000 store 0.126 | task 合计 1.718 | 尾部不均衡 0.227 ms（平均空闲 0.098 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3324MB | setup 0.027 ms, parallel 1.899 ms
+[trsm prof]  并行区唤醒：最慢线程 20.2 µs，平均 10.9 µs
+[trsm prof]  每线程平均 ms：prep 0.019 | load 0.311 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.023 dump 0.000 epi 0.005 dkloop 0.163 ddump 0.055 depi 0.000 store 0.127 | task 合计 1.729 | 尾部不均衡 0.223 ms（平均空闲 0.094 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.36    2213.6239     3.33e-16     PASS

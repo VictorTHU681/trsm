@@ -1,0 +1,13 @@
+{
+  "executed_source_and_script_hashes_matched": 28,
+  "production_unchanged_from": "b138512",
+  "production_sha256": {
+    "trsm.c": "3bda42d18ac1eb71f29b42a6f80587af807d6109c3684bf9f220f381d7038135",
+    "bench_trsm.c": "e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac",
+    "run.sh": "c7a21ad9e66ba9c3794f1c5940b39b0acb9722dd224ba6217329563d4cb1824b"
+  },
+  "official_bench_matches_original_blob": true,
+  "front64_reconstruction_identical_text_sha256": "0221bc60b10fa615cb58f8ac3957a4b6442f8aa319af6f2d69bc6c475a02cb05",
+  "previous_submission_zip_unchanged_sha256": "1fb3680d7b025315892f0bac9989fd622e0249b6f4d16f0b9277c85552b2e05a",
+  "completed_remote_tasks": 8
+}

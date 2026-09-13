@@ -1,0 +1,58 @@
+{
+  "records": {
+    "component": 300,
+    "formal": 72,
+    "recursive_phase": 24,
+    "trsm_phase": 24
+  },
+  "logs": {
+    "427-fused-screen.sh.log": {
+      "pass_lines": 97
+    },
+    "428-recursive-trsm.sh.log": {
+      "pass_lines": 24
+    },
+    "429-batch-fused.sh.log": {
+      "pass_lines": 80
+    },
+    "430-batch-policy.sh.log": {
+      "pass_lines": 36
+    },
+    "431-owner-front.sh.log": {
+      "pass_lines": 32
+    },
+    "432-direct-fused.sh.log": {
+      "pass_lines": 88
+    },
+    "433-front-recheck.sh.log": {
+      "pass_lines": 88
+    },
+    "434-archive.sh.log": {
+      "pass_lines": 0
+    },
+    "427-fused-screen.sh.status": {
+      "exit_status": 0
+    },
+    "428-recursive-trsm.sh.status": {
+      "exit_status": 0
+    },
+    "429-batch-fused.sh.status": {
+      "exit_status": 0
+    },
+    "430-batch-policy.sh.status": {
+      "exit_status": 0
+    },
+    "431-owner-front.sh.status": {
+      "exit_status": 0
+    },
+    "432-direct-fused.sh.status": {
+      "exit_status": 0
+    },
+    "433-front-recheck.sh.status": {
+      "exit_status": 0
+    },
+    "434-archive.sh.status": {
+      "exit_status": 0
+    }
+  }
+}

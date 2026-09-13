@@ -1,0 +1,168 @@
+RECURSIVE_FORMAL round=1 m=512 n=19968 level=-1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2666.6219     3.33e-16     PASS
+RECURSIVE_FORMAL round=1 m=512 n=19968 level=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         3.46    1512.3040     2.78e-16     PASS
+RECURSIVE_FORMAL round=1 m=512 n=19968 level=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         6.42     815.4291     3.89e-16     PASS
+RECURSIVE_FORMAL round=1 m=2432 n=17024 level=-1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        24.03    4190.5445     7.77e-16     PASS
+RECURSIVE_FORMAL round=1 m=2432 n=17024 level=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        29.81    3377.7106     6.11e-16     PASS
+RECURSIVE_FORMAL round=1 m=2432 n=17024 level=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        38.62    2607.3390     6.11e-16     PASS
+RECURSIVE_FORMAL round=1 m=17024 n=512 level=-1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.80    4144.3229     1.50e-15     PASS
+RECURSIVE_FORMAL round=1 m=17024 n=512 level=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        44.83    3309.7673     7.22e-16     PASS
+RECURSIVE_FORMAL round=1 m=17024 n=512 level=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        51.85    2862.0867     7.22e-16     PASS
+RECURSIVE_FORMAL round=2 m=512 n=19968 level=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         6.44     813.1809     3.89e-16     PASS
+RECURSIVE_FORMAL round=2 m=512 n=19968 level=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         3.45    1517.0955     2.78e-16     PASS
+RECURSIVE_FORMAL round=2 m=512 n=19968 level=-1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2681.4627     3.33e-16     PASS
+RECURSIVE_FORMAL round=2 m=2432 n=17024 level=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        39.13    2573.1778     6.11e-16     PASS
+RECURSIVE_FORMAL round=2 m=2432 n=17024 level=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        29.63    3398.4260     6.11e-16     PASS
+RECURSIVE_FORMAL round=2 m=2432 n=17024 level=-1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.83    4225.3693     7.77e-16     PASS
+RECURSIVE_FORMAL round=2 m=17024 n=512 level=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        51.99    2853.9168     7.22e-16     PASS
+RECURSIVE_FORMAL round=2 m=17024 n=512 level=0
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        44.52    3332.8171     7.22e-16     PASS
+RECURSIVE_FORMAL round=2 m=17024 n=512 level=-1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.94    4128.6324     1.50e-15     PASS
+RECURSIVE_PROFILE m=512 n=19968 level=0
+FUSED_TRSM m=512 n=19968 cut=256 level=0 actual=0 first_ms=15.746182 update_ms=3.248512 last_ms=0.766872 total_ms=19.761566 apack_ms=0.342725 bpack_ms=0.701111 compute_ms=2.041213 leaves=1
+FUSED_TRSM m=512 n=19968 cut=256 level=0 actual=0 first_ms=0.714412 update_ms=2.075853 last_ms=0.716512 total_ms=3.506777 apack_ms=0.034000 bpack_ms=0.327456 compute_ms=1.709377 leaves=1
+FUSED_TRSM m=512 n=19968 cut=256 level=0 actual=0 first_ms=0.715632 update_ms=2.075743 last_ms=0.690381 total_ms=3.481756 apack_ms=0.036530 bpack_ms=0.331836 compute_ms=1.702707 leaves=1
+FUSED_TRSM m=512 n=19968 cut=256 level=0 actual=0 first_ms=0.674711 update_ms=2.072373 last_ms=0.679491 total_ms=3.426575 apack_ms=0.034271 bpack_ms=0.326965 compute_ms=1.706277 leaves=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         3.60    1453.5753     2.78e-16     PASS
+RECURSIVE_PROFILE m=512 n=19968 level=1
+FUSED_TRSM m=512 n=19968 cut=256 level=1 actual=1 first_ms=15.403597 update_ms=6.099307 last_ms=0.722272 total_ms=22.225176 apack_ms=0.489849 bpack_ms=1.261570 compute_ms=4.152645 leaves=7
+FUSED_TRSM m=512 n=19968 cut=256 level=1 actual=1 first_ms=0.727452 update_ms=5.042301 last_ms=0.735322 total_ms=6.505075 apack_ms=0.283014 bpack_ms=0.901146 compute_ms=3.829561 leaves=7
+FUSED_TRSM m=512 n=19968 cut=256 level=1 actual=1 first_ms=0.711192 update_ms=5.124142 last_ms=0.713441 total_ms=6.548775 apack_ms=0.273253 bpack_ms=0.977128 compute_ms=3.847570 leaves=7
+FUSED_TRSM m=512 n=19968 cut=256 level=1 actual=1 first_ms=0.695031 update_ms=5.024320 last_ms=0.691691 total_ms=6.411042 apack_ms=0.270022 bpack_ms=0.885807 compute_ms=3.844091 leaves=7
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         6.62     790.7892     3.89e-16     PASS
+RECURSIVE_PROFILE m=2432 n=17024 level=0
+FUSED_TRSM m=2432 n=17024 cut=1216 level=0 actual=0 first_ms=22.850346 update_ms=16.314002 last_ms=7.227245 total_ms=46.391593 apack_ms=0.543789 bpack_ms=1.895030 compute_ms=13.741110 leaves=1
+FUSED_TRSM m=2432 n=17024 cut=1216 level=0 actual=0 first_ms=7.241326 update_ms=14.786627 last_ms=7.288257 total_ms=29.316210 apack_ms=0.148643 bpack_ms=1.220219 compute_ms=13.413075 leaves=1
+FUSED_TRSM m=2432 n=17024 cut=1216 level=0 actual=0 first_ms=7.235966 update_ms=14.792717 last_ms=7.229306 total_ms=29.257989 apack_ms=0.148753 bpack_ms=1.223039 compute_ms=13.416105 leaves=1
+FUSED_TRSM m=2432 n=17024 cut=1216 level=0 actual=0 first_ms=7.309077 update_ms=14.773097 last_ms=7.265266 total_ms=29.347440 apack_ms=0.145232 bpack_ms=1.226880 compute_ms=13.395805 leaves=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        29.45    3419.3069     6.11e-16     PASS
+RECURSIVE_PROFILE m=2432 n=17024 level=1
+FUSED_TRSM m=2432 n=17024 cut=1216 level=1 actual=1 first_ms=25.537079 update_ms=24.983080 last_ms=7.567042 total_ms=58.087201 apack_ms=1.590485 bpack_ms=3.716739 compute_ms=19.449972 leaves=7
+FUSED_TRSM m=2432 n=17024 cut=1216 level=1 actual=1 first_ms=7.454409 update_ms=23.629129 last_ms=7.508960 total_ms=38.592498 apack_ms=1.174919 bpack_ms=3.380065 compute_ms=19.048575 leaves=7
+FUSED_TRSM m=2432 n=17024 cut=1216 level=1 actual=1 first_ms=7.421209 update_ms=23.603958 last_ms=7.535191 total_ms=38.560358 apack_ms=1.162079 bpack_ms=3.356591 compute_ms=19.060117 leaves=7
+FUSED_TRSM m=2432 n=17024 cut=1216 level=1 actual=1 first_ms=7.496930 update_ms=23.587958 last_ms=7.427470 total_ms=38.512358 apack_ms=1.168240 bpack_ms=3.367144 compute_ms=19.027034 leaves=7
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        38.69    2602.2926     6.11e-16     PASS
+RECURSIVE_PROFILE m=17024 n=512 level=0
+FUSED_TRSM m=17024 n=512 cut=8512 level=0 actual=0 first_ms=35.508979 update_ms=23.465956 last_ms=11.588356 total_ms=70.563291 apack_ms=6.223780 bpack_ms=0.662331 compute_ms=16.411933 leaves=1
+FUSED_TRSM m=17024 n=512 cut=8512 level=0 actual=0 first_ms=12.076453 update_ms=20.525349 last_ms=11.658087 total_ms=44.259889 apack_ms=3.982043 bpack_ms=0.257925 compute_ms=16.280570 leaves=1
+FUSED_TRSM m=17024 n=512 cut=8512 level=0 actual=0 first_ms=12.170965 update_ms=20.599350 last_ms=11.530755 total_ms=44.301070 apack_ms=4.018665 bpack_ms=0.261574 compute_ms=16.314621 leaves=1
+FUSED_TRSM m=17024 n=512 cut=8512 level=0 actual=0 first_ms=12.072433 update_ms=20.445808 last_ms=11.632116 total_ms=44.150357 apack_ms=3.961964 bpack_ms=0.261114 compute_ms=16.217150 leaves=1
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        44.38    3343.4714     7.22e-16     PASS
+RECURSIVE_PROFILE m=17024 n=512 level=1
+FUSED_TRSM m=17024 n=512 cut=8512 level=1 actual=1 first_ms=34.339711 update_ms=29.757217 last_ms=11.945831 total_ms=76.042759 apack_ms=11.607925 bpack_ms=1.181650 compute_ms=16.780799 leaves=7
+FUSED_TRSM m=17024 n=512 cut=8512 level=1 actual=1 first_ms=12.088014 update_ms=28.171291 last_ms=11.611857 total_ms=51.871162 apack_ms=10.942105 bpack_ms=0.780683 compute_ms=16.425103 leaves=7
+FUSED_TRSM m=17024 n=512 cut=8512 level=1 actual=1 first_ms=12.105524 update_ms=28.148822 last_ms=11.638686 total_ms=51.893032 apack_ms=10.898574 bpack_ms=0.783213 compute_ms=16.442673 leaves=7
+FUSED_TRSM m=17024 n=512 cut=8512 level=1 actual=1 first_ms=11.969552 update_ms=28.063189 last_ms=11.558096 total_ms=51.590837 apack_ms=10.821784 bpack_ms=0.772482 compute_ms=16.446443 leaves=7
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        51.93    2857.3309     7.22e-16     PASS
