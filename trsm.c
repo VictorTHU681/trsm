@@ -111,9 +111,7 @@ static inline void pin_self(int tid)
 #ifndef SYS_get_mempolicy
 #define SYS_get_mempolicy 236
 #endif
-#define MPOL_BIND_ 2
 #define MPOL_PREFERRED_ 1
-#define MPOL_MF_MOVE_ 2
 #define MPOL_F_NODE_ 1
 #define MPOL_F_ADDR_ 2
 
@@ -237,8 +235,6 @@ static size_t node_free_bytes(int node)
     fclose(f);
     return kb << 10;
 }
-
-// 把已映射区间 [p, p+bytes) 的页迁到 node（页对齐向内收缩）。用 PREFERRED + MF_MOVE：尽力迁移，放不下不致命
 
 // ---------------------------------------------------------------- 通用回退（无 SME）
 static void trsm_generic(long m, long n, const double* L, long lda, double* B, long ldb)
