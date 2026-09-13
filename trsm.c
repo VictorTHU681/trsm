@@ -1484,6 +1484,10 @@ typedef struct {
     int* S_of;              // 每行块的子块数
     double* diag;           // 全部行块的对角打包
     size_t* diag_off;       // 每行块起点（double 下标）
+    int dsplit;             // 对角两级分解（TRSM_DSPLIT，专用路径、S≥8 的行块）：下 16·S0 三角求解 → 16(S−S0)×16S0 稠密
+                            // GEMM 更新（GEMM 型内核 ~73% 效率，替代折叠对角内核的 ~56%）→ 上三角求解（原打包列偏移视图的紧凑拷贝）
+    double* dq;             // 两级分解补充打包：每块 = 四分块（S−S0 条 × 16S0 k，原始 L 转置）+ 上三角紧凑条带
+    size_t* dq_off;         // 每行块在 dq 的起点（S<8 的块长度为 0）
     int jit;                // 1：GEMM 部分就地转置；0：用预打包
     int ppmode;             // 0：预打包在并行区开头一次完成；1：打包作为任务流水式进行（大 L），消费者等 pflags
     volatile int* pflags;   // 每条的打包完成标志（ppmode=1；nobar 时 ppmode=0 也用）
@@ -1578,6 +1582,8 @@ static tbuf_t g_tb[1024];
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024], g_wake_cyc[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
+static double* g_dq = NULL;      // 对角两级分解补充打包（TRSM_DSPLIT）
+static size_t g_dq_cap = 0;
 static double* g_pp[2] = {NULL, NULL};
 static size_t g_pp_cap[2] = {0, 0};
 static int g_pp_node[2] = {-3, -3};
@@ -3165,9 +3171,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const long nchunks = (kend - chfirst * kc + kc - 1) / kc;
     const long nstrips = nchunks * S;
     double* Abuf[2] = { tb->astrip, tb->astrip + 64L * kc };
-    // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
+    // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）。
+    // 两级分解（dsplit）时消费的是"下三角条带 + dq（四分块 + 上三角紧凑条带）"：区 1 只到 S0，区 2 扫 dq
+    const int dsp = c->dsplit && S >= 8;
     const char* dpf = (const char*)(c->diag + c->diag_off[i]);
-    const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
+    const char* dend = dpf + (size_t)diag_strip_off(dsp ? S / 2 : S) * 8;
+    const char* dpf2 = dsp ? (const char*)(c->dq + c->dq_off[i]) : NULL;
+    const char* dend2 = dsp ? (const char*)(c->dq + c->dq_off[i + 1]) : NULL;
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !(mode==1) && 0 && c->packmode != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     // Prepacked traversal advances one strip at a time; no division by S is needed.
@@ -3259,9 +3269,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
-            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
-                pf.p2 = dpf;
-                dpf += (kk / 2) * 64;
+            if (pf_on && !p2_used && !split && k0n + kc >= kend) {
+                if (dpf < dend) { pf.p2 = dpf; dpf += (kk / 2) * 64; }
+                else if (dpf2 && dpf2 < dend2) { pf.p2 = dpf2; dpf2 += (kk / 2) * 64; }
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
@@ -3381,12 +3391,19 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             nb_lines = (nnci * 8 + 63) / 64;
             nb_base = c->B + ni0 * ldb + nc0;
         }
-        for (int s = 0; s < S; s++) {
+        // 两级分解（dsplit，S≥8）：三相——下 16·S0 三角求解（原条带 0..S0-1）→ 四分块稠密更新
+        //（C[16S0..] -= Lq·X[0..16S0)，GEMM 型 ld1d 内核 + 减法 drain，~73% 效率替代折叠对角内核的 ~56%）
+        // → 上三角求解（dq 紧凑条带，B/输出基址上移 16·S0 行）。数值上与原折叠条带等价（下半贡献先求和再乘
+        // Linv，浮点顺序不同、误差同量级）。dsp=0 时 S0d=S，即原始单相路径。
+        const int S0d = dsp ? S / 2 : S;
+        const double* DQ = dsp ? c->dq + c->dq_off[i] : NULL;
+        const size_t qstride = (size_t)256 * S0d;
+        for (int s = 0; s < S0d; s++) {
             const double* A = D + diag_strip_off(s);
             long K = 16L * (s + 1);
             for (long t = 0; t < ntile; t++) {
                 pf_t pf = pf_dummy;
-                if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
+                if (pf_on && s + 1 < S0d) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
                 if (nb_base && nb_done < nb_rows) {
                     long rows_this = (K / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
                     pf.p = (const char*)(nb_base + nb_done * ldb);
@@ -3412,6 +3429,76 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             // 条末必须落地：下一条把这些行当 B 操作数
             if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
+        }
+        if (dsp) {
+            // 相 2：四分块（每条 16 行 × Kq=16·S0 列，A 为原始 L 的 k 主序转置，ld1d——跨任务复用留 L2）
+            const long Kq = 16L * S0d;
+            for (int rr = 0; rr < S - S0d; rr++) {
+                const double* A = DQ + (size_t)rr * qstride;
+                for (long t = 0; t < ntile; t++) {
+                    pf_t pf = pf_dummy;
+                    if (pf_on && rr + 1 < S - S0d) pf.p2 = (const char*)(DQ + (size_t)(rr + 1) * qstride) + t * Kq * 32;
+                    if (nb_base && nb_done < nb_rows) {
+                        long rows_this = (Kq / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
+                        pf.p = (const char*)(nb_base + nb_done * ldb);
+                        pf.pfn = nb_lines;
+                        pf.pfj = nb_ldb8 - nb_lines * 64;
+                        nb_done += rows_this;
+                    }
+                    long cols = nci - 32 * t; if (cols > 32) cols = 32;
+                    if (pf_on) { pf.pc = (const char*)(cb + 16L * (S0d + rr) * ncp + 32 * t); pf.pcs = cs; }
+                    sw_advance(tb);
+                    sme_zero_za();
+                    if (pend && Kq >= 65) {   // 托管 drain 的通用 epi 内核要求 K≥65；K=64 走专用内核（与 GEMM 尾路径同分派）
+                        PROF_T(c, kloop_epi_sub_t(A, 128, 128, cb + 32 * t, cs, Kq, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    } else if (pend && Kq == 64) {
+                        PROF_T(c, kloop_fixed_epi(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    } else {
+                        if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_depi);
+                        PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, Kq, cols, &pf), t_dkloop);
+                    }
+                    PROF_T(c, za_dump(scratch), t_ddump);
+                    pend = 1; pend_c = cb + 16L * (S0d + rr) * ncp + 32 * t; pend_cols = cols;
+                    if (c->prof >= 2) { tb->n_kstep += Kq; tb->n_dkstep += Kq; }
+                }
+            }
+            // 相 2 末：减法 drain 收尾（相 3 的链是 set 语义，不能混）
+            if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
+            // 相 3：上三角求解（紧凑条带；B 操作数与输出都上移 16·S0 行）
+            const double* DU = DQ + (size_t)(S - S0d) * qstride;
+            double* cbu = cb + 16L * S0d * ncp;
+            for (int s = 0; s < S - S0d; s++) {
+                const double* A = DU + diag_strip_off(s);
+                long K = 16L * (s + 1);
+                for (long t = 0; t < ntile; t++) {
+                    pf_t pf = pf_dummy;
+                    if (pf_on && s + 1 < S - S0d) pf.p2 = (const char*)(DU + diag_strip_off(s + 1)) + t * K * 32;
+                    if (nb_base && nb_done < nb_rows) {
+                        long rows_this = (K / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
+                        pf.p = (const char*)(nb_base + nb_done * ldb);
+                        pf.pfn = nb_lines;
+                        pf.pfj = nb_ldb8 - nb_lines * 64;
+                        nb_done += rows_this;
+                    }
+                    long cols = nci - 32 * t; if (cols > 32) cols = 32;
+                    if (pf_on) { pf.pc = (const char*)(cbu + 16L * s * ncp + 32 * t); pf.pcs = cs; }
+                    sw_advance(tb);
+                    sme_zero_za();
+                    if (pend && K >= 65) {
+                        PROF_T(c, kloop_epi_set(A, 128, 128, cbu + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    } else if (pend && K == 64) {
+                        PROF_T(c, kloop_epi64_set(A, 128, 128, cbu + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    } else {
+                        if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
+                        PROF_T(c, kloop_plain(A, 128, 128, cbu + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    }
+                    PROF_T(c, za_dump(scratch), t_ddump);
+                    pend = 1; pend_c = cbu + 16L * s * ncp + 32 * t; pend_cols = cols;
+                    if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
+                }
+                // 条末必须落地：下一条把这些行当 B 操作数
+                if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
+            }
         }
     }
 
@@ -5558,6 +5645,28 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         g_diag_cap = doff;
     }
     c.diag = g_diag;
+    // 对角两级分解（TRSM_DSPLIT）：只有专用路径消费（通用路径仍用完整折叠条带），S≥8 的行块建补充打包
+    c.dsplit = env_int("TRSM_DSPLIT", 0) && c.special != 0 && !c.owner;   // 2026-09-13 证伪默认关：对角 56% 由短条带固定成本主导，拆分反增 8 条 pass（见 NOTES）
+    c.dq = NULL; c.dq_off = NULL;
+    if (c.dsplit) {
+        c.dq_off = malloc(sizeof(size_t) * (c.nrb + 1));
+        size_t qoff = 0;
+        for (long i = 0; i < c.nrb; i++) {
+            c.dq_off[i] = qoff;
+            int S = c.S_of[i];
+            if (S >= 8) { int S0 = S / 2; qoff += (size_t)(S - S0) * 256 * S0 + diag_block_doubles(S - S0); }
+        }
+        c.dq_off[c.nrb] = qoff;
+        if (!qoff) c.dsplit = 0;
+        else {
+            if (g_dq_cap < qoff) {
+                trsm_free_buffer(g_dq, g_dq_cap * 8);
+                g_dq = alloc_on(qoff * 8, -1);
+                g_dq_cap = qoff;
+            }
+            c.dq = g_dq;
+        }
+    }
     TSUB(1);
 
     // X 面板主序副本（本实现自己的缓冲，可自由选内存节点）：TRSM_XPNODE：-1 默认策略，-2 本地 DDR，≥0 指定；面板驻留模式不需要
@@ -5697,6 +5806,17 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 long i = ditem_i[q];
                 long mbi = m - i * mb; if (mbi > mb) mbi = mb;
                 diag_prep_sub(L, lda, i * mb, (int)mbi, ditem_s[q], c.diag + c.diag_off[i] + diag_strip_off(ditem_s[q]));
+                // 两级分解（TRSM_DSPLIT）：s ≥ S0 的条带同时产出（a）上三角紧凑条带 = 原条带跳过前 16·S0 列的拷贝、
+                // （b）四分块条带 = 原始 L[本 16 行, 前 16·S0 列] 的 k 主序转置（非流式模式，用非 SME 打包）
+                if (c.dsplit && c.S_of[i] >= 8 && ditem_s[q] >= c.S_of[i] / 2) {
+                    int S = c.S_of[i], S0 = S / 2, j = ditem_s[q] - S0;
+                    double* base = c.dq + c.dq_off[i];
+                    size_t qsize = (size_t)(S - S0) * 256 * S0;
+                    memcpy(base + qsize + diag_strip_off(j),
+                           c.diag + c.diag_off[i] + diag_strip_off(ditem_s[q]) + (size_t)256 * S0,
+                           (size_t)(16 * j + 16) * 16 * 8);
+                    pack_strip(L, lda, m, i * mb + 16 * ditem_s[q], i * mb, 16 * S0, base + (size_t)j * 256 * S0);
+                }
                 if (c.nobar) __atomic_fetch_add(&c.dcnt[i], 1, __ATOMIC_RELEASE);
             } else {
                 long g = ditem_i[q];
@@ -5851,7 +5971,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         }
     }
     free(ditem_i); free(ditem_s);
-    free(c.S_of); free(c.diag_off); free(c.pp_off); free(c.owner_bound);
+    free(c.S_of); free(c.diag_off); free(c.dq_off); free(c.pp_off); free(c.owner_bound);
 }
 #endif // TRSM_NO_SME_ASM
 
