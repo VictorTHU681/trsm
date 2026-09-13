@@ -37,64 +37,11 @@ export OMP_WAIT_POLICY=active
 export GOMP_SPINCOUNT=infinite
 unset GOMP_CPU_AFFINITY OMP_THREAD_LIMIT 2>/dev/null || true
 
-# CPU 节点：判题机为共享机器，动态选最闲的 CPU 节点（/proc/stat 采样 150ms 算各节点空闲率，
-# 避开共租户争用；TRSM_CPUNODE 可强制指定）。候选必须"CPU 数≥38 且有近端 HBM 伙伴"——
-# 只按空闲率选会踩到无 HBM 的节点（验收实测 X/L 落 DDR，三用例 −30~50%）。
-# 采样/候选不可用时退 node 7，再退 node 1，任何拓扑都能出分。
-hbm_of() {   # 输出节点 $1 的近端纯内存节点号（距离≤70）；无则空
-    local -a dist; local best=999 h="" n cpulist
-    [[ -r /sys/devices/system/node/node$1/distance ]] || { echo ""; return; }
-    read -ra dist < /sys/devices/system/node/node$1/distance
-    for n in "${!dist[@]}"; do
-        [[ -d /sys/devices/system/node/node$n ]] || continue
-        cpulist=$(cat /sys/devices/system/node/node$n/cpulist 2>/dev/null)
-        [[ -z "$cpulist" ]] || continue
-        if (( dist[n] < best )); then best=${dist[n]}; h=$n; fi
-    done
-    (( best > 70 )) && h=""
-    echo "$h"
-}
-pick_idle_node() {   # 输出最闲、CPU 数≥38 且有 HBM 伙伴的节点号；失败输出空
-    local -A cn; local n cpus
-    for n in /sys/devices/system/node/node*/; do
-        n=${n%/}; n=${n##*node}
-        cpus=$(cat /sys/devices/system/node/node$n/cpulist 2>/dev/null)
-        [[ -n "$cpus" ]] || continue
-        [[ -n "$(hbm_of $n)" ]] || continue
-        cn[$n]=$cpus
-    done
-    (( ${#cn[@]} >= 1 )) || { echo ""; return; }
-    # /proc/stat 两次采样（间隔 150ms），按节点聚合 (idle+iowait)/total，选空闲率最高者
-    awk -v nodes="$(for k in "${!cn[@]}"; do echo "$k ${cn[$k]}"; done)" '
-    BEGIN {
-        split(nodes, L, "\n")
-        for (i in L) { split(L[i], f, " "); node = f[1]
-            m = split(f[2], rg, ","); for (r = 1; r <= m; r++) { split(rg[r], ab, "-"); a = ab[1]; b = (ab[2] == "" ? ab[1] : ab[2])
-                for (c = a; c <= b; c++) cpu2node[c] = node } }
-        for (pass = 0; pass < 2; pass++) {
-            while ((getline line < "/proc/stat") > 0) {
-                if (line !~ /^cpu[0-9]/) continue
-                split(line, t, " "); cpu = substr(t[1], 4) + 0; nd = cpu2node[cpu]
-                tot = 0; for (j = 2; j <= 9; j++) tot += t[j]
-                if (pass == 0) { i0[cpu] = t[5] + t[6]; t0[cpu] = tot }
-                else { di = t[5] + t[6] - i0[cpu]; dt = tot - t0[cpu]
-                       if (dt > 0) { nid[nd] += di; ntot[nd] += dt; ncpu[nd]++ } }
-            }
-            close("/proc/stat")
-            if (pass == 0) system("sleep 0.15")
-        }
-        best = ""; bestr = -1
-        for (nd in ntot) if (ncpu[nd] >= 38) { r = nid[nd] / ntot[nd]; if (r > bestr) { bestr = r; best = nd } }
-        print best
-    }'
-}
-cpunode="${TRSM_CPUNODE:-}"
-[[ -n "$cpunode" ]] || cpunode=$(pick_idle_node 2>/dev/null)
-[[ -n "$cpunode" ]] && numactl -N $cpunode true >/dev/null 2>&1 || cpunode=""
-if [[ -z "$cpunode" ]]; then
-    cpunode=7
-    [[ -n "$(hbm_of 7)" ]] && numactl -N 7 true >/dev/null 2>&1 || cpunode=1
-fi
+# CPU 节点：默认绑 node 7（判题机为共享机器，避开常见默认 node 1 的共租户争用）；
+# 不存在或不可绑时回退 node 1，保证任何拓扑下都能出分。TRSM_CPUNODE 可强制指定。
+# 内存：优先使用与所选 CPU 节点相邻的纯内存节点（HBM），放不下时自动回落本地 DDR。
+cpunode="${TRSM_CPUNODE:-7}"
+numactl -N $cpunode true >/dev/null 2>&1 || cpunode=1
 hbm=""
 if [[ -r /sys/devices/system/node/node$cpunode/distance ]]; then
     read -ra dist < /sys/devices/system/node/node$cpunode/distance
