@@ -727,6 +727,14 @@ ia=0 线程 44.8→45.6，重分配按设计兑现。
 **同轮记录（勿误读）**：TC2 每线程 resid ≈0.85 ms 是 PROF_T 插桩自身（每桶两次 cntvct），非真实可采空间；
 TC3 wait 1.0–1.2 / idle 0.65 复确认为依赖链/尾部结构（TAILW/WAVE/LASTLATE 已证伪或已收）。
 
+### v56 提交包（2026-09-14）
+
+`trsm_submit_v56_474dea8.zip` sha256 `701b2bbb…`：trsm.c = v56 生产码（master 474dea8，sha `b68e192c…`，含 SHAPEP=100 默认开）
++ run.sh（node7 绑定 + `--preferred` 探测，同 v55n7）+ bench_trsm.c + README（最小化）。**带 bench、不带 NOTES**（承接 v53r 打包纪律）。
+cn20483 完整门禁全绿：run.sh ×2（1.93/23.76/35.60、1.94/23.42/35.84，六 PASS）+ 题面原样 ×2（六 PASS，回退路径 2.78/24.8/35.1）
++ gen_test 80/40/20 三档 0 failures；另 cn20484 自包含验收（解压→bash run.sh）两轮 6 PASS。预计线上较 v53r（12648.94）
+在 TC1 折算 ×1.0 下 +~28 分（SHAPEP 双节点中位 +0.5~1.2% × TC1 权重）；TC2/TC3 不走 owner 路径，与 v53r 同码指纹。
+
 ### TC1 线上不稳定：合规手段终局盘点（2026-09-13 深夜复核）
 
 线上 TC1 不稳定的两个来源（diag/diag3 判题机实锤，§10g-online 起）：**页税 ~6.5%**（openEuler 5.10 THP=madvise 下
