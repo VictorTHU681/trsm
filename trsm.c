@@ -2128,11 +2128,12 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     // LDPIPE（TRSM_LDPIPE）：把下一任务（同面板下一行块）的 B 拷入其 cbuf 行，与本任务 GEMM 软件流水——
     // 每个内核调用边界 prfm 下一片源行（异步、趟内核执行时飞行）+ 拷贝上一片（已达 L2）。
     // 换面板不预拷（目标 cbuf[0..64) 与本任务 GEMM 读区 [0,i0) 冲突）；行 [i0+64,i0+128) 与本任务读写区不相交。
+    // 档 1 = 纯 prfm（B 预拉 L2，装载相自提速，零 L1 污染）；档 2 = prfm + 非临时拷贝（滞后一个边界，每边界 ≤2 行）
     const int pl_on = fast_owner && g_ldpipe && nchunks > 0 && tkn && tkn->kind == 0 &&
                       tkn->p == p && tkn->i == i + 1;
     const double* pl_src = pl_on ? c->B + (i0 + 64) * ldb + c0 : NULL;
     double* pl_dst = pl_on ? tb->cbuf + (size_t)(i0 + 64) * ncp : NULL;
-    long pl_done = 0;
+    long pl_done = 0, pl_pf = 0;
     const long pl_rpb = pl_on ? (64 + 12 * nchunks - 1) / (12 * nchunks) : 0;
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
     const char* dpf = (const char*)(c->diag + c->diag_off[i]);
@@ -2253,10 +2254,11 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 }
                 pend = 1; pend_c = cur + 16 * ncp; pend_cols = 16;
                 if (c->prof >= 2) tb->n_kstep += kk;
-                if (pl_on && pl_done < 64) {   // 装载流水边界：prfm 下一片 + 拷贝已飞达的上一片
-                    long r1 = pl_done + pl_rpb; if (r1 > 64) r1 = 64;
+                if (pl_on && (pl_pf < 64 || (g_ldpipe >= 2 && pl_done < pl_pf))) {
+                    // 装载流水边界：prfm 前进一片（异步、趟内核飞行）；档 2 再用非临时拷贝收割上个边界已飞达的行
                     uint64_t plt0 = c->prof >= 2 ? cyc() : 0;
-                    for (long r2 = r1; r2 < r1 + pl_rpb && r2 < 64; r2++) {
+                    long pfe = pl_pf + pl_rpb; if (pfe > 64) pfe = 64;
+                    for (long r2 = pl_pf; r2 < pfe; r2++) {
                         const char* s2 = (const char*)(pl_src + r2 * ldb);
                         __builtin_prefetch(s2, 0, 2);       __builtin_prefetch(s2 + 64, 0, 2);
                         __builtin_prefetch(s2 + 128, 0, 2); __builtin_prefetch(s2 + 192, 0, 2);
@@ -2265,14 +2267,18 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                         __builtin_prefetch(s2 + 512, 0, 2); __builtin_prefetch(s2 + 576, 0, 2);
                         __builtin_prefetch(s2 + 640, 0, 2); __builtin_prefetch(s2 + 704, 0, 2);
                     }
-                    const svbool_t plpg = svptrue_b64();
-                    for (long r2 = pl_done; r2 < r1; r2++) {
-                        const double* s3 = pl_src + r2 * ldb;
-                        double* d3 = pl_dst + r2 * ncp;
-                        for (long j3 = 0; j3 < 96; j3 += 8)
-                            svst1_f64(plpg, d3 + j3, svld1_f64(plpg, s3 + j3));
+                    if (g_ldpipe >= 2 && pl_done < pl_pf) {
+                        long ce = pl_done + 2; if (ce > pl_pf) ce = pl_pf;   // 滞后 prfm、限 2 行/边界，非临时读写不占 L1
+                        const svbool_t plpg = svptrue_b64();
+                        for (long r2 = pl_done; r2 < ce; r2++) {
+                            const double* s3 = pl_src + r2 * ldb;
+                            double* d3 = pl_dst + r2 * ncp;
+                            for (long j3 = 0; j3 < 96; j3 += 8)
+                                svstnt1_f64(plpg, d3 + j3, svldnt1_f64(plpg, s3 + j3));
+                        }
+                        pl_done = ce;
                     }
-                    pl_done = r1;
+                    pl_pf = pfe;
                     if (c->prof >= 2) tb->t_pf += cyc() - plt0;
                 }
                 continue;
