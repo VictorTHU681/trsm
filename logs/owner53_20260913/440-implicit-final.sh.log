@@ -1,0 +1,618 @@
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.67e-16  ok
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+m=  161 n=  516 lda=  203 ldb=  546  maxerr=1.11e-16  ok
+m=  848 n=   56 lda=  906 ldb=   57  maxerr=1.11e-16  ok
+m=  261 n=  418 lda=  291 ldb=  460  maxerr=1.11e-16  ok
+m=  333 n=  504 lda=  390 ldb=  518  maxerr=1.11e-16  ok
+m=  535 n=  455 lda=  541 ldb=  484  maxerr=1.11e-16  ok
+m=  173 n=  680 lda=  206 ldb=  711  maxerr=1.11e-16  ok
+m=  453 n=    8 lda=  489 ldb=   67  maxerr=1.11e-16  ok
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+m=  238 n=  646 lda=  270 ldb=  664  maxerr=1.11e-16  ok
+m=  426 n=   23 lda=  450 ldb=   80  maxerr=6.94e-17  ok
+m=  833 n=    3 lda=  852 ldb=   33  maxerr=5.55e-17  ok
+m=   54 n=  290 lda=   98 ldb=  324  maxerr=1.11e-16  ok
+m=  725 n=  319 lda=  758 ldb=  359  maxerr=1.11e-16  ok
+m=  560 n=   32 lda=  589 ldb=  100  maxerr=1.11e-16  ok
+m=  272 n=  482 lda=  298 ldb=  544  maxerr=1.11e-16  ok
+m=  464 n=   57 lda=  528 ldb=   85  maxerr=1.11e-16  ok
+m=   96 n=  334 lda=  130 ldb=  352  maxerr=1.11e-16  ok
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.67e-16  ok
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+m=  161 n=  516 lda=  203 ldb=  546  maxerr=1.11e-16  ok
+m=  848 n=   56 lda=  906 ldb=   57  maxerr=1.11e-16  ok
+m=  261 n=  418 lda=  291 ldb=  460  maxerr=1.11e-16  ok
+m=  333 n=  504 lda=  390 ldb=  518  maxerr=1.11e-16  ok
+m=  535 n=  455 lda=  541 ldb=  484  maxerr=1.11e-16  ok
+m=  173 n=  680 lda=  206 ldb=  711  maxerr=1.11e-16  ok
+m=  453 n=    8 lda=  489 ldb=   67  maxerr=1.11e-16  ok
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+INDEPENDENT m=64 n=96 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=64 n=96 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=1 maxerr=3.331e-16 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=0 maxerr=3.331e-16 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=1 maxerr=3.331e-16 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=1 maxerr=3.331e-16 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=3.331e-16
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=8.327e-17 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.249e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.249e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-16
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=8.327e-17 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-16
+changed-input case=1 iteration=0 maxerr=3.331e-16 PASS
+changed-input case=1 iteration=1 maxerr=3.886e-16 PASS
+changed-input case=1 iteration=2 maxerr=3.331e-16 PASS
+changed-input case=1 iteration=3 maxerr=3.331e-16 PASS
+changed-input case=2 iteration=0 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=1 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=2 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=3 maxerr=7.772e-16 PASS
+changed-input case=3 iteration=0 maxerr=1.499e-15 PASS
+changed-input case=3 iteration=1 maxerr=1.332e-15 PASS
+changed-input case=3 iteration=2 maxerr=1.554e-15 PASS
+changed-input case=3 iteration=3 maxerr=1.665e-15 PASS
+IMPLICIT_FINAL_VALIDATION_DONE
+IMPLICIT_FINAL_FORMAL round=1 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2731.0542     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2736.0921     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2709.8496     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.76    4238.3445     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.51    4283.5557     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.67    4253.4137     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.34    4199.0135     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.10    4227.6001     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=1 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.33    4200.0027     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2700.2750     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2738.8249     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2665.2184     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.64    4258.7696     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.73    4242.4387     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.58    4270.5011     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.28    4206.0309     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.15    4221.8184     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=2 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.26    4208.1582     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2724.7276     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2759.5220     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2700.2647     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.54    4276.5271     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.61    4264.1293     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.61    4264.8171     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.26    4207.8532     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.55    4173.7433     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=3 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.17    4218.6332     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2702.2584     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2704.1263     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2688.1007     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.64    4259.5320     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.53    4279.7537     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.54    4278.0413     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.25    4209.7411     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.16    4219.7197     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=4 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.21    4214.6406     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2674.0250     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2751.5706     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2722.6507     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.58    4269.4935     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.59    4269.2101     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.81    4229.6178     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.45    4185.7959     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.14    4222.7282     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=5 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.25    4209.8058     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2737.2963     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2691.7100     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2745.5874     3.33e-16     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.57    4272.3016     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.61    4264.9997     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.68    4253.0142     7.77e-16     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.16    4220.3523     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.20    4215.3260     1.50e-15     PASS
+IMPLICIT_FINAL_FORMAL round=6 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.56    4172.9131     1.50e-15     PASS

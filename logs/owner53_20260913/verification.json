@@ -1,0 +1,21 @@
+{
+  "executed_source_and_script_hashes_matched": {
+    "source-sha256-84.txt": 5,
+    "source-sha256-85.txt": 5,
+    "source-sha256-86.txt": 29,
+    "source-sha256-87.txt": 5
+  },
+  "official_bench_matches_original_blob": true,
+  "final_candidate_sha256": "936704cb25f79f9b497e33e1e9ba7ceaa972173421dd3863be049fb673dc0589",
+  "task_statuses": {
+    "436-implicit-only.sh": 0,
+    "443-implicit-close.sh": 0,
+    "440-implicit-final.sh": 0,
+    "437-diag-order.sh": 1,
+    "442-implicit-close.sh": 1,
+    "438-diag-bound.sh": 0,
+    "435-owner53-screen.sh": 0
+  },
+  "root_production_matches_final_candidate": true,
+  "delivered_v53_zip_unchanged": true
+}

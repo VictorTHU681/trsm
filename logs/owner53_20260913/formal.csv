@@ -1,0 +1,376 @@
+file,line,context,round,mode,m,n,ms,gflops,max_error,status
+435-owner53-screen.sh.log,72,OWNER53_FORMAL round=1 mode=control,1,control,512,19968,1.90,2750.2686,3.33e-16,PASS
+435-owner53-screen.sh.log,78,OWNER53_FORMAL round=1 mode=off,1,off,512,19968,1.93,2707.6647,3.33e-16,PASS
+435-owner53-screen.sh.log,84,OWNER53_FORMAL round=1 mode=implicit,1,implicit,512,19968,1.90,2757.5604,3.33e-16,PASS
+435-owner53-screen.sh.log,90,OWNER53_FORMAL round=1 mode=stack,1,stack,512,19968,1.94,2697.1001,3.33e-16,PASS
+435-owner53-screen.sh.log,96,OWNER53_FORMAL round=1 mode=both,1,both,512,19968,1.93,2711.1201,3.33e-16,PASS
+435-owner53-screen.sh.log,102,OWNER53_FORMAL round=2 mode=both,2,both,512,19968,2.03,2573.7199,3.33e-16,PASS
+435-owner53-screen.sh.log,108,OWNER53_FORMAL round=2 mode=stack,2,stack,512,19968,1.92,2730.8727,3.33e-16,PASS
+435-owner53-screen.sh.log,114,OWNER53_FORMAL round=2 mode=implicit,2,implicit,512,19968,1.94,2703.4199,3.33e-16,PASS
+435-owner53-screen.sh.log,120,OWNER53_FORMAL round=2 mode=off,2,off,512,19968,1.92,2719.5384,3.33e-16,PASS
+435-owner53-screen.sh.log,126,OWNER53_FORMAL round=2 mode=control,2,control,512,19968,1.92,2729.5924,3.33e-16,PASS
+435-owner53-screen.sh.log,132,OWNER53_FORMAL round=3 mode=control,3,control,512,19968,1.92,2732.4569,3.33e-16,PASS
+435-owner53-screen.sh.log,138,OWNER53_FORMAL round=3 mode=off,3,off,512,19968,1.96,2668.9142,3.33e-16,PASS
+435-owner53-screen.sh.log,144,OWNER53_FORMAL round=3 mode=implicit,3,implicit,512,19968,1.89,2763.1486,3.33e-16,PASS
+435-owner53-screen.sh.log,150,OWNER53_FORMAL round=3 mode=stack,3,stack,512,19968,1.97,2662.0719,3.33e-16,PASS
+435-owner53-screen.sh.log,156,OWNER53_FORMAL round=3 mode=both,3,both,512,19968,1.89,2768.5361,3.33e-16,PASS
+435-owner53-screen.sh.log,162,OWNER53_FORMAL round=4 mode=both,4,both,512,19968,1.91,2744.1855,3.33e-16,PASS
+435-owner53-screen.sh.log,168,OWNER53_FORMAL round=4 mode=stack,4,stack,512,19968,1.91,2746.2258,3.33e-16,PASS
+435-owner53-screen.sh.log,174,OWNER53_FORMAL round=4 mode=implicit,4,implicit,512,19968,1.96,2671.4558,3.33e-16,PASS
+435-owner53-screen.sh.log,180,OWNER53_FORMAL round=4 mode=off,4,off,512,19968,1.97,2657.7300,3.33e-16,PASS
+435-owner53-screen.sh.log,186,OWNER53_FORMAL round=4 mode=control,4,control,512,19968,1.95,2681.8660,3.33e-16,PASS
+435-owner53-screen.sh.log,192,OWNER53_FORMAL round=5 mode=control,5,control,512,19968,1.91,2739.4041,3.33e-16,PASS
+435-owner53-screen.sh.log,198,OWNER53_FORMAL round=5 mode=off,5,off,512,19968,1.92,2733.1923,3.33e-16,PASS
+435-owner53-screen.sh.log,204,OWNER53_FORMAL round=5 mode=implicit,5,implicit,512,19968,1.90,2755.1417,3.33e-16,PASS
+435-owner53-screen.sh.log,210,OWNER53_FORMAL round=5 mode=stack,5,stack,512,19968,1.97,2657.5516,3.33e-16,PASS
+435-owner53-screen.sh.log,216,OWNER53_FORMAL round=5 mode=both,5,both,512,19968,1.90,2751.5251,3.33e-16,PASS
+435-owner53-screen.sh.log,222,OWNER53_FORMAL round=6 mode=both,6,both,512,19968,1.91,2744.7123,3.33e-16,PASS
+435-owner53-screen.sh.log,228,OWNER53_FORMAL round=6 mode=stack,6,stack,512,19968,1.90,2757.9224,3.33e-16,PASS
+435-owner53-screen.sh.log,234,OWNER53_FORMAL round=6 mode=implicit,6,implicit,512,19968,1.90,2752.5402,3.33e-16,PASS
+435-owner53-screen.sh.log,240,OWNER53_FORMAL round=6 mode=off,6,off,512,19968,1.90,2752.3694,3.33e-16,PASS
+435-owner53-screen.sh.log,246,OWNER53_FORMAL round=6 mode=control,6,control,512,19968,1.90,2751.8302,3.33e-16,PASS
+435-owner53-screen.sh.log,282,OWNER53_PROFILE mode=off,,off,512,19968,2.37,2208.1799,3.33e-16,PASS
+435-owner53-screen.sh.log,318,OWNER53_PROFILE mode=implicit,,implicit,512,19968,2.32,2253.9793,3.33e-16,PASS
+435-owner53-screen.sh.log,354,OWNER53_PROFILE mode=stack,,stack,512,19968,2.38,2196.2285,3.33e-16,PASS
+435-owner53-screen.sh.log,390,OWNER53_PROFILE mode=both,,both,512,19968,2.39,2186.8745,3.33e-16,PASS
+436-implicit-only.sh.log,71,IMPLICIT_ONLY_FORMAL round=1 mode=control,1,control,512,19968,1.91,2733.4841,3.33e-16,PASS
+436-implicit-only.sh.log,77,IMPLICIT_ONLY_FORMAL round=1 mode=off,1,off,512,19968,1.93,2714.6258,3.33e-16,PASS
+436-implicit-only.sh.log,83,IMPLICIT_ONLY_FORMAL round=1 mode=on,1,on,512,19968,1.92,2733.2735,3.33e-16,PASS
+436-implicit-only.sh.log,89,IMPLICIT_ONLY_FORMAL round=2 mode=on,2,on,512,19968,1.90,2749.7167,3.33e-16,PASS
+436-implicit-only.sh.log,95,IMPLICIT_ONLY_FORMAL round=2 mode=off,2,off,512,19968,1.91,2738.1572,3.33e-16,PASS
+436-implicit-only.sh.log,101,IMPLICIT_ONLY_FORMAL round=2 mode=control,2,control,512,19968,1.92,2729.9860,3.33e-16,PASS
+436-implicit-only.sh.log,107,IMPLICIT_ONLY_FORMAL round=3 mode=control,3,control,512,19968,1.90,2750.4355,3.33e-16,PASS
+436-implicit-only.sh.log,113,IMPLICIT_ONLY_FORMAL round=3 mode=off,3,off,512,19968,1.92,2733.3727,3.33e-16,PASS
+436-implicit-only.sh.log,119,IMPLICIT_ONLY_FORMAL round=3 mode=on,3,on,512,19968,1.90,2750.6335,3.33e-16,PASS
+436-implicit-only.sh.log,125,IMPLICIT_ONLY_FORMAL round=4 mode=on,4,on,512,19968,1.92,2731.5841,3.33e-16,PASS
+436-implicit-only.sh.log,131,IMPLICIT_ONLY_FORMAL round=4 mode=off,4,off,512,19968,1.93,2712.6564,3.33e-16,PASS
+436-implicit-only.sh.log,137,IMPLICIT_ONLY_FORMAL round=4 mode=control,4,control,512,19968,1.94,2695.9351,3.33e-16,PASS
+436-implicit-only.sh.log,143,IMPLICIT_ONLY_FORMAL round=5 mode=control,5,control,512,19968,1.93,2709.8173,3.33e-16,PASS
+436-implicit-only.sh.log,149,IMPLICIT_ONLY_FORMAL round=5 mode=off,5,off,512,19968,1.91,2740.3010,3.33e-16,PASS
+436-implicit-only.sh.log,155,IMPLICIT_ONLY_FORMAL round=5 mode=on,5,on,512,19968,1.90,2757.0477,3.33e-16,PASS
+436-implicit-only.sh.log,161,IMPLICIT_ONLY_FORMAL round=6 mode=on,6,on,512,19968,1.90,2752.4561,3.33e-16,PASS
+436-implicit-only.sh.log,167,IMPLICIT_ONLY_FORMAL round=6 mode=off,6,off,512,19968,2.27,2305.3346,3.33e-16,PASS
+436-implicit-only.sh.log,173,IMPLICIT_ONLY_FORMAL round=6 mode=control,6,control,512,19968,1.90,2751.6035,3.33e-16,PASS
+436-implicit-only.sh.log,179,IMPLICIT_ONLY_FORMAL round=7 mode=control,7,control,512,19968,1.90,2758.5680,3.33e-16,PASS
+436-implicit-only.sh.log,185,IMPLICIT_ONLY_FORMAL round=7 mode=off,7,off,512,19968,1.93,2717.5493,3.33e-16,PASS
+436-implicit-only.sh.log,191,IMPLICIT_ONLY_FORMAL round=7 mode=on,7,on,512,19968,1.92,2732.7509,3.33e-16,PASS
+436-implicit-only.sh.log,197,IMPLICIT_ONLY_FORMAL round=8 mode=on,8,on,512,19968,1.91,2745.8658,3.33e-16,PASS
+436-implicit-only.sh.log,203,IMPLICIT_ONLY_FORMAL round=8 mode=off,8,off,512,19968,1.92,2732.6083,3.33e-16,PASS
+436-implicit-only.sh.log,209,IMPLICIT_ONLY_FORMAL round=8 mode=control,8,control,512,19968,1.91,2739.2216,3.33e-16,PASS
+436-implicit-only.sh.log,245,IMPLICIT_ONLY_PROFILE mode=0,,0,512,19968,2.35,2228.5916,3.33e-16,PASS
+436-implicit-only.sh.log,281,IMPLICIT_ONLY_PROFILE mode=1,,1,512,19968,2.37,2205.3062,3.33e-16,PASS
+438-diag-bound.sh.log,29,DIAG_FORMAL round=1 mode=control m=512 n=19968,1,control,512,19968,1.93,2716.1170,3.33e-16,PASS
+438-diag-bound.sh.log,35,DIAG_FORMAL round=1 mode=0 m=512 n=19968,1,0,512,19968,1.92,2730.4042,3.33e-16,PASS
+438-diag-bound.sh.log,41,DIAG_FORMAL round=1 mode=1 m=512 n=19968,1,1,512,19968,1.92,2723.6801,3.33e-16,PASS
+438-diag-bound.sh.log,47,DIAG_FORMAL round=1 mode=2 m=512 n=19968,1,2,512,19968,1.90,2752.7202,3.33e-16,PASS
+438-diag-bound.sh.log,53,DIAG_FORMAL round=1 mode=3 m=512 n=19968,1,3,512,19968,1.93,2710.8282,3.33e-16,PASS
+438-diag-bound.sh.log,59,DIAG_FORMAL round=1 mode=control m=2432 n=17024,1,control,2432,17024,23.52,4280.8696,7.77e-16,PASS
+438-diag-bound.sh.log,65,DIAG_FORMAL round=1 mode=0 m=2432 n=17024,1,0,2432,17024,23.49,4285.8740,7.77e-16,PASS
+438-diag-bound.sh.log,71,DIAG_FORMAL round=1 mode=1 m=2432 n=17024,1,1,2432,17024,23.67,4254.0206,7.77e-16,PASS
+438-diag-bound.sh.log,77,DIAG_FORMAL round=1 mode=2 m=2432 n=17024,1,2,2432,17024,23.47,4289.2765,7.77e-16,PASS
+438-diag-bound.sh.log,83,DIAG_FORMAL round=1 mode=3 m=2432 n=17024,1,3,2432,17024,23.54,4277.4228,7.77e-16,PASS
+438-diag-bound.sh.log,89,DIAG_FORMAL round=1 mode=control m=17024 n=512,1,control,17024,512,35.60,4167.9866,1.50e-15,PASS
+438-diag-bound.sh.log,95,DIAG_FORMAL round=1 mode=0 m=17024 n=512,1,0,17024,512,35.49,4181.5897,1.50e-15,PASS
+438-diag-bound.sh.log,101,DIAG_FORMAL round=1 mode=1 m=17024 n=512,1,1,17024,512,35.24,4210.5524,1.50e-15,PASS
+438-diag-bound.sh.log,107,DIAG_FORMAL round=1 mode=2 m=17024 n=512,1,2,17024,512,35.49,4181.6386,1.50e-15,PASS
+438-diag-bound.sh.log,113,DIAG_FORMAL round=1 mode=3 m=17024 n=512,1,3,17024,512,35.33,4200.2695,1.50e-15,PASS
+438-diag-bound.sh.log,119,DIAG_FORMAL round=2 mode=3 m=512 n=19968,2,3,512,19968,1.90,2761.1219,3.33e-16,PASS
+438-diag-bound.sh.log,125,DIAG_FORMAL round=2 mode=2 m=512 n=19968,2,2,512,19968,1.92,2728.7126,3.33e-16,PASS
+438-diag-bound.sh.log,131,DIAG_FORMAL round=2 mode=1 m=512 n=19968,2,1,512,19968,1.93,2707.9797,3.33e-16,PASS
+438-diag-bound.sh.log,137,DIAG_FORMAL round=2 mode=0 m=512 n=19968,2,0,512,19968,1.92,2719.8567,3.33e-16,PASS
+438-diag-bound.sh.log,143,DIAG_FORMAL round=2 mode=control m=512 n=19968,2,control,512,19968,1.93,2713.5144,3.33e-16,PASS
+438-diag-bound.sh.log,149,DIAG_FORMAL round=2 mode=3 m=2432 n=17024,2,3,2432,17024,23.67,4253.8234,7.77e-16,PASS
+438-diag-bound.sh.log,155,DIAG_FORMAL round=2 mode=2 m=2432 n=17024,2,2,2432,17024,23.68,4251.4870,7.77e-16,PASS
+438-diag-bound.sh.log,161,DIAG_FORMAL round=2 mode=1 m=2432 n=17024,2,1,2432,17024,23.54,4278.0864,7.77e-16,PASS
+438-diag-bound.sh.log,167,DIAG_FORMAL round=2 mode=0 m=2432 n=17024,2,0,2432,17024,23.49,4285.7945,7.77e-16,PASS
+438-diag-bound.sh.log,173,DIAG_FORMAL round=2 mode=control m=2432 n=17024,2,control,2432,17024,23.53,4280.0200,7.77e-16,PASS
+438-diag-bound.sh.log,179,DIAG_FORMAL round=2 mode=3 m=17024 n=512,2,3,17024,512,35.30,4203.3069,1.50e-15,PASS
+438-diag-bound.sh.log,185,DIAG_FORMAL round=2 mode=2 m=17024 n=512,2,2,17024,512,35.25,4209.2746,1.50e-15,PASS
+438-diag-bound.sh.log,191,DIAG_FORMAL round=2 mode=1 m=17024 n=512,2,1,17024,512,35.31,4202.0158,1.50e-15,PASS
+438-diag-bound.sh.log,197,DIAG_FORMAL round=2 mode=0 m=17024 n=512,2,0,17024,512,35.67,4159.6448,1.50e-15,PASS
+438-diag-bound.sh.log,203,DIAG_FORMAL round=2 mode=control m=17024 n=512,2,control,17024,512,35.56,4172.5346,1.50e-15,PASS
+438-diag-bound.sh.log,209,DIAG_FORMAL round=3 mode=control m=512 n=19968,3,control,512,19968,1.92,2727.0796,3.33e-16,PASS
+438-diag-bound.sh.log,215,DIAG_FORMAL round=3 mode=0 m=512 n=19968,3,0,512,19968,1.91,2744.0023,3.33e-16,PASS
+438-diag-bound.sh.log,221,DIAG_FORMAL round=3 mode=1 m=512 n=19968,3,1,512,19968,1.91,2737.8471,3.33e-16,PASS
+438-diag-bound.sh.log,227,DIAG_FORMAL round=3 mode=2 m=512 n=19968,3,2,512,19968,1.92,2730.3720,3.33e-16,PASS
+438-diag-bound.sh.log,233,DIAG_FORMAL round=3 mode=3 m=512 n=19968,3,3,512,19968,1.89,2765.5935,3.33e-16,PASS
+438-diag-bound.sh.log,239,DIAG_FORMAL round=3 mode=control m=2432 n=17024,3,control,2432,17024,23.56,4273.2934,7.77e-16,PASS
+438-diag-bound.sh.log,245,DIAG_FORMAL round=3 mode=0 m=2432 n=17024,3,0,2432,17024,23.51,4282.9714,7.77e-16,PASS
+438-diag-bound.sh.log,251,DIAG_FORMAL round=3 mode=1 m=2432 n=17024,3,1,2432,17024,23.56,4273.9891,7.77e-16,PASS
+438-diag-bound.sh.log,257,DIAG_FORMAL round=3 mode=2 m=2432 n=17024,3,2,2432,17024,23.59,4269.2208,7.77e-16,PASS
+438-diag-bound.sh.log,263,DIAG_FORMAL round=3 mode=3 m=2432 n=17024,3,3,2432,17024,23.61,4264.6480,7.77e-16,PASS
+438-diag-bound.sh.log,269,DIAG_FORMAL round=3 mode=control m=17024 n=512,3,control,17024,512,35.47,4182.9225,1.50e-15,PASS
+438-diag-bound.sh.log,275,DIAG_FORMAL round=3 mode=0 m=17024 n=512,3,0,17024,512,35.37,4195.3141,1.50e-15,PASS
+438-diag-bound.sh.log,281,DIAG_FORMAL round=3 mode=1 m=17024 n=512,3,1,17024,512,35.23,4211.8442,1.50e-15,PASS
+438-diag-bound.sh.log,287,DIAG_FORMAL round=3 mode=2 m=17024 n=512,3,2,17024,512,35.19,4216.6290,1.50e-15,PASS
+438-diag-bound.sh.log,293,DIAG_FORMAL round=3 mode=3 m=17024 n=512,3,3,17024,512,35.27,4207.0531,1.50e-15,PASS
+438-diag-bound.sh.log,299,DIAG_FORMAL round=4 mode=3 m=512 n=19968,4,3,512,19968,1.94,2697.9475,3.33e-16,PASS
+438-diag-bound.sh.log,305,DIAG_FORMAL round=4 mode=2 m=512 n=19968,4,2,512,19968,1.95,2689.4043,3.33e-16,PASS
+438-diag-bound.sh.log,311,DIAG_FORMAL round=4 mode=1 m=512 n=19968,4,1,512,19968,1.93,2712.7569,3.33e-16,PASS
+438-diag-bound.sh.log,317,DIAG_FORMAL round=4 mode=0 m=512 n=19968,4,0,512,19968,1.90,2749.0499,3.33e-16,PASS
+438-diag-bound.sh.log,323,DIAG_FORMAL round=4 mode=control m=512 n=19968,4,control,512,19968,1.92,2720.4044,3.33e-16,PASS
+438-diag-bound.sh.log,329,DIAG_FORMAL round=4 mode=3 m=2432 n=17024,4,3,2432,17024,23.63,4262.0246,7.77e-16,PASS
+438-diag-bound.sh.log,335,DIAG_FORMAL round=4 mode=2 m=2432 n=17024,4,2,2432,17024,23.74,4241.2571,7.77e-16,PASS
+438-diag-bound.sh.log,341,DIAG_FORMAL round=4 mode=1 m=2432 n=17024,4,1,2432,17024,23.55,4274.9373,7.77e-16,PASS
+438-diag-bound.sh.log,347,DIAG_FORMAL round=4 mode=0 m=2432 n=17024,4,0,2432,17024,23.58,4269.8430,7.77e-16,PASS
+438-diag-bound.sh.log,353,DIAG_FORMAL round=4 mode=control m=2432 n=17024,4,control,2432,17024,23.53,4278.9372,7.77e-16,PASS
+438-diag-bound.sh.log,359,DIAG_FORMAL round=4 mode=3 m=17024 n=512,4,3,17024,512,35.44,4186.5045,1.50e-15,PASS
+438-diag-bound.sh.log,365,DIAG_FORMAL round=4 mode=2 m=17024 n=512,4,2,17024,512,35.20,4215.5925,1.50e-15,PASS
+438-diag-bound.sh.log,371,DIAG_FORMAL round=4 mode=1 m=17024 n=512,4,1,17024,512,35.60,4167.8903,1.50e-15,PASS
+438-diag-bound.sh.log,377,DIAG_FORMAL round=4 mode=0 m=17024 n=512,4,0,17024,512,35.32,4201.1838,1.50e-15,PASS
+438-diag-bound.sh.log,383,DIAG_FORMAL round=4 mode=control m=17024 n=512,4,control,17024,512,35.21,4214.0731,1.50e-15,PASS
+438-diag-bound.sh.log,409,DIAG_PROFILE mode=0 m=512 n=19968,,0,512,19968,2.43,2157.1607,3.33e-16,PASS
+438-diag-bound.sh.log,435,DIAG_PROFILE mode=0 m=2432 n=17024,,0,2432,17024,24.15,4169.8809,7.77e-16,PASS
+438-diag-bound.sh.log,461,DIAG_PROFILE mode=0 m=17024 n=512,,0,17024,512,35.76,4149.5374,1.50e-15,PASS
+438-diag-bound.sh.log,487,DIAG_PROFILE mode=1 m=512 n=19968,,1,512,19968,2.37,2209.9003,3.33e-16,PASS
+438-diag-bound.sh.log,513,DIAG_PROFILE mode=1 m=2432 n=17024,,1,2432,17024,24.30,4144.4143,7.77e-16,PASS
+438-diag-bound.sh.log,539,DIAG_PROFILE mode=1 m=17024 n=512,,1,17024,512,36.16,4103.7613,1.50e-15,PASS
+438-diag-bound.sh.log,565,DIAG_PROFILE mode=2 m=512 n=19968,,2,512,19968,3.81,1372.8600,3.33e-16,PASS
+438-diag-bound.sh.log,591,DIAG_PROFILE mode=2 m=2432 n=17024,,2,2432,17024,24.21,4159.8339,7.77e-16,PASS
+438-diag-bound.sh.log,617,DIAG_PROFILE mode=2 m=17024 n=512,,2,17024,512,35.77,4147.8234,1.50e-15,PASS
+438-diag-bound.sh.log,643,DIAG_PROFILE mode=3 m=512 n=19968,,3,512,19968,2.38,2200.0301,3.33e-16,PASS
+438-diag-bound.sh.log,669,DIAG_PROFILE mode=3 m=2432 n=17024,,3,2432,17024,24.04,4189.0212,7.77e-16,PASS
+438-diag-bound.sh.log,695,DIAG_PROFILE mode=3 m=17024 n=512,,3,17024,512,36.36,4081.2731,1.50e-15,PASS
+439-crossnode-implicit.sh.log,144,IMPLICIT_CROSSNODE round=1 mode=control m=512 n=19968,1,control,512,19968,1.95,2683.4075,3.33e-16,PASS
+439-crossnode-implicit.sh.log,150,IMPLICIT_CROSSNODE round=1 mode=off m=512 n=19968,1,off,512,19968,1.92,2731.0789,3.33e-16,PASS
+439-crossnode-implicit.sh.log,156,IMPLICIT_CROSSNODE round=1 mode=on m=512 n=19968,1,on,512,19968,1.91,2744.2063,3.33e-16,PASS
+439-crossnode-implicit.sh.log,162,IMPLICIT_CROSSNODE round=2 mode=on m=512 n=19968,2,on,512,19968,1.90,2757.7757,3.33e-16,PASS
+439-crossnode-implicit.sh.log,168,IMPLICIT_CROSSNODE round=2 mode=off m=512 n=19968,2,off,512,19968,1.89,2763.2771,3.33e-16,PASS
+439-crossnode-implicit.sh.log,174,IMPLICIT_CROSSNODE round=2 mode=control m=512 n=19968,2,control,512,19968,1.96,2664.7417,3.33e-16,PASS
+439-crossnode-implicit.sh.log,180,IMPLICIT_CROSSNODE round=3 mode=control m=512 n=19968,3,control,512,19968,1.96,2667.0897,3.33e-16,PASS
+439-crossnode-implicit.sh.log,186,IMPLICIT_CROSSNODE round=3 mode=off m=512 n=19968,3,off,512,19968,2.30,2272.1921,3.33e-16,PASS
+439-crossnode-implicit.sh.log,192,IMPLICIT_CROSSNODE round=3 mode=on m=512 n=19968,3,on,512,19968,1.90,2750.7847,3.33e-16,PASS
+439-crossnode-implicit.sh.log,198,IMPLICIT_CROSSNODE round=4 mode=on m=512 n=19968,4,on,512,19968,1.90,2756.4832,3.33e-16,PASS
+439-crossnode-implicit.sh.log,204,IMPLICIT_CROSSNODE round=4 mode=off m=512 n=19968,4,off,512,19968,1.98,2640.0681,3.33e-16,PASS
+439-crossnode-implicit.sh.log,210,IMPLICIT_CROSSNODE round=4 mode=control m=512 n=19968,4,control,512,19968,1.93,2708.0606,3.33e-16,PASS
+439-crossnode-implicit.sh.log,216,IMPLICIT_CROSSNODE round=5 mode=control m=512 n=19968,5,control,512,19968,1.95,2684.3619,3.33e-16,PASS
+439-crossnode-implicit.sh.log,222,IMPLICIT_CROSSNODE round=5 mode=off m=512 n=19968,5,off,512,19968,1.93,2713.6355,3.33e-16,PASS
+439-crossnode-implicit.sh.log,228,IMPLICIT_CROSSNODE round=5 mode=on m=512 n=19968,5,on,512,19968,1.89,2764.8192,3.33e-16,PASS
+439-crossnode-implicit.sh.log,234,IMPLICIT_CROSSNODE round=6 mode=on m=512 n=19968,6,on,512,19968,1.91,2742.4730,3.33e-16,PASS
+439-crossnode-implicit.sh.log,240,IMPLICIT_CROSSNODE round=6 mode=off m=512 n=19968,6,off,512,19968,1.91,2740.8995,3.33e-16,PASS
+439-crossnode-implicit.sh.log,246,IMPLICIT_CROSSNODE round=6 mode=control m=512 n=19968,6,control,512,19968,1.97,2658.8551,3.33e-16,PASS
+439-crossnode-implicit.sh.log,252,IMPLICIT_CROSSNODE round=7 mode=control m=512 n=19968,7,control,512,19968,1.96,2668.7064,3.33e-16,PASS
+439-crossnode-implicit.sh.log,258,IMPLICIT_CROSSNODE round=7 mode=off m=512 n=19968,7,off,512,19968,1.92,2723.8079,3.33e-16,PASS
+439-crossnode-implicit.sh.log,264,IMPLICIT_CROSSNODE round=7 mode=on m=512 n=19968,7,on,512,19968,1.91,2739.7314,3.33e-16,PASS
+439-crossnode-implicit.sh.log,270,IMPLICIT_CROSSNODE round=8 mode=on m=512 n=19968,8,on,512,19968,1.91,2737.7694,3.33e-16,PASS
+439-crossnode-implicit.sh.log,276,IMPLICIT_CROSSNODE round=8 mode=off m=512 n=19968,8,off,512,19968,1.92,2729.9511,3.33e-16,PASS
+439-crossnode-implicit.sh.log,282,IMPLICIT_CROSSNODE round=8 mode=control m=512 n=19968,8,control,512,19968,2.09,2507.4843,3.33e-16,PASS
+439-crossnode-implicit.sh.log,288,IMPLICIT_CROSSNODE round=9 mode=control m=512 n=19968,9,control,512,19968,1.97,2659.0575,3.33e-16,PASS
+439-crossnode-implicit.sh.log,294,IMPLICIT_CROSSNODE round=9 mode=off m=512 n=19968,9,off,512,19968,1.91,2737.3357,3.33e-16,PASS
+439-crossnode-implicit.sh.log,300,IMPLICIT_CROSSNODE round=9 mode=on m=512 n=19968,9,on,512,19968,1.91,2743.9577,3.33e-16,PASS
+439-crossnode-implicit.sh.log,306,IMPLICIT_CROSSNODE round=10 mode=on m=512 n=19968,10,on,512,19968,1.91,2737.4375,3.33e-16,PASS
+439-crossnode-implicit.sh.log,312,IMPLICIT_CROSSNODE round=10 mode=off m=512 n=19968,10,off,512,19968,1.92,2720.9308,3.33e-16,PASS
+439-crossnode-implicit.sh.log,318,IMPLICIT_CROSSNODE round=10 mode=control m=512 n=19968,10,control,512,19968,1.97,2657.6107,3.33e-16,PASS
+439-crossnode-implicit.sh.log,324,IMPLICIT_CROSSNODE round=11 mode=control m=512 n=19968,11,control,512,19968,1.97,2658.2291,3.33e-16,PASS
+439-crossnode-implicit.sh.log,330,IMPLICIT_CROSSNODE round=11 mode=off m=512 n=19968,11,off,512,19968,1.91,2740.2332,3.33e-16,PASS
+439-crossnode-implicit.sh.log,336,IMPLICIT_CROSSNODE round=11 mode=on m=512 n=19968,11,on,512,19968,1.89,2766.9796,3.33e-16,PASS
+439-crossnode-implicit.sh.log,342,IMPLICIT_CROSSNODE round=12 mode=on m=512 n=19968,12,on,512,19968,1.99,2634.0512,3.33e-16,PASS
+439-crossnode-implicit.sh.log,348,IMPLICIT_CROSSNODE round=12 mode=off m=512 n=19968,12,off,512,19968,1.95,2680.4431,3.33e-16,PASS
+439-crossnode-implicit.sh.log,354,IMPLICIT_CROSSNODE round=12 mode=control m=512 n=19968,12,control,512,19968,1.95,2683.6501,3.33e-16,PASS
+439-crossnode-implicit.sh.log,360,IMPLICIT_CROSSNODE round=1 mode=control m=2432 n=17024,1,control,2432,17024,23.67,4253.3432,7.77e-16,PASS
+439-crossnode-implicit.sh.log,366,IMPLICIT_CROSSNODE round=1 mode=on m=2432 n=17024,1,on,2432,17024,23.68,4252.9389,7.77e-16,PASS
+439-crossnode-implicit.sh.log,372,IMPLICIT_CROSSNODE round=1 mode=control m=17024 n=512,1,control,17024,512,35.58,4170.7696,1.50e-15,PASS
+439-crossnode-implicit.sh.log,378,IMPLICIT_CROSSNODE round=1 mode=on m=17024 n=512,1,on,17024,512,35.71,4154.9936,1.50e-15,PASS
+439-crossnode-implicit.sh.log,384,IMPLICIT_CROSSNODE round=2 mode=on m=2432 n=17024,2,on,2432,17024,23.60,4266.3796,7.77e-16,PASS
+439-crossnode-implicit.sh.log,390,IMPLICIT_CROSSNODE round=2 mode=control m=2432 n=17024,2,control,2432,17024,23.73,4242.5653,7.77e-16,PASS
+439-crossnode-implicit.sh.log,396,IMPLICIT_CROSSNODE round=2 mode=on m=17024 n=512,2,on,17024,512,35.42,4189.9087,1.50e-15,PASS
+439-crossnode-implicit.sh.log,402,IMPLICIT_CROSSNODE round=2 mode=control m=17024 n=512,2,control,17024,512,35.66,4160.6962,1.50e-15,PASS
+439-crossnode-implicit.sh.log,408,IMPLICIT_CROSSNODE round=3 mode=control m=2432 n=17024,3,control,2432,17024,23.86,4219.3414,7.77e-16,PASS
+439-crossnode-implicit.sh.log,414,IMPLICIT_CROSSNODE round=3 mode=on m=2432 n=17024,3,on,2432,17024,23.53,4280.0155,7.77e-16,PASS
+439-crossnode-implicit.sh.log,420,IMPLICIT_CROSSNODE round=3 mode=control m=17024 n=512,3,control,17024,512,35.64,4163.1847,1.50e-15,PASS
+439-crossnode-implicit.sh.log,426,IMPLICIT_CROSSNODE round=3 mode=on m=17024 n=512,3,on,17024,512,35.32,4200.6585,1.50e-15,PASS
+440-implicit-final.sh.log,300,IMPLICIT_FINAL_FORMAL round=1 mode=control m=512 n=19968,1,control,512,19968,1.92,2731.0542,3.33e-16,PASS
+440-implicit-final.sh.log,306,IMPLICIT_FINAL_FORMAL round=1 mode=final m=512 n=19968,1,final,512,19968,1.91,2736.0921,3.33e-16,PASS
+440-implicit-final.sh.log,312,IMPLICIT_FINAL_FORMAL round=1 mode=off m=512 n=19968,1,off,512,19968,1.93,2709.8496,3.33e-16,PASS
+440-implicit-final.sh.log,318,IMPLICIT_FINAL_FORMAL round=1 mode=control m=2432 n=17024,1,control,2432,17024,23.76,4238.3445,7.77e-16,PASS
+440-implicit-final.sh.log,324,IMPLICIT_FINAL_FORMAL round=1 mode=final m=2432 n=17024,1,final,2432,17024,23.51,4283.5557,7.77e-16,PASS
+440-implicit-final.sh.log,330,IMPLICIT_FINAL_FORMAL round=1 mode=off m=2432 n=17024,1,off,2432,17024,23.67,4253.4137,7.77e-16,PASS
+440-implicit-final.sh.log,336,IMPLICIT_FINAL_FORMAL round=1 mode=control m=17024 n=512,1,control,17024,512,35.34,4199.0135,1.50e-15,PASS
+440-implicit-final.sh.log,342,IMPLICIT_FINAL_FORMAL round=1 mode=final m=17024 n=512,1,final,17024,512,35.10,4227.6001,1.50e-15,PASS
+440-implicit-final.sh.log,348,IMPLICIT_FINAL_FORMAL round=1 mode=off m=17024 n=512,1,off,17024,512,35.33,4200.0027,1.50e-15,PASS
+440-implicit-final.sh.log,354,IMPLICIT_FINAL_FORMAL round=2 mode=off m=512 n=19968,2,off,512,19968,1.94,2700.2750,3.33e-16,PASS
+440-implicit-final.sh.log,360,IMPLICIT_FINAL_FORMAL round=2 mode=final m=512 n=19968,2,final,512,19968,1.91,2738.8249,3.33e-16,PASS
+440-implicit-final.sh.log,366,IMPLICIT_FINAL_FORMAL round=2 mode=control m=512 n=19968,2,control,512,19968,1.96,2665.2184,3.33e-16,PASS
+440-implicit-final.sh.log,372,IMPLICIT_FINAL_FORMAL round=2 mode=off m=2432 n=17024,2,off,2432,17024,23.64,4258.7696,7.77e-16,PASS
+440-implicit-final.sh.log,378,IMPLICIT_FINAL_FORMAL round=2 mode=final m=2432 n=17024,2,final,2432,17024,23.73,4242.4387,7.77e-16,PASS
+440-implicit-final.sh.log,384,IMPLICIT_FINAL_FORMAL round=2 mode=control m=2432 n=17024,2,control,2432,17024,23.58,4270.5011,7.77e-16,PASS
+440-implicit-final.sh.log,390,IMPLICIT_FINAL_FORMAL round=2 mode=off m=17024 n=512,2,off,17024,512,35.28,4206.0309,1.50e-15,PASS
+440-implicit-final.sh.log,396,IMPLICIT_FINAL_FORMAL round=2 mode=final m=17024 n=512,2,final,17024,512,35.15,4221.8184,1.50e-15,PASS
+440-implicit-final.sh.log,402,IMPLICIT_FINAL_FORMAL round=2 mode=control m=17024 n=512,2,control,17024,512,35.26,4208.1582,1.50e-15,PASS
+440-implicit-final.sh.log,408,IMPLICIT_FINAL_FORMAL round=3 mode=control m=512 n=19968,3,control,512,19968,1.92,2724.7276,3.33e-16,PASS
+440-implicit-final.sh.log,414,IMPLICIT_FINAL_FORMAL round=3 mode=final m=512 n=19968,3,final,512,19968,1.90,2759.5220,3.33e-16,PASS
+440-implicit-final.sh.log,420,IMPLICIT_FINAL_FORMAL round=3 mode=off m=512 n=19968,3,off,512,19968,1.94,2700.2647,3.33e-16,PASS
+440-implicit-final.sh.log,426,IMPLICIT_FINAL_FORMAL round=3 mode=control m=2432 n=17024,3,control,2432,17024,23.54,4276.5271,7.77e-16,PASS
+440-implicit-final.sh.log,432,IMPLICIT_FINAL_FORMAL round=3 mode=final m=2432 n=17024,3,final,2432,17024,23.61,4264.1293,7.77e-16,PASS
+440-implicit-final.sh.log,438,IMPLICIT_FINAL_FORMAL round=3 mode=off m=2432 n=17024,3,off,2432,17024,23.61,4264.8171,7.77e-16,PASS
+440-implicit-final.sh.log,444,IMPLICIT_FINAL_FORMAL round=3 mode=control m=17024 n=512,3,control,17024,512,35.26,4207.8532,1.50e-15,PASS
+440-implicit-final.sh.log,450,IMPLICIT_FINAL_FORMAL round=3 mode=final m=17024 n=512,3,final,17024,512,35.55,4173.7433,1.50e-15,PASS
+440-implicit-final.sh.log,456,IMPLICIT_FINAL_FORMAL round=3 mode=off m=17024 n=512,3,off,17024,512,35.17,4218.6332,1.50e-15,PASS
+440-implicit-final.sh.log,462,IMPLICIT_FINAL_FORMAL round=4 mode=off m=512 n=19968,4,off,512,19968,1.94,2702.2584,3.33e-16,PASS
+440-implicit-final.sh.log,468,IMPLICIT_FINAL_FORMAL round=4 mode=final m=512 n=19968,4,final,512,19968,1.94,2704.1263,3.33e-16,PASS
+440-implicit-final.sh.log,474,IMPLICIT_FINAL_FORMAL round=4 mode=control m=512 n=19968,4,control,512,19968,1.95,2688.1007,3.33e-16,PASS
+440-implicit-final.sh.log,480,IMPLICIT_FINAL_FORMAL round=4 mode=off m=2432 n=17024,4,off,2432,17024,23.64,4259.5320,7.77e-16,PASS
+440-implicit-final.sh.log,486,IMPLICIT_FINAL_FORMAL round=4 mode=final m=2432 n=17024,4,final,2432,17024,23.53,4279.7537,7.77e-16,PASS
+440-implicit-final.sh.log,492,IMPLICIT_FINAL_FORMAL round=4 mode=control m=2432 n=17024,4,control,2432,17024,23.54,4278.0413,7.77e-16,PASS
+440-implicit-final.sh.log,498,IMPLICIT_FINAL_FORMAL round=4 mode=off m=17024 n=512,4,off,17024,512,35.25,4209.7411,1.50e-15,PASS
+440-implicit-final.sh.log,504,IMPLICIT_FINAL_FORMAL round=4 mode=final m=17024 n=512,4,final,17024,512,35.16,4219.7197,1.50e-15,PASS
+440-implicit-final.sh.log,510,IMPLICIT_FINAL_FORMAL round=4 mode=control m=17024 n=512,4,control,17024,512,35.21,4214.6406,1.50e-15,PASS
+440-implicit-final.sh.log,516,IMPLICIT_FINAL_FORMAL round=5 mode=control m=512 n=19968,5,control,512,19968,1.96,2674.0250,3.33e-16,PASS
+440-implicit-final.sh.log,522,IMPLICIT_FINAL_FORMAL round=5 mode=final m=512 n=19968,5,final,512,19968,1.90,2751.5706,3.33e-16,PASS
+440-implicit-final.sh.log,528,IMPLICIT_FINAL_FORMAL round=5 mode=off m=512 n=19968,5,off,512,19968,1.92,2722.6507,3.33e-16,PASS
+440-implicit-final.sh.log,534,IMPLICIT_FINAL_FORMAL round=5 mode=control m=2432 n=17024,5,control,2432,17024,23.58,4269.4935,7.77e-16,PASS
+440-implicit-final.sh.log,540,IMPLICIT_FINAL_FORMAL round=5 mode=final m=2432 n=17024,5,final,2432,17024,23.59,4269.2101,7.77e-16,PASS
+440-implicit-final.sh.log,546,IMPLICIT_FINAL_FORMAL round=5 mode=off m=2432 n=17024,5,off,2432,17024,23.81,4229.6178,7.77e-16,PASS
+440-implicit-final.sh.log,552,IMPLICIT_FINAL_FORMAL round=5 mode=control m=17024 n=512,5,control,17024,512,35.45,4185.7959,1.50e-15,PASS
+440-implicit-final.sh.log,558,IMPLICIT_FINAL_FORMAL round=5 mode=final m=17024 n=512,5,final,17024,512,35.14,4222.7282,1.50e-15,PASS
+440-implicit-final.sh.log,564,IMPLICIT_FINAL_FORMAL round=5 mode=off m=17024 n=512,5,off,17024,512,35.25,4209.8058,1.50e-15,PASS
+440-implicit-final.sh.log,570,IMPLICIT_FINAL_FORMAL round=6 mode=off m=512 n=19968,6,off,512,19968,1.91,2737.2963,3.33e-16,PASS
+440-implicit-final.sh.log,576,IMPLICIT_FINAL_FORMAL round=6 mode=final m=512 n=19968,6,final,512,19968,1.94,2691.7100,3.33e-16,PASS
+440-implicit-final.sh.log,582,IMPLICIT_FINAL_FORMAL round=6 mode=control m=512 n=19968,6,control,512,19968,1.91,2745.5874,3.33e-16,PASS
+440-implicit-final.sh.log,588,IMPLICIT_FINAL_FORMAL round=6 mode=off m=2432 n=17024,6,off,2432,17024,23.57,4272.3016,7.77e-16,PASS
+440-implicit-final.sh.log,594,IMPLICIT_FINAL_FORMAL round=6 mode=final m=2432 n=17024,6,final,2432,17024,23.61,4264.9997,7.77e-16,PASS
+440-implicit-final.sh.log,600,IMPLICIT_FINAL_FORMAL round=6 mode=control m=2432 n=17024,6,control,2432,17024,23.68,4253.0142,7.77e-16,PASS
+440-implicit-final.sh.log,606,IMPLICIT_FINAL_FORMAL round=6 mode=off m=17024 n=512,6,off,17024,512,35.16,4220.3523,1.50e-15,PASS
+440-implicit-final.sh.log,612,IMPLICIT_FINAL_FORMAL round=6 mode=final m=17024 n=512,6,final,17024,512,35.20,4215.3260,1.50e-15,PASS
+440-implicit-final.sh.log,618,IMPLICIT_FINAL_FORMAL round=6 mode=control m=17024 n=512,6,control,17024,512,35.56,4172.9131,1.50e-15,PASS
+441-implicit-final-node87.sh.log,144,IMPLICIT_FINAL_FORMAL round=1 mode=control m=512 n=19968,1,control,512,19968,1.95,2678.8361,3.33e-16,PASS
+441-implicit-final-node87.sh.log,150,IMPLICIT_FINAL_FORMAL round=1 mode=final m=512 n=19968,1,final,512,19968,1.93,2712.5187,3.33e-16,PASS
+441-implicit-final-node87.sh.log,156,IMPLICIT_FINAL_FORMAL round=1 mode=off m=512 n=19968,1,off,512,19968,2.05,2553.0079,3.33e-16,PASS
+441-implicit-final-node87.sh.log,162,IMPLICIT_FINAL_FORMAL round=2 mode=off m=512 n=19968,2,off,512,19968,1.98,2637.9737,3.33e-16,PASS
+441-implicit-final-node87.sh.log,168,IMPLICIT_FINAL_FORMAL round=2 mode=final m=512 n=19968,2,final,512,19968,1.92,2728.6162,3.33e-16,PASS
+441-implicit-final-node87.sh.log,174,IMPLICIT_FINAL_FORMAL round=2 mode=control m=512 n=19968,2,control,512,19968,1.96,2669.1845,3.33e-16,PASS
+441-implicit-final-node87.sh.log,180,IMPLICIT_FINAL_FORMAL round=3 mode=control m=512 n=19968,3,control,512,19968,2.02,2585.0756,3.33e-16,PASS
+441-implicit-final-node87.sh.log,186,IMPLICIT_FINAL_FORMAL round=3 mode=final m=512 n=19968,3,final,512,19968,1.91,2736.4476,3.33e-16,PASS
+441-implicit-final-node87.sh.log,192,IMPLICIT_FINAL_FORMAL round=3 mode=off m=512 n=19968,3,off,512,19968,1.93,2708.8348,3.33e-16,PASS
+441-implicit-final-node87.sh.log,198,IMPLICIT_FINAL_FORMAL round=4 mode=off m=512 n=19968,4,off,512,19968,1.96,2668.8394,3.33e-16,PASS
+441-implicit-final-node87.sh.log,204,IMPLICIT_FINAL_FORMAL round=4 mode=final m=512 n=19968,4,final,512,19968,1.97,2661.7194,3.33e-16,PASS
+441-implicit-final-node87.sh.log,210,IMPLICIT_FINAL_FORMAL round=4 mode=control m=512 n=19968,4,control,512,19968,1.97,2660.9345,3.33e-16,PASS
+441-implicit-final-node87.sh.log,216,IMPLICIT_FINAL_FORMAL round=5 mode=control m=512 n=19968,5,control,512,19968,1.95,2677.8720,3.33e-16,PASS
+441-implicit-final-node87.sh.log,222,IMPLICIT_FINAL_FORMAL round=5 mode=final m=512 n=19968,5,final,512,19968,1.91,2733.8507,3.33e-16,PASS
+441-implicit-final-node87.sh.log,228,IMPLICIT_FINAL_FORMAL round=5 mode=off m=512 n=19968,5,off,512,19968,1.94,2693.9565,3.33e-16,PASS
+441-implicit-final-node87.sh.log,234,IMPLICIT_FINAL_FORMAL round=6 mode=off m=512 n=19968,6,off,512,19968,1.92,2728.2041,3.33e-16,PASS
+441-implicit-final-node87.sh.log,240,IMPLICIT_FINAL_FORMAL round=6 mode=final m=512 n=19968,6,final,512,19968,1.91,2747.2059,3.33e-16,PASS
+441-implicit-final-node87.sh.log,246,IMPLICIT_FINAL_FORMAL round=6 mode=control m=512 n=19968,6,control,512,19968,1.96,2671.3604,3.33e-16,PASS
+441-implicit-final-node87.sh.log,252,IMPLICIT_FINAL_FORMAL round=7 mode=control m=512 n=19968,7,control,512,19968,1.97,2653.0483,3.33e-16,PASS
+441-implicit-final-node87.sh.log,258,IMPLICIT_FINAL_FORMAL round=7 mode=final m=512 n=19968,7,final,512,19968,1.90,2759.6989,3.33e-16,PASS
+441-implicit-final-node87.sh.log,264,IMPLICIT_FINAL_FORMAL round=7 mode=off m=512 n=19968,7,off,512,19968,1.99,2630.5210,3.33e-16,PASS
+441-implicit-final-node87.sh.log,270,IMPLICIT_FINAL_FORMAL round=8 mode=off m=512 n=19968,8,off,512,19968,1.91,2737.9846,3.33e-16,PASS
+441-implicit-final-node87.sh.log,276,IMPLICIT_FINAL_FORMAL round=8 mode=final m=512 n=19968,8,final,512,19968,1.92,2729.6048,3.33e-16,PASS
+441-implicit-final-node87.sh.log,282,IMPLICIT_FINAL_FORMAL round=8 mode=control m=512 n=19968,8,control,512,19968,2.14,2440.3954,3.33e-16,PASS
+441-implicit-final-node87.sh.log,288,IMPLICIT_FINAL_FORMAL round=9 mode=control m=512 n=19968,9,control,512,19968,1.98,2640.4088,3.33e-16,PASS
+441-implicit-final-node87.sh.log,294,IMPLICIT_FINAL_FORMAL round=9 mode=final m=512 n=19968,9,final,512,19968,1.91,2743.9449,3.33e-16,PASS
+441-implicit-final-node87.sh.log,300,IMPLICIT_FINAL_FORMAL round=9 mode=off m=512 n=19968,9,off,512,19968,1.98,2641.6408,3.33e-16,PASS
+441-implicit-final-node87.sh.log,306,IMPLICIT_FINAL_FORMAL round=10 mode=off m=512 n=19968,10,off,512,19968,1.92,2725.3243,3.33e-16,PASS
+441-implicit-final-node87.sh.log,312,IMPLICIT_FINAL_FORMAL round=10 mode=final m=512 n=19968,10,final,512,19968,1.94,2701.9181,3.33e-16,PASS
+441-implicit-final-node87.sh.log,318,IMPLICIT_FINAL_FORMAL round=10 mode=control m=512 n=19968,10,control,512,19968,1.95,2683.9995,3.33e-16,PASS
+441-implicit-final-node87.sh.log,324,IMPLICIT_FINAL_FORMAL round=11 mode=control m=512 n=19968,11,control,512,19968,2.06,2544.5954,3.33e-16,PASS
+441-implicit-final-node87.sh.log,330,IMPLICIT_FINAL_FORMAL round=11 mode=final m=512 n=19968,11,final,512,19968,1.91,2746.8640,3.33e-16,PASS
+441-implicit-final-node87.sh.log,336,IMPLICIT_FINAL_FORMAL round=11 mode=off m=512 n=19968,11,off,512,19968,1.96,2676.1927,3.33e-16,PASS
+441-implicit-final-node87.sh.log,342,IMPLICIT_FINAL_FORMAL round=12 mode=off m=512 n=19968,12,off,512,19968,1.95,2687.1736,3.33e-16,PASS
+441-implicit-final-node87.sh.log,348,IMPLICIT_FINAL_FORMAL round=12 mode=final m=512 n=19968,12,final,512,19968,1.92,2725.6841,3.33e-16,PASS
+441-implicit-final-node87.sh.log,354,IMPLICIT_FINAL_FORMAL round=12 mode=control m=512 n=19968,12,control,512,19968,2.03,2576.2549,3.33e-16,PASS
+441-implicit-final-node87.sh.log,360,IMPLICIT_FINAL_FORMAL round=1 mode=control m=2432 n=17024,1,control,2432,17024,23.76,4238.5150,7.77e-16,PASS
+441-implicit-final-node87.sh.log,366,IMPLICIT_FINAL_FORMAL round=1 mode=final m=2432 n=17024,1,final,2432,17024,23.68,4252.5376,7.77e-16,PASS
+441-implicit-final-node87.sh.log,372,IMPLICIT_FINAL_FORMAL round=1 mode=off m=2432 n=17024,1,off,2432,17024,23.59,4267.7870,7.77e-16,PASS
+441-implicit-final-node87.sh.log,378,IMPLICIT_FINAL_FORMAL round=2 mode=off m=2432 n=17024,2,off,2432,17024,23.62,4263.4299,7.77e-16,PASS
+441-implicit-final-node87.sh.log,384,IMPLICIT_FINAL_FORMAL round=2 mode=final m=2432 n=17024,2,final,2432,17024,23.60,4266.8411,7.77e-16,PASS
+441-implicit-final-node87.sh.log,390,IMPLICIT_FINAL_FORMAL round=2 mode=control m=2432 n=17024,2,control,2432,17024,23.75,4238.7376,7.77e-16,PASS
+441-implicit-final-node87.sh.log,396,IMPLICIT_FINAL_FORMAL round=3 mode=control m=2432 n=17024,3,control,2432,17024,23.66,4255.7068,7.77e-16,PASS
+441-implicit-final-node87.sh.log,402,IMPLICIT_FINAL_FORMAL round=3 mode=final m=2432 n=17024,3,final,2432,17024,23.58,4270.6313,7.77e-16,PASS
+441-implicit-final-node87.sh.log,408,IMPLICIT_FINAL_FORMAL round=3 mode=off m=2432 n=17024,3,off,2432,17024,23.64,4258.4656,7.77e-16,PASS
+441-implicit-final-node87.sh.log,414,IMPLICIT_FINAL_FORMAL round=4 mode=off m=2432 n=17024,4,off,2432,17024,23.71,4246.6825,7.77e-16,PASS
+441-implicit-final-node87.sh.log,420,IMPLICIT_FINAL_FORMAL round=4 mode=final m=2432 n=17024,4,final,2432,17024,23.57,4272.8459,7.77e-16,PASS
+441-implicit-final-node87.sh.log,426,IMPLICIT_FINAL_FORMAL round=4 mode=control m=2432 n=17024,4,control,2432,17024,23.66,4256.5140,7.77e-16,PASS
+441-implicit-final-node87.sh.log,432,IMPLICIT_FINAL_FORMAL round=1 mode=control m=17024 n=512,1,control,17024,512,36.07,4114.2006,1.50e-15,PASS
+441-implicit-final-node87.sh.log,438,IMPLICIT_FINAL_FORMAL round=1 mode=final m=17024 n=512,1,final,17024,512,35.59,4169.6575,1.50e-15,PASS
+441-implicit-final-node87.sh.log,444,IMPLICIT_FINAL_FORMAL round=1 mode=off m=17024 n=512,1,off,17024,512,35.63,4164.5255,1.50e-15,PASS
+441-implicit-final-node87.sh.log,450,IMPLICIT_FINAL_FORMAL round=2 mode=off m=17024 n=512,2,off,17024,512,35.56,4172.9164,1.50e-15,PASS
+441-implicit-final-node87.sh.log,456,IMPLICIT_FINAL_FORMAL round=2 mode=final m=17024 n=512,2,final,17024,512,35.56,4173.2597,1.50e-15,PASS
+441-implicit-final-node87.sh.log,462,IMPLICIT_FINAL_FORMAL round=2 mode=control m=17024 n=512,2,control,17024,512,35.83,4141.6459,1.50e-15,PASS
+441-implicit-final-node87.sh.log,468,IMPLICIT_FINAL_FORMAL round=3 mode=control m=17024 n=512,3,control,17024,512,35.89,4134.7612,1.50e-15,PASS
+441-implicit-final-node87.sh.log,474,IMPLICIT_FINAL_FORMAL round=3 mode=final m=17024 n=512,3,final,17024,512,35.61,4166.6983,1.50e-15,PASS
+441-implicit-final-node87.sh.log,480,IMPLICIT_FINAL_FORMAL round=3 mode=off m=17024 n=512,3,off,17024,512,35.59,4169.3822,1.50e-15,PASS
+441-implicit-final-node87.sh.log,486,IMPLICIT_FINAL_FORMAL round=4 mode=off m=17024 n=512,4,off,17024,512,35.61,4166.3949,1.50e-15,PASS
+441-implicit-final-node87.sh.log,492,IMPLICIT_FINAL_FORMAL round=4 mode=final m=17024 n=512,4,final,17024,512,35.61,4166.6636,1.50e-15,PASS
+441-implicit-final-node87.sh.log,498,IMPLICIT_FINAL_FORMAL round=4 mode=control m=17024 n=512,4,control,17024,512,35.84,4140.0447,1.50e-15,PASS
+443-implicit-close.sh.log,77,IMPLICIT_FINAL_FORMAL round=1 mode=control m=512 n=19968,1,control,512,19968,1.97,2661.0267,3.33e-16,PASS
+443-implicit-close.sh.log,83,IMPLICIT_FINAL_FORMAL round=1 mode=final m=512 n=19968,1,final,512,19968,1.91,2743.6248,3.33e-16,PASS
+443-implicit-close.sh.log,89,IMPLICIT_FINAL_FORMAL round=1 mode=off m=512 n=19968,1,off,512,19968,1.92,2732.2251,3.33e-16,PASS
+443-implicit-close.sh.log,95,IMPLICIT_FINAL_FORMAL round=2 mode=off m=512 n=19968,2,off,512,19968,1.91,2746.4916,3.33e-16,PASS
+443-implicit-close.sh.log,101,IMPLICIT_FINAL_FORMAL round=2 mode=final m=512 n=19968,2,final,512,19968,1.90,2761.7998,3.33e-16,PASS
+443-implicit-close.sh.log,107,IMPLICIT_FINAL_FORMAL round=2 mode=control m=512 n=19968,2,control,512,19968,1.93,2712.9230,3.33e-16,PASS
+443-implicit-close.sh.log,113,IMPLICIT_FINAL_FORMAL round=3 mode=control m=512 n=19968,3,control,512,19968,1.94,2691.3537,3.33e-16,PASS
+443-implicit-close.sh.log,119,IMPLICIT_FINAL_FORMAL round=3 mode=final m=512 n=19968,3,final,512,19968,1.92,2731.1828,3.33e-16,PASS
+443-implicit-close.sh.log,125,IMPLICIT_FINAL_FORMAL round=3 mode=off m=512 n=19968,3,off,512,19968,1.94,2697.9098,3.33e-16,PASS
+443-implicit-close.sh.log,131,IMPLICIT_FINAL_FORMAL round=4 mode=off m=512 n=19968,4,off,512,19968,1.93,2718.9179,3.33e-16,PASS
+443-implicit-close.sh.log,137,IMPLICIT_FINAL_FORMAL round=4 mode=final m=512 n=19968,4,final,512,19968,1.92,2725.2496,3.33e-16,PASS
+443-implicit-close.sh.log,143,IMPLICIT_FINAL_FORMAL round=4 mode=control m=512 n=19968,4,control,512,19968,1.91,2744.9665,3.33e-16,PASS
+443-implicit-close.sh.log,149,IMPLICIT_FINAL_FORMAL round=5 mode=control m=512 n=19968,5,control,512,19968,1.92,2723.5258,3.33e-16,PASS
+443-implicit-close.sh.log,155,IMPLICIT_FINAL_FORMAL round=5 mode=final m=512 n=19968,5,final,512,19968,1.91,2738.0624,3.33e-16,PASS
+443-implicit-close.sh.log,161,IMPLICIT_FINAL_FORMAL round=5 mode=off m=512 n=19968,5,off,512,19968,1.94,2695.0685,3.33e-16,PASS
+443-implicit-close.sh.log,167,IMPLICIT_FINAL_FORMAL round=6 mode=off m=512 n=19968,6,off,512,19968,1.91,2738.0179,3.33e-16,PASS
+443-implicit-close.sh.log,173,IMPLICIT_FINAL_FORMAL round=6 mode=final m=512 n=19968,6,final,512,19968,1.91,2737.3049,3.33e-16,PASS
+443-implicit-close.sh.log,179,IMPLICIT_FINAL_FORMAL round=6 mode=control m=512 n=19968,6,control,512,19968,1.90,2749.0555,3.33e-16,PASS
+443-implicit-close.sh.log,185,IMPLICIT_FINAL_FORMAL round=7 mode=control m=512 n=19968,7,control,512,19968,1.92,2727.8278,3.33e-16,PASS
+443-implicit-close.sh.log,191,IMPLICIT_FINAL_FORMAL round=7 mode=final m=512 n=19968,7,final,512,19968,1.91,2737.7471,3.33e-16,PASS
+443-implicit-close.sh.log,197,IMPLICIT_FINAL_FORMAL round=7 mode=off m=512 n=19968,7,off,512,19968,1.91,2734.4258,3.33e-16,PASS
+443-implicit-close.sh.log,203,IMPLICIT_FINAL_FORMAL round=8 mode=off m=512 n=19968,8,off,512,19968,1.93,2706.4163,3.33e-16,PASS
+443-implicit-close.sh.log,209,IMPLICIT_FINAL_FORMAL round=8 mode=final m=512 n=19968,8,final,512,19968,1.96,2670.7219,3.33e-16,PASS
+443-implicit-close.sh.log,215,IMPLICIT_FINAL_FORMAL round=8 mode=control m=512 n=19968,8,control,512,19968,1.91,2741.8345,3.33e-16,PASS
+443-implicit-close.sh.log,221,IMPLICIT_FINAL_FORMAL round=9 mode=control m=512 n=19968,9,control,512,19968,1.91,2735.0594,3.33e-16,PASS
+443-implicit-close.sh.log,227,IMPLICIT_FINAL_FORMAL round=9 mode=final m=512 n=19968,9,final,512,19968,1.92,2729.1632,3.33e-16,PASS
+443-implicit-close.sh.log,233,IMPLICIT_FINAL_FORMAL round=9 mode=off m=512 n=19968,9,off,512,19968,1.90,2749.8967,3.33e-16,PASS
+443-implicit-close.sh.log,239,IMPLICIT_FINAL_FORMAL round=10 mode=off m=512 n=19968,10,off,512,19968,1.92,2730.5830,3.33e-16,PASS
+443-implicit-close.sh.log,245,IMPLICIT_FINAL_FORMAL round=10 mode=final m=512 n=19968,10,final,512,19968,1.91,2742.8898,3.33e-16,PASS
+443-implicit-close.sh.log,251,IMPLICIT_FINAL_FORMAL round=10 mode=control m=512 n=19968,10,control,512,19968,1.90,2758.1139,3.33e-16,PASS
+443-implicit-close.sh.log,257,IMPLICIT_FINAL_FORMAL round=11 mode=control m=512 n=19968,11,control,512,19968,1.92,2723.8917,3.33e-16,PASS
+443-implicit-close.sh.log,263,IMPLICIT_FINAL_FORMAL round=11 mode=final m=512 n=19968,11,final,512,19968,1.90,2749.0013,3.33e-16,PASS
+443-implicit-close.sh.log,269,IMPLICIT_FINAL_FORMAL round=11 mode=off m=512 n=19968,11,off,512,19968,1.95,2688.3254,3.33e-16,PASS
+443-implicit-close.sh.log,275,IMPLICIT_FINAL_FORMAL round=12 mode=off m=512 n=19968,12,off,512,19968,1.92,2729.6316,3.33e-16,PASS
+443-implicit-close.sh.log,281,IMPLICIT_FINAL_FORMAL round=12 mode=final m=512 n=19968,12,final,512,19968,1.90,2749.4620,3.33e-16,PASS
+443-implicit-close.sh.log,287,IMPLICIT_FINAL_FORMAL round=12 mode=control m=512 n=19968,12,control,512,19968,1.93,2715.4161,3.33e-16,PASS
+443-implicit-close.sh.log,333,IMPLICIT_FINAL_PROFILE mode=control m=512 n=19968,,control,512,19968,2.35,2227.5672,3.33e-16,PASS
+443-implicit-close.sh.log,379,IMPLICIT_FINAL_PROFILE mode=final m=512 n=19968,,final,512,19968,2.45,2132.8825,3.33e-16,PASS
+443-implicit-close.sh.log,425,IMPLICIT_FINAL_PROFILE mode=off m=512 n=19968,,off,512,19968,2.35,2223.5822,3.33e-16,PASS
+443-implicit-close.sh.log,432,IMPLICIT_RUN_SH,,,512,19968,1.95,2687.3257,3.33e-16,PASS
+443-implicit-close.sh.log,437,IMPLICIT_RUN_SH,,,2432,17024,23.66,4255.6415,7.77e-16,PASS
+443-implicit-close.sh.log,442,IMPLICIT_RUN_SH,,,17024,512,35.11,4226.1144,1.50e-15,PASS
+443-implicit-close.sh.log,448,IMPLICIT_ORIGINAL_COMMANDS,,,512,19968,2.79,1873.6173,3.33e-16,PASS
+443-implicit-close.sh.log,453,IMPLICIT_ORIGINAL_COMMANDS,,,2432,17024,24.63,4087.6478,7.77e-16,PASS
+443-implicit-close.sh.log,458,IMPLICIT_ORIGINAL_COMMANDS,,,17024,512,35.24,4211.0147,1.50e-15,PASS
+444-implicit-final-node85.sh.log,144,IMPLICIT_FINAL_FORMAL round=1 mode=control m=512 n=19968,1,control,512,19968,1.95,2690.7578,3.33e-16,PASS
+444-implicit-final-node85.sh.log,150,IMPLICIT_FINAL_FORMAL round=1 mode=final m=512 n=19968,1,final,512,19968,1.91,2740.6285,3.33e-16,PASS
+444-implicit-final-node85.sh.log,156,IMPLICIT_FINAL_FORMAL round=1 mode=off m=512 n=19968,1,off,512,19968,1.91,2747.1428,3.33e-16,PASS
+444-implicit-final-node85.sh.log,162,IMPLICIT_FINAL_FORMAL round=2 mode=off m=512 n=19968,2,off,512,19968,1.94,2703.3185,3.33e-16,PASS
+444-implicit-final-node85.sh.log,168,IMPLICIT_FINAL_FORMAL round=2 mode=final m=512 n=19968,2,final,512,19968,1.95,2686.2153,3.33e-16,PASS
+444-implicit-final-node85.sh.log,174,IMPLICIT_FINAL_FORMAL round=2 mode=control m=512 n=19968,2,control,512,19968,1.94,2694.5261,3.33e-16,PASS
+444-implicit-final-node85.sh.log,180,IMPLICIT_FINAL_FORMAL round=3 mode=control m=512 n=19968,3,control,512,19968,1.97,2654.6322,3.33e-16,PASS
+444-implicit-final-node85.sh.log,186,IMPLICIT_FINAL_FORMAL round=3 mode=final m=512 n=19968,3,final,512,19968,1.91,2740.2932,3.33e-16,PASS
+444-implicit-final-node85.sh.log,192,IMPLICIT_FINAL_FORMAL round=3 mode=off m=512 n=19968,3,off,512,19968,1.91,2738.7878,3.33e-16,PASS
+444-implicit-final-node85.sh.log,198,IMPLICIT_FINAL_FORMAL round=4 mode=off m=512 n=19968,4,off,512,19968,1.92,2726.1085,3.33e-16,PASS
+444-implicit-final-node85.sh.log,204,IMPLICIT_FINAL_FORMAL round=4 mode=final m=512 n=19968,4,final,512,19968,1.91,2743.2924,3.33e-16,PASS
+444-implicit-final-node85.sh.log,210,IMPLICIT_FINAL_FORMAL round=4 mode=control m=512 n=19968,4,control,512,19968,1.95,2690.8704,3.33e-16,PASS
+444-implicit-final-node85.sh.log,216,IMPLICIT_FINAL_FORMAL round=5 mode=control m=512 n=19968,5,control,512,19968,1.96,2675.3045,3.33e-16,PASS
+444-implicit-final-node85.sh.log,222,IMPLICIT_FINAL_FORMAL round=5 mode=final m=512 n=19968,5,final,512,19968,1.91,2736.2811,3.33e-16,PASS
+444-implicit-final-node85.sh.log,228,IMPLICIT_FINAL_FORMAL round=5 mode=off m=512 n=19968,5,off,512,19968,1.90,2761.6048,3.33e-16,PASS
+444-implicit-final-node85.sh.log,234,IMPLICIT_FINAL_FORMAL round=6 mode=off m=512 n=19968,6,off,512,19968,1.91,2737.8150,3.33e-16,PASS
+444-implicit-final-node85.sh.log,240,IMPLICIT_FINAL_FORMAL round=6 mode=final m=512 n=19968,6,final,512,19968,1.89,2771.3613,3.33e-16,PASS
+444-implicit-final-node85.sh.log,246,IMPLICIT_FINAL_FORMAL round=6 mode=control m=512 n=19968,6,control,512,19968,1.92,2732.6060,3.33e-16,PASS
+444-implicit-final-node85.sh.log,252,IMPLICIT_FINAL_FORMAL round=7 mode=control m=512 n=19968,7,control,512,19968,1.98,2645.0627,3.33e-16,PASS
+444-implicit-final-node85.sh.log,258,IMPLICIT_FINAL_FORMAL round=7 mode=final m=512 n=19968,7,final,512,19968,1.91,2740.0767,3.33e-16,PASS
+444-implicit-final-node85.sh.log,264,IMPLICIT_FINAL_FORMAL round=7 mode=off m=512 n=19968,7,off,512,19968,1.93,2712.5019,3.33e-16,PASS
+444-implicit-final-node85.sh.log,270,IMPLICIT_FINAL_FORMAL round=8 mode=off m=512 n=19968,8,off,512,19968,1.93,2711.2871,3.33e-16,PASS
+444-implicit-final-node85.sh.log,276,IMPLICIT_FINAL_FORMAL round=8 mode=final m=512 n=19968,8,final,512,19968,1.90,2747.9663,3.33e-16,PASS
+444-implicit-final-node85.sh.log,282,IMPLICIT_FINAL_FORMAL round=8 mode=control m=512 n=19968,8,control,512,19968,2.00,2610.9297,3.33e-16,PASS
+444-implicit-final-node85.sh.log,288,IMPLICIT_FINAL_FORMAL round=9 mode=control m=512 n=19968,9,control,512,19968,1.93,2716.8496,3.33e-16,PASS
+444-implicit-final-node85.sh.log,294,IMPLICIT_FINAL_FORMAL round=9 mode=final m=512 n=19968,9,final,512,19968,1.89,2771.6307,3.33e-16,PASS
+444-implicit-final-node85.sh.log,300,IMPLICIT_FINAL_FORMAL round=9 mode=off m=512 n=19968,9,off,512,19968,1.93,2710.5379,3.33e-16,PASS
+444-implicit-final-node85.sh.log,306,IMPLICIT_FINAL_FORMAL round=10 mode=off m=512 n=19968,10,off,512,19968,1.90,2750.0940,3.33e-16,PASS
+444-implicit-final-node85.sh.log,312,IMPLICIT_FINAL_FORMAL round=10 mode=final m=512 n=19968,10,final,512,19968,1.90,2756.7511,3.33e-16,PASS
+444-implicit-final-node85.sh.log,318,IMPLICIT_FINAL_FORMAL round=10 mode=control m=512 n=19968,10,control,512,19968,1.92,2733.0209,3.33e-16,PASS
+444-implicit-final-node85.sh.log,324,IMPLICIT_FINAL_FORMAL round=11 mode=control m=512 n=19968,11,control,512,19968,1.94,2701.4170,3.33e-16,PASS
+444-implicit-final-node85.sh.log,330,IMPLICIT_FINAL_FORMAL round=11 mode=final m=512 n=19968,11,final,512,19968,1.92,2726.6081,3.33e-16,PASS
+444-implicit-final-node85.sh.log,336,IMPLICIT_FINAL_FORMAL round=11 mode=off m=512 n=19968,11,off,512,19968,1.91,2734.9034,3.33e-16,PASS
+444-implicit-final-node85.sh.log,342,IMPLICIT_FINAL_FORMAL round=12 mode=off m=512 n=19968,12,off,512,19968,1.92,2732.9927,3.33e-16,PASS
+444-implicit-final-node85.sh.log,348,IMPLICIT_FINAL_FORMAL round=12 mode=final m=512 n=19968,12,final,512,19968,1.91,2741.1609,3.33e-16,PASS
+444-implicit-final-node85.sh.log,354,IMPLICIT_FINAL_FORMAL round=12 mode=control m=512 n=19968,12,control,512,19968,1.92,2729.3160,3.33e-16,PASS

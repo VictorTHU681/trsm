@@ -5256,8 +5256,43 @@ static inline __attribute__((always_inline)) void kloop_owner_cursor4(const doub
 // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)。
 // 写 c->tasks / ntask_items / part / owner_bound；TRSM_TBUILD=1（默认）时由并行区线程 0 调用（与其他线程的
 // 对角预处理重叠，g_tables_ready 发布），=0 时在 setup 串行调用（旧行为）。
+static int g_implicit_owner;
+
+// Owner tasks have a regular (panel,row-block) index. Construct each actual
+// task at its use site; all task fields and thread boundaries are fresh per call.
+static inline __attribute__((always_inline)) task_t owner_task_at(const ctx_t* c, long q)
+{
+    task_t t = {0};
+    t.i = (int)(q % c->nrb); t.p = (int)(q / c->nrb);
+    t.nseg = 1; t.ch1 = (long)t.i * (c->mb / c->kc);
+    return t;
+}
+static void build_owner_bounds(ctx_t* c, int nth)
+{
+    double c0 = env_int("TRSM_OWNER_C0", c->special == 5 && c->pf2 ? 160 : 192) * (double)c->mb * c->nc;
+    double a = (double)c->mb*c->mb*c->nc;
+    double b = 0.5*a+c0;
+    double rowsum = a*c->nrb*(c->nrb-1)/2+b*c->nrb;
+    long count=c->nrb*c->npan;
+    double total=rowsum*c->npan;
+    c->owner_bound=malloc(sizeof(long)*(nth+1));
+    if(!c->owner_bound)abort();
+    c->owner_bound[0]=0;c->owner_bound[nth]=count;
+    for(int t=1;t<nth;t++){
+        double target=total*t/nth;
+        long lo=0,hi=count;
+        while(lo<hi){
+            long q=lo+(hi-lo)/2,r=q%c->nrb;
+            double prefix=(q/c->nrb)*rowsum+a*r*(r-1)/2+b*r;
+            if(prefix>=target)hi=q;else lo=q+1;
+        }
+        c->owner_bound[t]=lo;
+    }
+    c->tasks=NULL;c->ntask_items=count;c->part=NULL;
+}
 static void build_tasks(ctx_t* c, int nth)
 {
+    if(g_implicit_owner){build_owner_bounds(c,nth);return;}
     const int mb = c->mb, nc = c->nc, kc = c->kc;
     const long n = c->n;
 
@@ -5512,6 +5547,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // Tune B prefetch separately for the paired-row owner loop.
     if (c.special == 5) c.loadpf = env_int("TRSM_LOADPF", 0);
 
+    g_implicit_owner = env_int("TRSM_IMPLICIT_OWNER",1) && c.special==5 && c.m<=1024
+        && c.cshift==0 && c.ppmode==0 && c.mb==64 && c.nc==96 && c.kc==64
+        && c.m%64==0 && c.n%96==0 && env_int("TRSM_KHEADW",0)==0
+        && env_int("TRSM_OWNER_C0",160)>=0;
     g_align_owner_buffers = c.owner || env_int("TRSM_ALIGN_ALL", 0);   // 2 MiB 对齐所有缓冲：专用路径实测 case2 持平、case3 −0.1 ms 但出现 44 ms 异常轮，默认关
 
     // HBM 容量规划：自己的缓冲（Xp、打包 L）尽量进 HBM，空间不够就退本地 DDR（算子不移动调用方内存）。
@@ -5778,9 +5817,17 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     }
                 }
                 {   // cshift>0 时首/末奇面板（宽度 ≠ nc 或起点非对齐）路由到通用路径
-                    const task_t* tsk = &c.tasks[sched[s]];
+                    task_t current_task, next_task;
+                    const task_t *tsk, *guess=NULL;
+                    if(g_implicit_owner){
+                        current_task=owner_task_at(&c,sched[s]);tsk=&current_task;
+                        if(s+1<k){next_task=owner_task_at(&c,sched[s+1]);guess=&next_task;}
+                    }else{
+                        tsk=&c.tasks[sched[s]];
+                        if(s+1<k)guess=&c.tasks[sched[s+1]];
+                    }
                     const int fullpan = !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
-                    (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, s + 1 < k ? &c.tasks[sched[s + 1]] : NULL, tid);
+                    (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, guess, tid);
                 }
             }
         } else {
