@@ -5622,6 +5622,9 @@ static void build_owner_bounds(ctx_t* c, int nth)
         }
         double penbar = 0;                                                    // 上一轮平均惩罚
         long* bnd = c->owner_bound;
+        // 局部相位搜索（TRSM_SHAPEP_LS）：在目标点 ±LS 块窗口内取 minimax(左右相邻线程预计 span)，
+        // 允许小幅失衡换低惩罚相位；0 关（默认），认证后再定档
+        int ls = env_int("TRSM_SHAPEP_LS", 0);
         for (int iter = 0; iter < 3; iter++) {
             double cum = 0, pensum = 0;                                       // cum = Σ_{s<t}(penbar − pen(ia_s))
             for (int t = 1; t < nth; t++) {
@@ -5634,6 +5637,25 @@ static void build_owner_bounds(ctx_t* c, int nth)
                     long q = lo + (hi - lo) / 2, r = q % c->nrb;
                     double prefix = (q / c->nrb) * rowsum + a * r * (r - 1) / 2 + b * r;
                     if (prefix >= target) hi = q; else lo = q + 1;
+                }
+                if (ls > 0) {
+                    // 候选窗口 [lo-ls, lo+ls]：minimax(左线程 span, 右线程预计 span)
+                    #define OB_PREFIX(q) (((q) / c->nrb) * rowsum + a * (((q) % c->nrb) * (((q) % c->nrb) - 1)) / 2 + b * ((q) % c->nrb))
+                    double pfx_prev = OB_PREFIX(bnd[t - 1]);
+                    double pen_prev = ia_prev < nrb ? pen[ia_prev] : 0;
+                    double best = 1e300; long bestq = lo;
+                    for (long q = lo - ls; q <= lo + ls; q++) {
+                        if (q <= bnd[t - 1] || q > count) continue;
+                        long r = q % c->nrb;
+                        double pq = OB_PREFIX(q), pr = r < nrb ? pen[r] : 0;
+                        double lspan = pq - pfx_prev + pen_prev;
+                        double tnext = total * (t + 1) / nth + cum + penbar - pr;
+                        double rspan = tnext - pq + pr;
+                        double j = lspan > rspan ? lspan : rspan;
+                        if (j < best) { best = j; bestq = q; }
+                    }
+                    #undef OB_PREFIX
+                    lo = bestq;
                 }
                 bnd[t] = lo;
             }
