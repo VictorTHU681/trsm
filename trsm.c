@@ -5605,6 +5605,45 @@ static void build_owner_bounds(ctx_t* c, int nth)
     c->owner_bound=malloc(sizeof(long)*(nth+1));
     if(!c->owner_bound)abort();
     c->owner_bound[0]=0;c->owner_bound[nth]=count;
+    // 区间起点相位 ia 的形状惩罚（TRSM_SHAPEP，百分比，0 关）：起点切在面板深处（ia 大）的线程要
+    // 付 khead 拷贝（~9.5 µs/行块）+ 头部残段全是高 i 长 K 任务的冷 A kloop 超额（每线程分相实测，
+    // logs/trsm_thrdiag_1598157.out：ia=1..7 相对 ia=0 的 span 超额 56/37/60/70/149/112/78 µs @1.55 GHz）。
+    // 线性 a·i+b 模型不含此项 → 深 ia 形状落到谁头上谁收尾最晚（历史"慢线程绑定 (ia,ib)"之谜）。
+    // 把惩罚以 a 的倍数计入该线程份额（µs ÷ 每 i 斜率 8.7 µs，频率不变量），前向扫描 + 定点迭代。
+    int shapep = env_int("TRSM_SHAPEP", 100);
+    if (shapep > 0 && c->nrb >= 2) {
+        static const double PEN_US8[8] = {0, 56, 37, 60, 70, 149, 112, 78};   // nrb=8（TC1 形状）实测表
+        double pen[/*ia*/ 64];
+        long nrb = c->nrb; if (nrb > 64) nrb = 64;
+        for (long r = 0; r < nrb; r++) {
+            long idx = nrb == 8 ? r : (r * 8 + nrb / 2) / nrb;                // 其他 nrb 按相位比例映射
+            if (idx > 7) idx = 7;
+            pen[r] = PEN_US8[idx] / 8.7 * a * ((double)shapep / 100.0);
+        }
+        double penbar = 0;                                                    // 上一轮平均惩罚
+        long* bnd = c->owner_bound;
+        for (int iter = 0; iter < 3; iter++) {
+            double cum = 0, pensum = 0;                                       // cum = Σ_{s<t}(penbar − pen(ia_s))
+            for (int t = 1; t < nth; t++) {
+                long ia_prev = bnd[t - 1] % c->nrb;
+                cum += penbar - (ia_prev < nrb ? pen[ia_prev] : 0);
+                pensum += (ia_prev < nrb ? pen[ia_prev] : 0);
+                double target = total * t / nth + cum;
+                long lo = bnd[t - 1], hi = count;                             // 单调性钳制
+                while (lo < hi) {
+                    long q = lo + (hi - lo) / 2, r = q % c->nrb;
+                    double prefix = (q / c->nrb) * rowsum + a * r * (r - 1) / 2 + b * r;
+                    if (prefix >= target) hi = q; else lo = q + 1;
+                }
+                bnd[t] = lo;
+            }
+            long ia_last = bnd[nth - 1] % c->nrb;
+            pensum += (ia_last < nrb ? pen[ia_last] : 0);
+            penbar = pensum / nth;
+        }
+        c->tasks=NULL;c->ntask_items=count;c->part=NULL;
+        return;
+    }
     for(int t=1;t<nth;t++){
         double target=total*t/nth;
         long lo=0,hi=count;
