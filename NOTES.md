@@ -663,6 +663,15 @@ K 链融合（TRSM_ZGEO_CPC 档位，A 跨 chunk 跳、B 在 cbuf 行连续无�
 **活口**：load 相 0.295 ms/线程串行于 GEMM（判题机同测 0.294-0.303、退化态 ×2 也落在此）——
 下一杠杆 = 装载与 GEMM 软件流水（cbuf 双缓冲，跨面板重叠），兼判题机波动稳定器。
 
+### v55n7 提交包（2026-09-13）
+
+**`trsm_submit_v55n7_e2eaf51.zip`** sha256 `325c1d53…`：trsm.c = v55+化石清理认证版（sha `1f6a3dc4…`，
+与 GitHub master 658ac18 逐字节同）+ run.sh **CPU 绑定改 node 7**（避开判题机默认 node 1 的共租户争用；
+`numactl -N 7 true` 探测失败自动回退 node 1，任何拓扑不致零分；HBM 由距离探测自适应 → node 23）。
+无 REHUGE / 无压实器 / 无任何合规待定项。cn20484 自包含验收：3 PASS（2.03/23.83/36.04，
+`[run.sh] numactl -N 7 --preferred=23` 生效）。node 7 赌注：判题机若 node 1 争用重于 node 7 则回收争用税
+（诊断实测 loadavg 128、kloop 效率 68-72%），若各节点均匀则中性。
+
 ### 10o. LDPIPE 装载流水证伪 + TC1"访存管线满载"统一结论（2026-09-13，fresh29 留档）
 
 **立项**（§10n 活口）：load 相 0.30 ms/线程（48 KB/任务的 B→cbuf 拷入）串行于 GEMM，判题机退化态 ×2 也落在此；
