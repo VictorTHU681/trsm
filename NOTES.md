@@ -619,6 +619,11 @@ MADV_HUGEPAGE + 每 2 MB 触碰（defrag=madvise 下每次缺页触发直接压�
 预期收回 TC1 的 load 超额 + kloop 页相关欠缩放 ≈ +100~250 分；本地 defrag=never 无法验证压实（触碰退化为无害 no-op），
 验证 = 再交一次带压实与 buddyinfo 的诊断包，与今日无压实基线对照。
 
+**同步纪律（用户指示 2026-09-13）**：压实器与 REHUGE 合规未判定前，相关提交（aacfd5b 起的 master 段 + fresh27）
+**暂不同步 GitHub**，仅存本地 + 集群服务器；origin/master 已回退至 f68f9b4、origin/fresh27 已删。评审裁定后再决定并线。
+diag3 包（`trsm_submit_diag3_6cbfcc5.zip`，run.sh=master 6cbfcc5、trsm.c=fresh27 89814b8 全同）：TC1 三方对照
+tc1a 基线 / tc1b 压实器 / tc1c REHUGE + TC2/TC3 各带压实，一次提交实测两种药；集群端到端验收进行中（trsm_diag3v）。
+
 ### 10g-pair. TC3 跨面板 A 复用第三形态（配对任务）证伪（2026-09-13，fresh24 留档）
 
 **立项**（用户点名 §10g-route 的"换分块主序"）：TC3 的 A（打包 L 1.16 GB）×4 面板重读 = 4.6 GB，占总流量 78%。
