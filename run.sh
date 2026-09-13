@@ -37,8 +37,11 @@ export OMP_WAIT_POLICY=active
 export GOMP_SPINCOUNT=infinite
 unset GOMP_CPU_AFFINITY OMP_THREAD_LIMIT 2>/dev/null || true
 
-# 内存：优先使用与 CPU 节点 1 相邻的纯内存节点（本机为 HBM node 17，距离 61），放不下时自动回落本地 DDR。
-cpunode=1
+# CPU 节点：优先绑 node 7（判题机为共享机器，避开常见默认 node 1 的共租户争用）；
+# 节点不存在或不可绑时回退 node 1，保证任何拓扑下都能出分。
+# 内存：优先使用与所选 CPU 节点相邻的纯内存节点（HBM，节点号 = CPU 节点 + 16），放不下时自动回落本地 DDR。
+cpunode=7
+numactl -N $cpunode true >/dev/null 2>&1 || cpunode=1
 hbm=""
 if [[ -r /sys/devices/system/node/node$cpunode/distance ]]; then
     read -ra dist < /sys/devices/system/node/node$cpunode/distance
