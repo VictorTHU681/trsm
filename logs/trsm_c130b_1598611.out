@@ -1,0 +1,28 @@
+=== HOST cn20485 02:24:45 474dea8 README_submit: 绑核说明对齐 node7 run.sh
+[env] host=cn20485 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+b68e192c87aa0e07d14abacc9de34386cb01745d151f9f52dadbfbf3d7a098b0  trsm.c
+--- RUN def_1
+   512 x 19968         1.90    2748.5137     3.33e-16     PASS
+--- RUN c130_1
+   512 x 19968         1.91    2738.2612     3.33e-16     PASS
+--- RUN def_2
+   512 x 19968         1.89    2770.9221     3.33e-16     PASS
+--- RUN c130_2
+   512 x 19968         1.89    2774.5807     3.33e-16     PASS
+--- RUN def_3
+   512 x 19968         1.88    2781.2286     3.33e-16     PASS
+--- RUN c130_3
+   512 x 19968         1.90    2753.9219     3.33e-16     PASS
+--- RUN def_4
+   512 x 19968         1.91    2734.0277     3.33e-16     PASS
+--- RUN c130_4
+   512 x 19968         1.90    2755.5329     3.33e-16     PASS
+--- RUN def_5
+   512 x 19968         1.89    2763.4446     3.33e-16     PASS
+--- RUN c130_5
+   512 x 19968         1.89    2769.6984     3.33e-16     PASS
+--- RUN def_6
+   512 x 19968         1.88    2789.0079     3.33e-16     PASS
+--- RUN c130_6
+   512 x 19968         1.89    2770.8087     3.33e-16     PASS
+=== DONE 02:25:10

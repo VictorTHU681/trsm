@@ -719,7 +719,11 @@ TC2/TC3 守护 PASS（两用例不走 build_owner_bounds，无结构扰动）；
 owner 关 / 5 线程 / SWHOST MB64）共 340 形状全 0 failures。机制验证（PROFILE=4）：深 ia 线程任务数 43→42.2–42.6、
 ia=0 线程 44.8→45.6，重分配按设计兑现。
 **残余（挂账）**：on 模式下 ia=5 span 仍略高（等化到 mean+40–70 µs，未完全平）；惩罚表为 cn20481 单节点拟合。
-后续候选：边界 J(q)=|Δprefix|+pen 局部相位搜索、C0 与 pen 联动重标定（模型截距 3.0a vs 实测 2.06a）。
+**同轮细化两项证伪（cn20484/85，[shapels 筛选](logs/trsm_shapels_1598526.out) + C0 正式认证）**：
+- **SHAPEP_LS 局部相位 minimax 搜索**（边界 ±LS 窗口取左右相邻线程 span 的 minimax，允许小失衡换低惩罚相位，默认关）：
+  fastbench LS=2/4 −1.6%/−2.3%、C0=100+LS2 −1.8%——放宽单调均衡去迁就相位，得不偿失，关闭。
+- **C0=130 重标定**（模型截距 3.0a 偏离实测 2.06a）：fastbench +0.91% 但正式双节点交错 6 轮 **cn20484 +0.04%（2/6）/ cn20485 −0.15%（3/6）= 持平**，
+  又一次"fastbench min 信号 → 官方中位归零"（第四次），C0 保持默认 160。SHAPEP=100 无 LS 即该机制终态。
 **同轮记录（勿误读）**：TC2 每线程 resid ≈0.85 ms 是 PROF_T 插桩自身（每桶两次 cntvct），非真实可采空间；
 TC3 wait 1.0–1.2 / idle 0.65 复确认为依赖链/尾部结构（TAILW/WAVE/LASTLATE 已证伪或已收）。
 
