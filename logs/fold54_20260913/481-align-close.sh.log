@@ -1,0 +1,225 @@
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.11e-16  ok
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+m=  161 n=  516 lda=  203 ldb=  546  maxerr=1.11e-16  ok
+m=  848 n=   56 lda=  906 ldb=   57  maxerr=1.11e-16  ok
+m=  261 n=  418 lda=  291 ldb=  460  maxerr=1.11e-16  ok
+m=  333 n=  504 lda=  390 ldb=  518  maxerr=1.11e-16  ok
+m=  535 n=  455 lda=  541 ldb=  484  maxerr=1.11e-16  ok
+m=  173 n=  680 lda=  206 ldb=  711  maxerr=1.11e-16  ok
+m=  453 n=    8 lda=  489 ldb=   67  maxerr=1.11e-16  ok
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+m=  238 n=  646 lda=  270 ldb=  664  maxerr=1.11e-16  ok
+m=  426 n=   23 lda=  450 ldb=   80  maxerr=6.94e-17  ok
+m=  833 n=    3 lda=  852 ldb=   33  maxerr=5.55e-17  ok
+m=   54 n=  290 lda=   98 ldb=  324  maxerr=1.11e-16  ok
+m=  725 n=  319 lda=  758 ldb=  359  maxerr=1.11e-16  ok
+m=  560 n=   32 lda=  589 ldb=  100  maxerr=1.11e-16  ok
+m=  272 n=  482 lda=  298 ldb=  544  maxerr=1.11e-16  ok
+m=  464 n=   57 lda=  528 ldb=   85  maxerr=1.11e-16  ok
+m=   96 n=  334 lda=  130 ldb=  352  maxerr=1.11e-16  ok
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=3 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=2 maxerr=1.284e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=3 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=3 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=3 maxerr=2.047e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=3 maxerr=1.388e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=8.327e-17 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=3 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=2 maxerr=2.220e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=2 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=2 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=3 maxerr=2.776e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=3 maxerr=1.110e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=2 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=2 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=2 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=3 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=2 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=3 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=2 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=3 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=2 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=2 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT_TOTAL cases=128 failures=0 maxerr=2.776e-16
+changed-input case=1 iteration=0 maxerr=3.331e-16 PASS
+changed-input case=1 iteration=1 maxerr=3.886e-16 PASS
+changed-input case=1 iteration=2 maxerr=3.331e-16 PASS
+changed-input case=1 iteration=3 maxerr=3.331e-16 PASS
+changed-input case=2 iteration=0 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=1 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=2 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=3 maxerr=7.772e-16 PASS
+changed-input case=3 iteration=0 maxerr=1.499e-15 PASS
+changed-input case=3 iteration=1 maxerr=1.332e-15 PASS
+changed-input case=3 iteration=2 maxerr=1.554e-15 PASS
+changed-input case=3 iteration=3 maxerr=1.665e-15 PASS
+[run.sh] numactl -N 1 --preferred=17
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2736.2707     3.33e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.69    4249.5595     7.77e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        34.95    4246.0197     1.50e-15     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.70    1935.4919     3.33e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        24.71    4075.3747     7.77e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        34.98    4241.9329     1.50e-15     PASS
+000000000003dbb4 T l_trsm
+7a6eeb3803b32dcad0f40c2180e8a6246d5c150a7a121d06d8e69bcff7b29e97  trsm.c
+e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac  bench_trsm.c
+c7a21ad9e66ba9c3794f1c5940b39b0acb9722dd224ba6217329563d4cb1824b  run.sh
+FUSED_ALIGN_CLOSE_DONE

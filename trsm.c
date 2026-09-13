@@ -1414,6 +1414,318 @@ static void pack_strip(const double* L, long lda, long m, long row0, long k0, lo
 static inline size_t diag_strip_off(int s) { return (size_t)256 * s * (s + 1) / 2; }
 static inline size_t diag_block_doubles(int S) { return (size_t)256 * S * (S + 1) / 2; }
 
+static int g_diag_sme,g_diag_row,g_fused_diag;
+static inline __attribute__((always_inline)) void diag_product_sme(const double* a,const double* b,double* d)
+{
+    asm volatile(
+    "ptrue p0.d\n\t"
+    "zero {za}\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "add %[a],%[a],#128\n\t"
+    "add %[b],%[b],#128\n\t"
+    "ld1d z0.d,p0/z,[%[a]]\n\t"
+    "ld1d z1.d,p0/z,[%[a],#1,mul vl]\n\t"
+    "ld1d z2.d,p0/z,[%[b]]\n\t"
+    "ld1d z3.d,p0/z,[%[b],#1,mul vl]\n\t"
+    "fmopa za0.d,p0/m,p0/m,z0.d,z2.d\n\t"
+    "fmopa za1.d,p0/m,p0/m,z0.d,z3.d\n\t"
+    "fmopa za4.d,p0/m,p0/m,z1.d,z2.d\n\t"
+    "fmopa za5.d,p0/m,p0/m,z1.d,z3.d\n\t"
+    "mov w12,#0\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#1\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#2\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#3\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#4\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#5\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#6\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#7\n\t"
+    "mova z0.d,p0/m,za0v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za4v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#0\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#1\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#2\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#3\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#4\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#5\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#6\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+    "mov w12,#7\n\t"
+    "mova z0.d,p0/m,za1v.d[w12,0]\n\t"
+    "mova z1.d,p0/m,za5v.d[w12,0]\n\t"
+    "fneg z0.d,p0/m,z0.d\n\t"
+    "fneg z1.d,p0/m,z1.d\n\t"
+    "st1d z0.d,p0,[%[d]]\n\t"
+    "st1d z1.d,p0,[%[d],#1,mul vl]\n\t"
+    "add %[d],%[d],#128\n\t"
+
+    :[a]"+&r"(a),[b]"+&r"(b),[d]"+&r"(d)::"memory","cc","x12",VCLOB,PCLOB);
+}
+static __attribute__((noinline)) void diag_transform_sme(const double* L,long lda,long r0,long i0,int s,int vr,const double* inv,double* pk)
+{
+    double at[256],bt[256];
+    for(int k=0;k<16;k++)for(int r=0;r<16;r++)at[k*16+r]=inv[r*16+k];
+    sme_start();
+    svbool_t pg=svptrue_b64();
+    for(int sp=0;sp<s;sp++){
+        const double* src=L+r0*lda+i0+16*sp;
+        for(int k=0;k<16;k++){
+            svfloat64_t lo=svdup_f64(0),hi=lo;
+            if(k<vr){lo=svld1_f64(pg,src+k*lda);hi=svld1_f64(pg,src+k*lda+8);}
+            svst1_f64(pg,bt+k*16,lo);svst1_f64(pg,bt+k*16+8,hi);
+        }
+        diag_product_sme(at,bt,pk+256*sp);
+    }
+    sme_stop();
+}
 static void diag_prep_sub(const double* L, long lda, long i0, int mbi, int s, double* pk)
 {
     double Lss[16][16], Linv[16][16];
@@ -1424,6 +1736,19 @@ static void diag_prep_sub(const double* L, long lda, long i0, int mbi, int s, do
             Lss[r][c] = in ? L[(r0 + r) * lda + r0 + c] : (r == c ? 1.0 : 0.0);
             Linv[r][c] = 0.0;
         }
+    if(g_diag_row){
+        for(int r=0;r<16;r++){
+            double accum[16]={0};
+            double inverse=1.0/Lss[r][r];
+            for(int q=0;q<r;q++){
+                double a=Lss[r][q];
+                for(int col=0;col<=q;col++)accum[col]+=a*Linv[q][col];
+            }
+            for(int col=0;col<r;col++)
+                Linv[r][col]=-accum[col]/Lss[r][r];
+            Linv[r][r]=inverse;
+        }
+    }else{
     for (int c = 0; c < 16; c++) {
         Linv[c][c] = 1.0 / Lss[c][c];
         for (int r = c + 1; r < 16; r++) {
@@ -1432,10 +1757,12 @@ static void diag_prep_sub(const double* L, long lda, long i0, int mbi, int s, do
             Linv[r][c] = -acc / Lss[r][r];
         }
     }
+    }
     // 越界行 t（≥ mbi）在 L_{s,s'} 中视为 0 行
     int vr = mbi - 16 * s;
     if (vr > 16) vr = 16;
-    for (int sp = 0; sp < s; sp++) {
+    if(g_diag_sme && s>0)diag_transform_sme(L,lda,r0,i0,s,vr,&Linv[0][0],pk);
+    else for (int sp = 0; sp < s; sp++) {
         const double* Lb = L + r0 * lda + i0 + 16 * sp;   // L_{s,sp}[t][q] = Lb[t*lda + q]
         // 先把 16×16 子块按行主序拷进本地：原内层沿 t 步长 lda（case3 行距 ~136 KB），每个元素一条冷 cache 行，
         // 是 TC3 prep 0.72 ms/线程的主体；拷贝后计算全在 L1，q 内层可被编译器自动向量化
@@ -2151,7 +2478,10 @@ static long run_task(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t*
 { return run_task_impl(c, tb, tk, guess, tid, 0); }
 static long run_task_owner(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* guess, int tid)
 { return run_task_impl(c, tb, tk, guess, tid, 1); }
-static long run_task_owner_cursor(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid)
+#ifndef TRSM_OWNER_ALIGN
+#define TRSM_OWNER_ALIGN 64
+#endif
+static __attribute__((aligned(TRSM_OWNER_ALIGN))) long run_task_owner_cursor(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid)
 { return run_task_impl(c,tb,tk,guess,tid,2); }
 
 // Constant block configurations let the compiler remove generic index and mode work.
@@ -5430,6 +5760,22 @@ static void build_tasks(ctx_t* c, int nth)
         (void)ntile_full;
 }
 
+static void run_packed_diag(const ctx_t* c,tbuf_t* tb,const task_t* tk)
+{
+    uint64_t t0=c->prof>=2?cyc():0;
+    long i=tk->i,mbi=c->m-i*c->mb;
+    if(mbi>c->mb)mbi=c->mb;
+    // Ordinary preprocessing may use NEON; it is called outside streaming
+    // mode. No live ZA output crosses task boundaries in the task dispatcher.
+    sme_stop();
+    diag_prep_sub(c->L,c->lda,i*c->mb,(int)mbi,(int)tk->g,
+                  c->diag+c->diag_off[i]+diag_strip_off((int)tk->g));
+    sme_start();
+    __atomic_fetch_add(&c->dcnt[i],1,__ATOMIC_RELEASE);
+    // Pack time includes the diagonal work fused into this producer task.
+    if(c->prof>=2)tb->t_pack+=cyc()-t0;
+}
+
 // ---------------------------------------------------------------- 主流程
 static void trsm_sme(long m, long n, const double* L, long lda, double* B, long ldb)
 {
@@ -5680,6 +6026,11 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.dcnt = g_dcnt;
     TSUB(3);
     c.nobar = env_int("TRSM_NOBAR", 1);
+    // Recompute each diagonal strip in the task that packs the same L rows.
+    // 0 restores the original preprocessing; 2 forces this path for testing.
+    int fused_mode=env_int("TRSM_FUSED_DIAG",1);
+    g_fused_diag=fused_mode && (m>=4096 || fused_mode>1) && c.nobar && c.ppmode==1 && !c.owner;
+    g_diag_sme=g_diag_row=g_fused_diag;
 
     // 任务表构建：默认（TRSM_TBUILD=1）推迟到并行区由线程 0 完成，与其余线程的对角预处理重叠
     //（TC1 任务表 ~33 µs ≈ 1.7% 串行时间；其余线程经 g_tables_ready 同步后再进任务阶段）
@@ -5693,12 +6044,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     const int prep_pack = !c.jit && c.ppmode == 0;
     long ndiag_items = 0;
     for (long i = 0; i < c.nrb; i++) ndiag_items += c.S_of[i];
-    long nprep_items = ndiag_items + ((c.nobar && prep_pack) ? c.nstrip : 0);
+    long nprep_items = g_fused_diag ? 0 : ndiag_items + ((c.nobar && prep_pack) ? c.nstrip : 0);
     long* ditem_i = malloc(sizeof(long) * nprep_items);
     int* ditem_s = malloc(sizeof(int) * nprep_items);
     {
         long q = 0;
-        for (long i = 0; i < c.nrb; i++) {
+        for (long i = 0; i < (g_fused_diag ? 0 : c.nrb); i++) {
             for (int s = 0; s < c.S_of[i]; s++) { ditem_i[q] = i; ditem_s[q] = s; q++; }
             if (c.nobar && prep_pack) {
                 long g0 = i * mb / 16, g1 = (i + 1) * mb / 16; if (g1 > c.nstrip) g1 = c.nstrip;
@@ -5842,7 +6193,16 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             const task_t* tsk = &c.tasks[t];
             // cshift>0 时首/末奇面板（宽度 ≠ nc）路由到通用路径；打包任务（kind=1）两边都能处理，走 taskfn 不变
             const int fullpan = !c.cshift || tsk->kind != 0 || (tsk->p > 0 && tsk->p < c.npan - 1);
-            long tn = (fullpan ? taskfn : run_task)(&c, &g_tb[tid], tsk, tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
+            long tn;
+            {
+                tn = (fullpan ? taskfn : run_task)(&c, &g_tb[tid], tsk, tg < c.ntask_items ? &c.tasks[tg] : NULL, tid);
+                if(g_fused_diag && tsk->kind==1){
+                    task_t diag_task;
+                    diag_task.i=(16*tsk->g)/c.mb;
+                    diag_task.g=tsk->g%(c.mb/16);
+                    run_packed_diag(&c,&g_tb[tid],&diag_task);
+                }
+            }
             t = tn >= 0 ? tn : __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         }
         }

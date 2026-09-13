@@ -1,0 +1,80 @@
+FUSED_DIAG_AUDIT m=1 n=1 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=1 n=1 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+FUSED_DIAG_AUDIT m=1 n=40 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=1 n=40 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+FUSED_DIAG_AUDIT m=7 n=3 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=7 n=3 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+FUSED_DIAG_AUDIT m=16 n=32 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=16 n=32 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=17 n=33 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=17 n=33 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=31 n=100 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=31 n=100 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=33 n=7 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=33 n=7 diag=3 expected_diag=3 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+FUSED_DIAG_AUDIT m=100 n=100 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=100 n=100 diag=7 expected_diag=7 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=128 n=300 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=128 n=300 diag=8 expected_diag=8 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=255 n=257 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=255 n=257 diag=16 expected_diag=16 pack=0 expected_pack=4 threads=5 cpus=38..42 FAIL
+results/476-audit-jit-check.sh.running: line 11: 722975 Aborted                 (core dumped) numactl -N 1 --preferred=17 stdbuf -oL ./gen-fused 10
+EXPECTED_PREPACK_AUDIT_EXIT=134
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.67e-16  ok
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+m=  161 n=  516 lda=  203 ldb=  546  maxerr=1.11e-16  ok
+m=  848 n=   56 lda=  906 ldb=   57  maxerr=1.11e-16  ok
+m=  261 n=  418 lda=  291 ldb=  460  maxerr=1.11e-16  ok
+m=  333 n=  504 lda=  390 ldb=  518  maxerr=1.11e-16  ok
+m=  535 n=  455 lda=  541 ldb=  484  maxerr=1.11e-16  ok
+m=  173 n=  680 lda=  206 ldb=  711  maxerr=1.11e-16  ok
+m=  453 n=    8 lda=  489 ldb=   67  maxerr=1.11e-16  ok
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+m=  238 n=  646 lda=  270 ldb=  664  maxerr=1.11e-16  ok
+m=  426 n=   23 lda=  450 ldb=   80  maxerr=6.94e-17  ok
+m=  833 n=    3 lda=  852 ldb=   33  maxerr=5.55e-17  ok
+m=   54 n=  290 lda=   98 ldb=  324  maxerr=1.11e-16  ok
+m=  725 n=  319 lda=  758 ldb=  359  maxerr=1.11e-16  ok
+m=  560 n=   32 lda=  589 ldb=  100  maxerr=1.11e-16  ok
+m=  272 n=  482 lda=  298 ldb=  544  maxerr=1.11e-16  ok
+m=  464 n=   57 lda=  528 ldb=   85  maxerr=1.11e-16  ok
+m=   96 n=  334 lda=  130 ldb=  352  maxerr=1.11e-16  ok
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+AUDIT_JIT_CHECK_DONE

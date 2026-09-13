@@ -1,0 +1,10 @@
+ID           NAME         STATE      USER         ACCOUNT      QUEUE                START_TIME           END_TIME             EXEC_NODES           
+1591640      trsm-fold54  SUCCEEDED  niujiayin    common       q_pacopt             2026/09/13 16:50:13  2026/09/13 17:45:25  cn20486              
+ID           NAME         STATE      USER         ACCOUNT      QUEUE                START_TIME           END_TIME             EXEC_NODES           
+1593212      trsm-diag55  SUCCEEDED  niujiayin    common       q_pacopt             2026/09/13 18:44:13  2026/09/13 19:40:28  cn20485              
+ID           NAME         STATE      USER         ACCOUNT      QUEUE                START_TIME           END_TIME             EXEC_NODES           
+1593270      trsm-diag55b SUCCEEDED  niujiayin    common       q_pacopt             2026/09/13 18:49:14  2026/09/13 19:43:14  cn20487              
+ID           NAME         STATE      USER         ACCOUNT      QUEUE                START_TIME           END_TIME             EXEC_NODES           
+1593837      trsm-align-* FAILED     niujiayin    common       q_pacopt             -                    2026/09/13 19:42:53  -                    
+ID           NAME         STATE      USER         ACCOUNT      QUEUE                START_TIME           END_TIME             EXEC_NODES           
+1593872      trsm-align-* SUCCEEDED  niujiayin    common       q_pacopt             2026/09/13 19:43:25  2026/09/13 19:50:58  cn20486

@@ -1,0 +1,455 @@
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=8.327e-17 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.249e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.249e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-16
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=8.327e-17 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-16
+DIAGSTORE_FORMAL round=1 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.71    4246.5150     7.77e-16     PASS
+DIAGSTORE_FORMAL round=1 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.52    4281.1606     7.77e-16     PASS
+DIAGSTORE_FORMAL round=1 mode=za64 m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.59    4267.7666     7.77e-16     PASS
+DIAGSTORE_FORMAL round=1 mode=mova64 m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.61    4265.5936     7.77e-16     PASS
+DIAGSTORE_FORMAL round=1 mode=zaall m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.84    4223.2406     7.77e-16     PASS
+DIAGSTORE_FORMAL round=1 mode=movaall m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.70    4249.1900     7.77e-16     PASS
+DIAGSTORE_FORMAL round=2 mode=movaall m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.73    4244.0392     7.77e-16     PASS
+DIAGSTORE_FORMAL round=2 mode=zaall m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.81    4228.6548     7.77e-16     PASS
+DIAGSTORE_FORMAL round=2 mode=mova64 m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.70    4248.0565     7.77e-16     PASS
+DIAGSTORE_FORMAL round=2 mode=za64 m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.65    4256.7848     7.77e-16     PASS
+DIAGSTORE_FORMAL round=2 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.56    4274.5577     7.77e-16     PASS
+DIAGSTORE_FORMAL round=2 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.66    4255.9070     7.77e-16     PASS
+DIAGSTORE_FORMAL round=3 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.66    4255.4395     7.77e-16     PASS
+DIAGSTORE_FORMAL round=3 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.69    4250.9837     7.77e-16     PASS
+DIAGSTORE_FORMAL round=3 mode=za64 m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.66    4255.1018     7.77e-16     PASS
+DIAGSTORE_FORMAL round=3 mode=mova64 m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.63    4261.6163     7.77e-16     PASS
+DIAGSTORE_FORMAL round=3 mode=zaall m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.85    4221.9481     7.77e-16     PASS
+DIAGSTORE_FORMAL round=3 mode=movaall m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.83    4225.5246     7.77e-16     PASS
+DIAGSTORE_FORMAL round=1 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.23    4211.3607     1.50e-15     PASS
+DIAGSTORE_FORMAL round=1 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.51    4178.5872     1.50e-15     PASS
+DIAGSTORE_FORMAL round=1 mode=za64 m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.27    4206.7257     1.50e-15     PASS
+DIAGSTORE_FORMAL round=1 mode=mova64 m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.26    4207.9241     1.50e-15     PASS
+DIAGSTORE_FORMAL round=1 mode=zaall m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.30    4202.9881     1.50e-15     PASS
+DIAGSTORE_FORMAL round=1 mode=movaall m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.14    4222.4029     1.50e-15     PASS
+DIAGSTORE_FORMAL round=2 mode=movaall m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.33    4199.6139     1.50e-15     PASS
+DIAGSTORE_FORMAL round=2 mode=zaall m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.28    4206.0407     1.50e-15     PASS
+DIAGSTORE_FORMAL round=2 mode=mova64 m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.37    4194.8774     1.50e-15     PASS
+DIAGSTORE_FORMAL round=2 mode=za64 m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.55    4173.7081     1.50e-15     PASS
+DIAGSTORE_FORMAL round=2 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.41    4190.9665     1.50e-15     PASS
+DIAGSTORE_FORMAL round=2 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.20    4214.9711     1.50e-15     PASS
+DIAGSTORE_FORMAL round=3 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.27    4207.2266     1.50e-15     PASS
+DIAGSTORE_FORMAL round=3 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.39    4192.9410     1.50e-15     PASS
+DIAGSTORE_FORMAL round=3 mode=za64 m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.26    4207.9227     1.50e-15     PASS
+DIAGSTORE_FORMAL round=3 mode=mova64 m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.25    4210.1214     1.50e-15     PASS
+DIAGSTORE_FORMAL round=3 mode=zaall m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.67    4159.4476     1.50e-15     PASS
+DIAGSTORE_FORMAL round=3 mode=movaall m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.29    4205.0080     1.50e-15     PASS
+DIAGSTORE_PROFILE mode=off m=2432 n=17024
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2017MB | setup 2.793 ms, parallel 42.217 ms
+[trsm prof]  setup 分解 µs：pin+探测 2476.4 | 准入+对角缓冲 70.5 | xp+pp 缓冲 224.5 | flags 10.4 | 任务表 0.6 | ditem 11.0
+[trsm prof]  并行区唤醒：最慢线程 779.7 µs，平均 312.7 µs
+[trsm prof]  每线程平均 ms：prep 6.120 | load 1.241 pack 0.000 xcopy 0.000 wait 0.005 kloop 17.067 dump 0.038 epi 0.008 dkloop 2.702 ddump 0.359 depi 0.094 store 7.399 | task 合计 29.759 | 尾部不均衡 0.568 ms（平均空闲 0.482 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 68.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2017MB | setup 0.022 ms, parallel 23.426 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 4.9 | xp+pp 缓冲 5.7 | flags 0.4 | 任务表 0.4 | ditem 10.7
+[trsm prof]  并行区唤醒：最慢线程 17.0 µs，平均 13.1 µs
+[trsm prof]  每线程平均 ms：prep 0.365 | load 0.868 pack 0.000 xcopy 0.000 wait 0.004 kloop 16.584 dump 0.038 epi 0.007 dkloop 2.556 ddump 0.350 depi 0.085 store 1.411 | task 合计 22.714 | 尾部不均衡 0.500 ms（平均空闲 0.306 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2017MB | setup 0.015 ms, parallel 23.306 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.5 | 准入+对角缓冲 5.5 | xp+pp 缓冲 5.8 | flags 0.4 | 任务表 0.5 | ditem 2.2
+[trsm prof]  并行区唤醒：最慢线程 20.7 µs，平均 11.8 µs
+[trsm prof]  每线程平均 ms：prep 0.356 | load 0.837 pack 0.000 xcopy 0.000 wait 0.005 kloop 16.592 dump 0.038 epi 0.007 dkloop 2.527 ddump 0.348 depi 0.086 store 1.378 | task 合计 22.625 | 尾部不均衡 0.588 ms（平均空闲 0.288 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2017MB | setup 0.015 ms, parallel 23.316 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.5 | xp+pp 缓冲 5.3 | flags 0.3 | 任务表 0.4 | ditem 2.6
+[trsm prof]  并行区唤醒：最慢线程 18.9 µs，平均 10.9 µs
+[trsm prof]  每线程平均 ms：prep 0.357 | load 0.829 pack 0.000 xcopy 0.000 wait 0.005 kloop 16.574 dump 0.037 epi 0.007 dkloop 2.537 ddump 0.349 depi 0.086 store 1.383 | task 合计 22.617 | 尾部不均衡 0.589 ms（平均空闲 0.305 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2017MB | setup 0.014 ms, parallel 23.447 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.5 | xp+pp 缓冲 4.8 | flags 0.4 | 任务表 0.4 | ditem 2.1
+[trsm prof]  并行区唤醒：最慢线程 17.7 µs，平均 11.0 µs
+[trsm prof]  每线程平均 ms：prep 0.363 | load 0.851 pack 0.000 xcopy 0.000 wait 0.005 kloop 16.580 dump 0.037 epi 0.007 dkloop 2.549 ddump 0.354 depi 0.086 store 1.383 | task 合计 22.661 | 尾部不均衡 0.588 ms（平均空闲 0.388 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2017MB | setup 0.014 ms, parallel 23.290 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.4 | xp+pp 缓冲 5.1 | flags 0.5 | 任务表 0.4 | ditem 2.5
+[trsm prof]  并行区唤醒：最慢线程 22.2 µs，平均 12.2 µs
+[trsm prof]  每线程平均 ms：prep 0.359 | load 0.836 pack 0.000 xcopy 0.000 wait 0.008 kloop 16.533 dump 0.037 epi 0.007 dkloop 2.525 ddump 0.349 depi 0.086 store 1.328 | task 合计 22.517 | 尾部不均衡 0.582 ms（平均空闲 0.355 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.86    4219.6582     7.77e-16     PASS
+DIAGSTORE_PROFILE mode=mova64 m=2432 n=17024
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2020MB | setup 2.850 ms, parallel 41.865 ms
+[trsm prof]  setup 分解 µs：pin+探测 2530.6 | 准入+对角缓冲 73.1 | xp+pp 缓冲 223.7 | flags 10.9 | 任务表 0.8 | ditem 10.5
+[trsm prof]  并行区唤醒：最慢线程 1963.6 µs，平均 414.2 µs
+[trsm prof]  每线程平均 ms：prep 6.413 | load 1.237 pack 0.000 xcopy 0.000 wait 0.006 kloop 17.259 dump 0.037 epi 0.009 dkloop 2.552 ddump 0.361 depi 0.050 store 6.730 | task 合计 29.100 | 尾部不均衡 0.570 ms（平均空闲 0.400 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 68.0%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2020MB | setup 0.020 ms, parallel 23.411 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.3 | xp+pp 缓冲 4.9 | flags 0.7 | 任务表 0.4 | ditem 8.1
+[trsm prof]  并行区唤醒：最慢线程 18.4 µs，平均 14.0 µs
+[trsm prof]  每线程平均 ms：prep 0.368 | load 0.856 pack 0.000 xcopy 0.000 wait 0.005 kloop 16.886 dump 0.038 epi 0.007 dkloop 2.396 ddump 0.342 depi 0.045 store 1.502 | task 合计 22.895 | 尾部不均衡 0.329 ms（平均空闲 0.104 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.9%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2020MB | setup 0.015 ms, parallel 23.579 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.4 | xp+pp 缓冲 5.5 | flags 0.4 | 任务表 0.4 | ditem 2.5
+[trsm prof]  并行区唤醒：最慢线程 20.9 µs，平均 13.1 µs
+[trsm prof]  每线程平均 ms：prep 0.354 | load 0.856 pack 0.000 xcopy 0.000 wait 0.009 kloop 16.830 dump 0.037 epi 0.007 dkloop 2.390 ddump 0.340 depi 0.044 store 1.502 | task 合计 22.834 | 尾部不均衡 0.589 ms（平均空闲 0.354 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2020MB | setup 0.014 ms, parallel 23.676 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.5 | 准入+对角缓冲 5.4 | xp+pp 缓冲 5.2 | flags 0.5 | 任务表 0.5 | ditem 2.3
+[trsm prof]  并行区唤醒：最慢线程 18.8 µs，平均 11.3 µs
+[trsm prof]  每线程平均 ms：prep 0.362 | load 0.858 pack 0.000 xcopy 0.000 wait 0.007 kloop 16.834 dump 0.038 epi 0.007 dkloop 2.391 ddump 0.338 depi 0.044 store 1.524 | task 合计 22.858 | 尾部不均衡 0.567 ms（平均空闲 0.417 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2020MB | setup 0.014 ms, parallel 23.544 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.5 | 准入+对角缓冲 5.2 | xp+pp 缓冲 4.6 | flags 0.4 | 任务表 0.6 | ditem 2.3
+[trsm prof]  并行区唤醒：最慢线程 20.1 µs，平均 11.8 µs
+[trsm prof]  每线程平均 ms：prep 0.364 | load 0.850 pack 0.000 xcopy 0.000 wait 0.005 kloop 16.923 dump 0.038 epi 0.007 dkloop 2.394 ddump 0.339 depi 0.045 store 1.513 | task 合计 22.931 | 尾部不均衡 0.394 ms（平均空闲 0.213 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2020MB | setup 0.013 ms, parallel 23.436 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 4.8 | xp+pp 缓冲 4.7 | flags 0.3 | 任务表 0.4 | ditem 2.4
+[trsm prof]  并行区唤醒：最慢线程 23.1 µs，平均 12.5 µs
+[trsm prof]  每线程平均 ms：prep 0.358 | load 0.841 pack 0.000 xcopy 0.000 wait 0.005 kloop 16.831 dump 0.037 epi 0.007 dkloop 2.376 ddump 0.340 depi 0.045 store 1.435 | task 合计 22.738 | 尾部不均衡 0.568 ms（平均空闲 0.301 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 70.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        24.03    4190.4296     7.77e-16     PASS
+DIAGSTORE_PROFILE mode=movaall m=2432 n=17024
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2015MB | setup 1.845 ms, parallel 88.246 ms
+[trsm prof]  setup 分解 µs：pin+探测 1584.5 | 准入+对角缓冲 74.7 | xp+pp 缓冲 166.0 | flags 9.9 | 任务表 0.6 | ditem 9.6
+[trsm prof]  并行区唤醒：最慢线程 771.9 µs，平均 257.7 µs
+[trsm prof]  每线程平均 ms：prep 40.037 | load 1.209 pack 0.000 xcopy 0.000 wait 0.006 kloop 17.223 dump 0.038 epi 0.009 dkloop 2.766 ddump 0.321 depi 0.001 store 7.165 | task 合计 29.576 | 尾部不均衡 0.418 ms（平均空闲 0.290 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 67.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2015MB | setup 0.021 ms, parallel 23.862 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.5 | xp+pp 缓冲 5.1 | flags 0.4 | 任务表 0.4 | ditem 8.9
+[trsm prof]  并行区唤醒：最慢线程 18.6 µs，平均 13.0 µs
+[trsm prof]  每线程平均 ms：prep 0.358 | load 0.852 pack 0.000 xcopy 0.000 wait 0.015 kloop 16.820 dump 0.038 epi 0.007 dkloop 2.555 ddump 0.308 depi 0.001 store 1.629 | task 合计 23.033 | 尾部不均衡 0.560 ms（平均空闲 0.432 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2015MB | setup 0.014 ms, parallel 23.780 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 5.3 | xp+pp 缓冲 4.8 | flags 0.5 | 任务表 0.6 | ditem 2.3
+[trsm prof]  并行区唤醒：最慢线程 19.3 µs，平均 12.0 µs
+[trsm prof]  每线程平均 ms：prep 0.365 | load 0.864 pack 0.000 xcopy 0.000 wait 0.012 kloop 16.817 dump 0.038 epi 0.007 dkloop 2.553 ddump 0.305 depi 0.001 store 1.626 | task 合计 23.029 | 尾部不均衡 0.578 ms（平均空闲 0.328 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2015MB | setup 0.014 ms, parallel 23.815 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.4 | 准入+对角缓冲 6.2 | xp+pp 缓冲 4.6 | flags 0.3 | 任务表 0.6 | ditem 2.2
+[trsm prof]  并行区唤醒：最慢线程 20.2 µs，平均 12.3 µs
+[trsm prof]  每线程平均 ms：prep 0.358 | load 0.864 pack 0.000 xcopy 0.000 wait 0.014 kloop 16.810 dump 0.038 epi 0.007 dkloop 2.579 ddump 0.309 depi 0.001 store 1.652 | task 合计 23.080 | 尾部不均衡 0.575 ms（平均空闲 0.335 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.5%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2015MB | setup 0.014 ms, parallel 23.782 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.5 | 准入+对角缓冲 5.4 | xp+pp 缓冲 4.8 | flags 0.4 | 任务表 0.5 | ditem 2.0
+[trsm prof]  并行区唤醒：最慢线程 20.6 µs，平均 12.3 µs
+[trsm prof]  每线程平均 ms：prep 0.352 | load 0.844 pack 0.000 xcopy 0.000 wait 0.019 kloop 16.867 dump 0.038 epi 0.007 dkloop 2.562 ddump 0.305 depi 0.001 store 1.622 | task 合计 23.070 | 尾部不均衡 0.575 ms（平均空闲 0.321 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.3%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+[trsm prof] m=2432 n=17024 mb=256 nc=128 kc=64 jit=0 pp=0 tasks=1340(items 1340) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=17 pp0=17 pp1=1 hbmfree=2015MB | setup 0.013 ms, parallel 23.707 ms
+[trsm prof]  setup 分解 µs：pin+探测 0.5 | 准入+对角缓冲 5.3 | xp+pp 缓冲 5.0 | flags 0.3 | 任务表 0.6 | ditem 1.4
+[trsm prof]  并行区唤醒：最慢线程 18.2 µs，平均 10.8 µs
+[trsm prof]  每线程平均 ms：prep 0.355 | load 0.839 pack 0.000 xcopy 0.000 wait 0.012 kloop 16.758 dump 0.038 epi 0.007 dkloop 2.572 ddump 0.310 depi 0.001 store 1.585 | task 合计 22.928 | 尾部不均衡 0.567 ms（平均空闲 0.388 ms）| k 步 99163584（对角 10745280）（理想 13.469 ms，kloop 效率 69.7%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        24.30    4144.3743     7.77e-16     PASS
+dea32aec0e64946dcd1380d8a1f3767e1d9ff9dd45df34da0a559db62a3927be  trsm-diagstore.c

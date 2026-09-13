@@ -1,0 +1,2 @@
+file,line,context,output
+476-audit-jit-check.sh.log,29,,PREPROCESS_AUDIT m=255 n=257 diag=16 expected_diag=16 pack=0 expected_pack=4 threads=5 cpus=38..42 FAIL

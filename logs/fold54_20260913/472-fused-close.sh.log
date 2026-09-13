@@ -1,0 +1,470 @@
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=3 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=2 maxerr=1.284e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=3 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=5.551e-17 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=5.551e-17 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=3 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=3 maxerr=2.047e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=3 maxerr=1.388e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=8.327e-17 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=3 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=3 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=2 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=2 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=2 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=3 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=3 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=3 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=3 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=2 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=3 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=2 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=3 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=2 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=3 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=2 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=3 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=2 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=3 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=2 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=3 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=2 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=3 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=2 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=3 maxerr=2.220e-16 PASS
+INDEPENDENT_TOTAL cases=128 failures=0 maxerr=2.776e-16
+FUSED_SETTINGS TRSM_NOBAR=0
+FUSED_DIAG_AUDIT m=1 n=1 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=1 n=1 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+FUSED_DIAG_AUDIT m=1 n=40 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=1 n=40 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+FUSED_DIAG_AUDIT m=7 n=3 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=7 n=3 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+FUSED_DIAG_AUDIT m=16 n=32 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=16 n=32 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=17 n=33 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=17 n=33 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=31 n=100 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=31 n=100 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=33 n=7 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=33 n=7 diag=3 expected_diag=3 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+FUSED_DIAG_AUDIT m=100 n=100 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=100 n=100 diag=7 expected_diag=7 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=128 n=300 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=128 n=300 diag=8 expected_diag=8 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=255 n=257 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=255 n=257 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=257 n=33 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=33 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=300 n=1000 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=300 n=1000 diag=19 expected_diag=19 pack=7 expected_pack=7 threads=5 cpus=38..42 PASS
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=512 n=640 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=640 diag=32 expected_diag=32 pack=20 expected_pack=20 threads=5 cpus=38..42 PASS
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=600 n=90 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=600 n=90 diag=38 expected_diag=38 pack=26 expected_pack=26 threads=5 cpus=38..42 PASS
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=777 n=555 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=777 n=555 diag=49 expected_diag=49 pack=37 expected_pack=37 threads=5 cpus=38..42 PASS
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.67e-16  ok
+FUSED_DIAG_AUDIT m=1030 n=260 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=1030 n=260 diag=65 expected_diag=65 pack=53 expected_pack=53 threads=5 cpus=38..42 PASS
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+FUSED_DIAG_AUDIT m=803 n=271 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=803 n=271 diag=51 expected_diag=51 pack=39 expected_pack=39 threads=5 cpus=38..42 PASS
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=165 n=630 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=165 n=630 diag=11 expected_diag=11 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=290 n=672 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=290 n=672 diag=19 expected_diag=19 pack=7 expected_pack=7 threads=5 cpus=38..42 PASS
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=761 n=551 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=761 n=551 diag=48 expected_diag=48 pack=36 expected_pack=36 threads=5 cpus=38..42 PASS
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=306 n=372 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=306 n=372 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=442 n=267 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=442 n=267 diag=28 expected_diag=28 pack=16 expected_pack=16 threads=5 cpus=38..42 PASS
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+FUSED_DIAG_AUDIT m=786 n=296 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=786 n=296 diag=50 expected_diag=50 pack=38 expected_pack=38 threads=5 cpus=38..42 PASS
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=457 n=172 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=457 n=172 diag=29 expected_diag=29 pack=17 expected_pack=17 threads=5 cpus=38..42 PASS
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=132 n=218 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=132 n=218 diag=9 expected_diag=9 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=297 n=36 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=297 n=36 diag=19 expected_diag=19 pack=7 expected_pack=7 threads=5 cpus=38..42 PASS
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+ALL PASS: 0 failures
+FUSED_SETTINGS TRSM_PPMODE=0
+results/472-fused-close.sh.running: line 8: 704759 Aborted                 (core dumped) env OMP_NUM_THREADS=5 TRSM_OWNER=0 TRSM_DIRECT=0 TRSM_MB=192 TRSM_JIT_MB=0 TRSM_PPMODE=1 TRSM_FUSED_DIAG=2 $knobs numactl -N 1 --preferred=17 ./gen-fused 10

@@ -1,0 +1,1141 @@
+FUSED_DIAG_AUDIT m=1 n=1 transforms=0 expected_transforms=0 tasks=1 expected_tasks=1 PASS
+PREPROCESS_AUDIT m=1 n=1 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+FUSED_DIAG_AUDIT m=1 n=40 transforms=0 expected_transforms=0 tasks=1 expected_tasks=1 PASS
+PREPROCESS_AUDIT m=1 n=40 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+FUSED_DIAG_AUDIT m=7 n=3 transforms=0 expected_transforms=0 tasks=1 expected_tasks=1 PASS
+PREPROCESS_AUDIT m=7 n=3 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+FUSED_DIAG_AUDIT m=16 n=32 transforms=0 expected_transforms=0 tasks=1 expected_tasks=1 PASS
+PREPROCESS_AUDIT m=16 n=32 diag=1 expected_diag=1 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=17 n=33 transforms=1 expected_transforms=1 tasks=2 expected_tasks=2 PASS
+PREPROCESS_AUDIT m=17 n=33 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=31 n=100 transforms=1 expected_transforms=1 tasks=2 expected_tasks=2 PASS
+PREPROCESS_AUDIT m=31 n=100 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=33 n=7 transforms=2 expected_transforms=2 tasks=3 expected_tasks=3 PASS
+PREPROCESS_AUDIT m=33 n=7 diag=3 expected_diag=3 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+FUSED_DIAG_AUDIT m=100 n=100 transforms=6 expected_transforms=6 tasks=7 expected_tasks=7 PASS
+PREPROCESS_AUDIT m=100 n=100 diag=7 expected_diag=7 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=128 n=300 transforms=7 expected_transforms=7 tasks=8 expected_tasks=8 PASS
+PREPROCESS_AUDIT m=128 n=300 diag=8 expected_diag=8 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=255 n=257 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=255 n=257 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=257 n=33 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=33 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=300 n=1000 transforms=17 expected_transforms=17 tasks=19 expected_tasks=19 PASS
+PREPROCESS_AUDIT m=300 n=1000 diag=19 expected_diag=19 pack=7 expected_pack=7 threads=5 cpus=38..42 PASS
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=512 n=640 transforms=29 expected_transforms=29 tasks=32 expected_tasks=32 PASS
+PREPROCESS_AUDIT m=512 n=640 diag=32 expected_diag=32 pack=20 expected_pack=20 threads=5 cpus=38..42 PASS
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=600 n=90 transforms=34 expected_transforms=34 tasks=38 expected_tasks=38 PASS
+PREPROCESS_AUDIT m=600 n=90 diag=38 expected_diag=38 pack=26 expected_pack=26 threads=5 cpus=38..42 PASS
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=777 n=555 transforms=44 expected_transforms=44 tasks=49 expected_tasks=49 PASS
+PREPROCESS_AUDIT m=777 n=555 diag=49 expected_diag=49 pack=37 expected_pack=37 threads=5 cpus=38..42 PASS
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=1030 n=260 transforms=59 expected_transforms=59 tasks=65 expected_tasks=65 PASS
+PREPROCESS_AUDIT m=1030 n=260 diag=65 expected_diag=65 pack=53 expected_pack=53 threads=5 cpus=38..42 PASS
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+FUSED_DIAG_AUDIT m=803 n=271 transforms=46 expected_transforms=46 tasks=51 expected_tasks=51 PASS
+PREPROCESS_AUDIT m=803 n=271 diag=51 expected_diag=51 pack=39 expected_pack=39 threads=5 cpus=38..42 PASS
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=165 n=630 transforms=10 expected_transforms=10 tasks=11 expected_tasks=11 PASS
+PREPROCESS_AUDIT m=165 n=630 diag=11 expected_diag=11 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=290 n=672 transforms=17 expected_transforms=17 tasks=19 expected_tasks=19 PASS
+PREPROCESS_AUDIT m=290 n=672 diag=19 expected_diag=19 pack=7 expected_pack=7 threads=5 cpus=38..42 PASS
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=761 n=551 transforms=44 expected_transforms=44 tasks=48 expected_tasks=48 PASS
+PREPROCESS_AUDIT m=761 n=551 diag=48 expected_diag=48 pack=36 expected_pack=36 threads=5 cpus=38..42 PASS
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=306 n=372 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=306 n=372 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=442 n=267 transforms=25 expected_transforms=25 tasks=28 expected_tasks=28 PASS
+PREPROCESS_AUDIT m=442 n=267 diag=28 expected_diag=28 pack=16 expected_pack=16 threads=5 cpus=38..42 PASS
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+FUSED_DIAG_AUDIT m=786 n=296 transforms=45 expected_transforms=45 tasks=50 expected_tasks=50 PASS
+PREPROCESS_AUDIT m=786 n=296 diag=50 expected_diag=50 pack=38 expected_pack=38 threads=5 cpus=38..42 PASS
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=457 n=172 transforms=26 expected_transforms=26 tasks=29 expected_tasks=29 PASS
+PREPROCESS_AUDIT m=457 n=172 diag=29 expected_diag=29 pack=17 expected_pack=17 threads=5 cpus=38..42 PASS
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=132 n=218 transforms=8 expected_transforms=8 tasks=9 expected_tasks=9 PASS
+PREPROCESS_AUDIT m=132 n=218 diag=9 expected_diag=9 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=297 n=36 transforms=17 expected_transforms=17 tasks=19 expected_tasks=19 PASS
+PREPROCESS_AUDIT m=297 n=36 diag=19 expected_diag=19 pack=7 expected_pack=7 threads=5 cpus=38..42 PASS
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=161 n=516 transforms=10 expected_transforms=10 tasks=11 expected_tasks=11 PASS
+PREPROCESS_AUDIT m=161 n=516 diag=11 expected_diag=11 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  161 n=  516 lda=  203 ldb=  546  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=848 n=56 transforms=48 expected_transforms=48 tasks=53 expected_tasks=53 PASS
+PREPROCESS_AUDIT m=848 n=56 diag=53 expected_diag=53 pack=41 expected_pack=41 threads=5 cpus=38..42 PASS
+m=  848 n=   56 lda=  906 ldb=   57  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=261 n=418 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=261 n=418 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+m=  261 n=  418 lda=  291 ldb=  460  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=333 n=504 transforms=19 expected_transforms=19 tasks=21 expected_tasks=21 PASS
+PREPROCESS_AUDIT m=333 n=504 diag=21 expected_diag=21 pack=9 expected_pack=9 threads=5 cpus=38..42 PASS
+m=  333 n=  504 lda=  390 ldb=  518  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=535 n=455 transforms=31 expected_transforms=31 tasks=34 expected_tasks=34 PASS
+PREPROCESS_AUDIT m=535 n=455 diag=34 expected_diag=34 pack=22 expected_pack=22 threads=5 cpus=38..42 PASS
+m=  535 n=  455 lda=  541 ldb=  484  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=173 n=680 transforms=10 expected_transforms=10 tasks=11 expected_tasks=11 PASS
+PREPROCESS_AUDIT m=173 n=680 diag=11 expected_diag=11 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  173 n=  680 lda=  206 ldb=  711  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=453 n=8 transforms=26 expected_transforms=26 tasks=29 expected_tasks=29 PASS
+PREPROCESS_AUDIT m=453 n=8 diag=29 expected_diag=29 pack=17 expected_pack=17 threads=5 cpus=38..42 PASS
+m=  453 n=    8 lda=  489 ldb=   67  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=26 n=661 transforms=1 expected_transforms=1 tasks=2 expected_tasks=2 PASS
+PREPROCESS_AUDIT m=26 n=661 diag=2 expected_diag=2 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+FUSED_DIAG_AUDIT m=202 n=460 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=202 n=460 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=45 n=249 transforms=2 expected_transforms=2 tasks=3 expected_tasks=3 PASS
+PREPROCESS_AUDIT m=45 n=249 diag=3 expected_diag=3 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=238 n=646 transforms=13 expected_transforms=13 tasks=15 expected_tasks=15 PASS
+PREPROCESS_AUDIT m=238 n=646 diag=15 expected_diag=15 pack=3 expected_pack=3 threads=5 cpus=38..42 PASS
+m=  238 n=  646 lda=  270 ldb=  664  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=426 n=23 transforms=24 expected_transforms=24 tasks=27 expected_tasks=27 PASS
+PREPROCESS_AUDIT m=426 n=23 diag=27 expected_diag=27 pack=15 expected_pack=15 threads=5 cpus=38..42 PASS
+m=  426 n=   23 lda=  450 ldb=   80  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=833 n=3 transforms=48 expected_transforms=48 tasks=53 expected_tasks=53 PASS
+PREPROCESS_AUDIT m=833 n=3 diag=53 expected_diag=53 pack=41 expected_pack=41 threads=5 cpus=38..42 PASS
+m=  833 n=    3 lda=  852 ldb=   33  maxerr=5.55e-17  ok
+FUSED_DIAG_AUDIT m=54 n=290 transforms=3 expected_transforms=3 tasks=4 expected_tasks=4 PASS
+PREPROCESS_AUDIT m=54 n=290 diag=4 expected_diag=4 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   54 n=  290 lda=   98 ldb=  324  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=725 n=319 transforms=42 expected_transforms=42 tasks=46 expected_tasks=46 PASS
+PREPROCESS_AUDIT m=725 n=319 diag=46 expected_diag=46 pack=34 expected_pack=34 threads=5 cpus=38..42 PASS
+m=  725 n=  319 lda=  758 ldb=  359  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=560 n=32 transforms=32 expected_transforms=32 tasks=35 expected_tasks=35 PASS
+PREPROCESS_AUDIT m=560 n=32 diag=35 expected_diag=35 pack=23 expected_pack=23 threads=5 cpus=38..42 PASS
+m=  560 n=   32 lda=  589 ldb=  100  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=272 n=482 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=272 n=482 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+m=  272 n=  482 lda=  298 ldb=  544  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=464 n=57 transforms=26 expected_transforms=26 tasks=29 expected_tasks=29 PASS
+PREPROCESS_AUDIT m=464 n=57 diag=29 expected_diag=29 pack=17 expected_pack=17 threads=5 cpus=38..42 PASS
+m=  464 n=   57 lda=  528 ldb=   85  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=96 n=334 transforms=5 expected_transforms=5 tasks=6 expected_tasks=6 PASS
+PREPROCESS_AUDIT m=96 n=334 diag=6 expected_diag=6 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=   96 n=  334 lda=  130 ldb=  352  maxerr=1.11e-16  ok
+FUSED_DIAG_AUDIT m=129 n=553 transforms=8 expected_transforms=8 tasks=9 expected_tasks=9 PASS
+PREPROCESS_AUDIT m=129 n=553 diag=9 expected_diag=9 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=11 expected_transforms=11 tasks=12 expected_tasks=12 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=192 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=192 n=128 diag=12 expected_diag=12 pack=0 expected_pack=0 threads=5 cpus=38..42 PASS
+INDEPENDENT m=192 n=128 mode=3 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=1 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=0 maxerr=1.249e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=2 reuse=1 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=11 expected_transforms=11 tasks=13 expected_tasks=13 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=0 maxerr=1.110e-16 PASS
+FUSED_DIAG_AUDIT m=193 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=193 n=128 diag=13 expected_diag=13 pack=1 expected_pack=1 threads=5 cpus=38..42 PASS
+INDEPENDENT m=193 n=128 mode=3 reuse=1 maxerr=8.327e-17 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=14 expected_transforms=14 tasks=16 expected_tasks=16 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=256 n=256 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=256 n=256 diag=16 expected_diag=16 pack=4 expected_pack=4 threads=5 cpus=38..42 PASS
+INDEPENDENT m=256 n=256 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=0 reuse=1 maxerr=1.388e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=15 expected_transforms=15 tasks=17 expected_tasks=17 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=257 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=257 n=128 diag=17 expected_diag=17 pack=5 expected_pack=5 threads=5 cpus=38..42 PASS
+INDEPENDENT m=257 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=18 expected_transforms=18 tasks=20 expected_tasks=20 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=320 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=320 n=128 diag=20 expected_diag=20 pack=8 expected_pack=8 threads=5 cpus=38..42 PASS
+INDEPENDENT m=320 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=1 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=0 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=2 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=22 expected_transforms=22 tasks=24 expected_tasks=24 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=384 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=384 n=128 diag=24 expected_diag=24 pack=12 expected_pack=12 threads=5 cpus=38..42 PASS
+INDEPENDENT m=384 n=128 mode=3 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=0 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=1 reuse=1 maxerr=1.665e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=30 expected_transforms=30 tasks=33 expected_tasks=33 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=0 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=513 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=513 n=128 diag=33 expected_diag=33 pack=21 expected_pack=21 threads=5 cpus=38..42 PASS
+INDEPENDENT m=513 n=128 mode=3 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=0 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=1 reuse=1 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=2 reuse=1 maxerr=2.220e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=36 expected_transforms=36 tasks=40 expected_tasks=40 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=0 maxerr=2.776e-16 PASS
+FUSED_DIAG_AUDIT m=640 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=640 n=128 diag=40 expected_diag=40 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INDEPENDENT m=640 n=128 mode=3 reuse=1 maxerr=2.776e-16 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-16
+FUSED_DIAG_AUDIT m=4095 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4095 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4095 n=   17 lda= 4102 ldb=   28  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=4096 n=17 transforms=234 expected_transforms=234 tasks=256 expected_tasks=256 PASS
+PREPROCESS_AUDIT m=4096 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4096 n=   17 lda= 4103 ldb=   28  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4097 n=17 transforms=235 expected_transforms=235 tasks=257 expected_tasks=257 PASS
+PREPROCESS_AUDIT m=4097 n=17 diag=257 expected_diag=257 pack=245 expected_pack=245 threads=5 cpus=38..42 PASS
+m= 4097 n=   17 lda= 4104 ldb=   28  maxerr=1.39e-16  ok
+FUSED_DIAG_AUDIT m=4160 n=128 transforms=238 expected_transforms=238 tasks=260 expected_tasks=260 PASS
+PREPROCESS_AUDIT m=4160 n=128 diag=260 expected_diag=260 pack=248 expected_pack=248 threads=5 cpus=38..42 PASS
+m= 4160 n=  128 lda= 4167 ldb=  139  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4095 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4095 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4095 n=   17 lda= 4102 ldb=   28  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=4096 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4096 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4096 n=   17 lda= 4103 ldb=   28  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4097 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4097 n=17 diag=257 expected_diag=257 pack=245 expected_pack=245 threads=5 cpus=38..42 PASS
+m= 4097 n=   17 lda= 4104 ldb=   28  maxerr=1.39e-16  ok
+FUSED_DIAG_AUDIT m=4160 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4160 n=128 diag=260 expected_diag=260 pack=248 expected_pack=248 threads=5 cpus=38..42 PASS
+m= 4160 n=  128 lda= 4167 ldb=  139  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4095 n=17 transforms=234 expected_transforms=234 tasks=256 expected_tasks=256 PASS
+PREPROCESS_AUDIT m=4095 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4095 n=   17 lda= 4102 ldb=   28  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=4096 n=17 transforms=234 expected_transforms=234 tasks=256 expected_tasks=256 PASS
+PREPROCESS_AUDIT m=4096 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4096 n=   17 lda= 4103 ldb=   28  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4097 n=17 transforms=235 expected_transforms=235 tasks=257 expected_tasks=257 PASS
+PREPROCESS_AUDIT m=4097 n=17 diag=257 expected_diag=257 pack=245 expected_pack=245 threads=5 cpus=38..42 PASS
+m= 4097 n=   17 lda= 4104 ldb=   28  maxerr=1.39e-16  ok
+FUSED_DIAG_AUDIT m=4160 n=128 transforms=238 expected_transforms=238 tasks=260 expected_tasks=260 PASS
+PREPROCESS_AUDIT m=4160 n=128 diag=260 expected_diag=260 pack=248 expected_pack=248 threads=5 cpus=38..42 PASS
+m= 4160 n=  128 lda= 4167 ldb=  139  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4095 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4095 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4095 n=   17 lda= 4102 ldb=   28  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=4096 n=17 transforms=234 expected_transforms=234 tasks=256 expected_tasks=256 PASS
+PREPROCESS_AUDIT m=4096 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4096 n=   17 lda= 4103 ldb=   28  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4097 n=17 transforms=235 expected_transforms=235 tasks=257 expected_tasks=257 PASS
+PREPROCESS_AUDIT m=4097 n=17 diag=257 expected_diag=257 pack=245 expected_pack=245 threads=5 cpus=38..42 PASS
+m= 4097 n=   17 lda= 4104 ldb=   28  maxerr=1.39e-16  ok
+FUSED_DIAG_AUDIT m=4160 n=128 transforms=238 expected_transforms=238 tasks=260 expected_tasks=260 PASS
+PREPROCESS_AUDIT m=4160 n=128 diag=260 expected_diag=260 pack=248 expected_pack=248 threads=5 cpus=38..42 PASS
+m= 4160 n=  128 lda= 4167 ldb=  139  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4095 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4095 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4095 n=   17 lda= 4102 ldb=   28  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=4096 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4096 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4096 n=   17 lda= 4103 ldb=   28  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4097 n=17 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4097 n=17 diag=257 expected_diag=257 pack=245 expected_pack=245 threads=5 cpus=38..42 PASS
+m= 4097 n=   17 lda= 4104 ldb=   28  maxerr=1.39e-16  ok
+FUSED_DIAG_AUDIT m=4160 n=128 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=4160 n=128 diag=260 expected_diag=260 pack=248 expected_pack=248 threads=5 cpus=38..42 PASS
+m= 4160 n=  128 lda= 4167 ldb=  139  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4095 n=17 transforms=234 expected_transforms=234 tasks=256 expected_tasks=256 PASS
+PREPROCESS_AUDIT m=4095 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4095 n=   17 lda= 4102 ldb=   28  maxerr=6.94e-17  ok
+FUSED_DIAG_AUDIT m=4096 n=17 transforms=234 expected_transforms=234 tasks=256 expected_tasks=256 PASS
+PREPROCESS_AUDIT m=4096 n=17 diag=256 expected_diag=256 pack=244 expected_pack=244 threads=5 cpus=38..42 PASS
+m= 4096 n=   17 lda= 4103 ldb=   28  maxerr=8.33e-17  ok
+FUSED_DIAG_AUDIT m=4097 n=17 transforms=235 expected_transforms=235 tasks=257 expected_tasks=257 PASS
+PREPROCESS_AUDIT m=4097 n=17 diag=257 expected_diag=257 pack=245 expected_pack=245 threads=5 cpus=38..42 PASS
+m= 4097 n=   17 lda= 4104 ldb=   28  maxerr=1.39e-16  ok
+FUSED_DIAG_AUDIT m=4160 n=128 transforms=238 expected_transforms=238 tasks=260 expected_tasks=260 PASS
+PREPROCESS_AUDIT m=4160 n=128 diag=260 expected_diag=260 pack=248 expected_pack=248 threads=5 cpus=38..42 PASS
+m= 4160 n=  128 lda= 4167 ldb=  139  maxerr=8.33e-17  ok
+FUSED_GATE PASS: 0 failures
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+changed-input case=1 iteration=0 maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+changed-input case=1 iteration=1 maxerr=3.886e-16 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+changed-input case=1 iteration=2 maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=38 cpus=38..75 PASS
+changed-input case=1 iteration=3 maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+changed-input case=2 iteration=0 maxerr=7.772e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+changed-input case=2 iteration=1 maxerr=7.772e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+changed-input case=2 iteration=2 maxerr=7.772e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=38 cpus=38..75 PASS
+changed-input case=2 iteration=3 maxerr=7.772e-16 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+changed-input case=3 iteration=0 maxerr=1.499e-15 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+changed-input case=3 iteration=1 maxerr=1.332e-15 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+changed-input case=3 iteration=2 maxerr=1.554e-15 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=38 cpus=38..75 PASS
+changed-input case=3 iteration=3 maxerr=1.665e-15 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=1 call=0 kind=initial maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=1 call=1 kind=identical_input maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=1 call=2 kind=one_L_entry_and_matching_rhs maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=512 n=19968 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=512 n=19968 diag=32 expected_diag=32 pack=28 expected_pack=28 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=1 call=3 kind=rhs_only maxerr=3.331e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=2 call=0 kind=initial maxerr=8.327e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=2 call=1 kind=identical_input maxerr=8.327e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=2 call=2 kind=one_L_entry_and_matching_rhs maxerr=8.327e-16 PASS
+FUSED_DIAG_AUDIT m=2432 n=17024 transforms=0 expected_transforms=0 tasks=0 expected_tasks=0 PASS
+PREPROCESS_AUDIT m=2432 n=17024 diag=152 expected_diag=152 pack=136 expected_pack=136 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=2 call=3 kind=rhs_only maxerr=8.327e-16 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=3 call=0 kind=initial maxerr=1.721e-15 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=3 call=1 kind=identical_input maxerr=1.721e-15 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=3 call=2 kind=one_L_entry_and_matching_rhs maxerr=1.721e-15 PASS
+FUSED_DIAG_AUDIT m=17024 n=512 transforms=975 expected_transforms=975 tasks=1064 expected_tasks=1064 PASS
+PREPROCESS_AUDIT m=17024 n=512 diag=1064 expected_diag=1064 pack=1052 expected_pack=1052 threads=5 cpus=38..42 PASS
+INPUT_AUDIT case=3 call=3 kind=rhs_only maxerr=1.721e-15 PASS
+FUSED_DIAG_BOUND_CHECK mode=0 comparisons=706560 worst_relative=0.000e+00 PASS
+FUSED_DIAG_BOUND_CHECK mode=1 comparisons=706560 worst_relative=4.423e-14 PASS
+FUSED_DIAG_MICRO round=0 mode=0 ms=24.602283 calls=2048
+FUSED_DIAG_MICRO round=0 mode=1 ms=8.990454 calls=2048
+FUSED_DIAG_MICRO round=1 mode=1 ms=9.002773 calls=2048
+FUSED_DIAG_MICRO round=1 mode=0 ms=24.542751 calls=2048
+FUSED_DIAG_MICRO round=2 mode=0 ms=24.556002 calls=2048
+FUSED_DIAG_MICRO round=2 mode=1 ms=9.031495 calls=2048
+FUSED_DIAG_MICRO round=3 mode=1 ms=9.030114 calls=2048
+FUSED_DIAG_MICRO round=3 mode=0 ms=24.536872 calls=2048
+FUSED_FINAL_VALIDATION_DONE
+FUSED_FINAL_FORMAL round=1 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2717.5560     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=1 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.89    2769.2744     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=1 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2736.1895     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=2 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2743.0142     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=2 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2745.7339     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=2 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.97    2656.7818     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=3 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.97    2651.2386     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=3 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2734.0809     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=3 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2687.3914     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=4 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2726.4213     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=4 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2741.5733     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=4 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.98    2647.3687     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=5 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.99    2627.6801     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=5 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2737.2235     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=5 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2697.9194     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=6 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2686.5712     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=6 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2686.6572     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=6 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.97    2657.1714     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=7 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.99    2635.8964     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=7 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2749.1216     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=7 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2692.4650     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=8 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2725.9442     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=8 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2676.5001     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=8 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.98    2640.4816     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=9 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.02    2587.3362     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=9 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2755.0831     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=9 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.91    2742.8804     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=10 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2697.3827     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=10 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.90    2748.5429     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=10 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.95    2680.2990     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=11 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.08    2514.5021     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=11 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.93    2716.8886     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=11 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2670.8072     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=12 mode=off m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.92    2728.4083     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=12 mode=final m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2703.9303     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=12 mode=control m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2668.8367     3.33e-16     PASS
+FUSED_FINAL_FORMAL round=1 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.66    4255.1076     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=1 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.68    4252.3318     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=1 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.57    4271.3893     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=2 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.64    4259.9906     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=2 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.49    4287.2182     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=2 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.83    4225.2032     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=3 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.70    4248.0655     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=3 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.66    4255.1008     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=3 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.74    4241.3388     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=4 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.50    4284.4574     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=4 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.63    4261.6236     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=4 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.75    4239.0796     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=5 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.65    4257.9989     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=5 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.55    4274.7185     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=5 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.57    4271.8008     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=6 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.65    4257.4946     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=6 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.53    4280.1479     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=6 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.59    4268.3945     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=7 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.78    4233.6664     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=7 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.84    4224.0500     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=7 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.56    4273.3921     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=8 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.66    4255.1527     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=8 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.59    4268.5565     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=8 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.73    4243.5943     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=9 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.69    4250.2174     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=9 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.49    4285.8066     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=9 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.56    4274.1196     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=10 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.57    4272.1455     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=10 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.57    4272.5368     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=10 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.71    4246.0040     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=11 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.99    4197.2454     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=11 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.70    4249.3096     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=11 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.56    4273.5751     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=12 mode=off m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.60    4267.3400     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=12 mode=final m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.47    4290.9936     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=12 mode=control m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.76    4237.4801     7.77e-16     PASS
+FUSED_FINAL_FORMAL round=1 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.76    4149.8045     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=1 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.38    4194.6352     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=1 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.69    4157.9173     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=2 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.96    4126.2801     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=2 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.32    4201.0308     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=2 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.77    4148.4169     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=3 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.53    4176.6467     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=3 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.17    4218.7797     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=3 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.47    4183.2304     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=4 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.64    4163.2024     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=4 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.52    4177.0225     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=4 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.60    4168.0859     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=5 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.64    4163.2263     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=5 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.46    4185.1822     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=5 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.55    4174.1056     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=6 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.70    4156.5139     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=6 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.30    4204.0617     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=6 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.50    4179.8709     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=7 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.77    4148.8772     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=7 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.40    4191.9408     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=7 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.76    4149.2557     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=8 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.90    4132.9768     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=8 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.52    4177.5151     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=8 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.57    4172.1968     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=9 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.55    4174.3618     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=9 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.54    4174.7885     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=9 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.60    4168.6494     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=10 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.87    4136.6061     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=10 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.26    4208.8305     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=10 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.60    4167.7331     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=11 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.63    4164.4646     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=11 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.29    4204.8033     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=11 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.68    4159.0518     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=12 mode=off m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.69    4157.9744     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=12 mode=final m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.26    4208.4989     1.50e-15     PASS
+FUSED_FINAL_FORMAL round=12 mode=control m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.66    4161.0195     1.50e-15     PASS
+61609c61215d893884bad7e910847aa0391aed2c2668970544faf5e93da903e1  trsm-fused-final.c
+FUSED_FINAL_SCREEN_DONE
