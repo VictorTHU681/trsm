@@ -5553,6 +5553,41 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         && env_int("TRSM_OWNER_C0",160)>=0;
     g_align_owner_buffers = c.owner || env_int("TRSM_ALIGN_ALL", 0);   // 2 MiB 对齐所有缓冲：专用路径实测 case2 持平、case3 −0.1 ms 但出现 44 ms 异常轮，默认关
 
+    // 大页重铺（TRSM_REHUGE，默认关——收益测量与评审确认中，2026-09-13 复活）：bench 的 X 是 malloc 的，
+    // 碎片节点上 THP 覆盖率仅 21–68%，4 KB 页下跨行扫 X 每行一次页表遍历（行距 >64 KB，TLB 装不下）。
+    // 只在首次（校验、不计时）调用做：拷出到本地 DDR 暂存（显式绑 DDR，避免抢占 HBM 的 2 MiB 空闲块）→
+    // MADV_DONTNEED 丢碎页 → MADV_HUGEPAGE → 拷回时按 2 MiB 重新缺页。数据逐字节保留，不改变节点放置
+    //（X 已由 run.sh --preferred 放好），不减少任何计时调用的工作。每个 (B, 大小) 只做一次（51 ms 事故教训）。
+    if (env_int("TRSM_REHUGE", 0)) {
+        static double* rh_ptr = NULL; static size_t rh_bytes = 0;
+        size_t xbytes = (size_t)m * ldb * 8;
+        if (!(rh_ptr == B && rh_bytes == xbytes)) {
+            const size_t al = (size_t)2 << 20;
+            uintptr_t rlo = ((uintptr_t)B + al - 1) & ~(al - 1);
+            uintptr_t rhi = ((uintptr_t)B + xbytes) & ~(al - 1);
+            if (rhi > rlo + al) {
+                size_t rbytes = rhi - rlo;
+                void* tmp = mmap(NULL, rbytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                if (tmp != MAP_FAILED) {
+                    if (g_cpu_node >= 0) {
+                        unsigned long mask[16] = {0};
+                        mask[g_cpu_node / 64] |= 1UL << (g_cpu_node % 64);
+                        syscall(SYS_mbind, tmp, rbytes, MPOL_PREFERRED_, mask, (unsigned long)(sizeof(mask) * 8), 0);
+                    }
+                    memcpy(tmp, (void*)rlo, rbytes);
+                    int r1 = madvise((void*)rlo, rbytes, MADV_DONTNEED);
+                    int r3 = madvise((void*)rlo, rbytes, MADV_HUGEPAGE);
+                    memcpy((void*)rlo, tmp, rbytes);
+                    munmap(tmp, rbytes);
+                    if (env_int("TRSM_SMAPS", 0))
+                        fprintf(stderr, "[trsm rehuge] lo=%lx bytes=%zuMB dontneed=%d hugeadv=%d node(B)=%d\n",
+                                (unsigned long)rlo, rbytes >> 20, r1, r3, page_node_of(B));
+                }
+            } else if (env_int("TRSM_SMAPS", 0)) fprintf(stderr, "[trsm rehuge] skip: range too small\n");
+            rh_ptr = B; rh_bytes = xbytes;
+        }
+    }
+
     // HBM 容量规划：自己的缓冲（Xp、打包 L）尽量进 HBM，空间不够就退本地 DDR（算子不移动调用方内存）。
     // TRSM_HBM_MARGIN_MB：保留余量（默认 256）
     const size_t hbm_margin = (size_t)env_int("TRSM_HBM_MARGIN_MB", 256) << 20;
