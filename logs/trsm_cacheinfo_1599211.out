@@ -1,0 +1,60 @@
+=== HOST cn20481 03:17:38
+=== lscpu cache ===
+CPU(s):                             608
+On-line CPU(s) list:                0-607
+CPU max MHz:                        2000.0000
+CPU min MHz:                        1200.0000
+L1d cache:                          19 MiB (608 instances)
+L1i cache:                          19 MiB (608 instances)
+L2 cache:                           456 MiB (608 instances)
+NUMA node0 CPU(s):                  0-37
+NUMA node1 CPU(s):                  38-75
+NUMA node2 CPU(s):                  76-113
+NUMA node3 CPU(s):                  114-151
+NUMA node4 CPU(s):                  152-189
+NUMA node5 CPU(s):                  190-227
+NUMA node6 CPU(s):                  228-265
+NUMA node7 CPU(s):                  266-303
+NUMA node8 CPU(s):                  304-341
+NUMA node9 CPU(s):                  342-379
+NUMA node10 CPU(s):                 380-417
+NUMA node11 CPU(s):                 418-455
+NUMA node12 CPU(s):                 456-493
+NUMA node13 CPU(s):                 494-531
+NUMA node14 CPU(s):                 532-569
+NUMA node15 CPU(s):                 570-607
+NUMA node16 CPU(s):                 
+NUMA node17 CPU(s):                 
+NUMA node18 CPU(s):                 
+NUMA node19 CPU(s):                 
+NUMA node20 CPU(s):                 
+NUMA node21 CPU(s):                 
+NUMA node22 CPU(s):                 
+NUMA node23 CPU(s):                 
+NUMA node24 CPU(s):                 
+NUMA node25 CPU(s):                 
+NUMA node26 CPU(s):                 
+NUMA node27 CPU(s):                 
+NUMA node28 CPU(s):                 
+NUMA node29 CPU(s):                 
+NUMA node30 CPU(s):                 
+NUMA node31 CPU(s):                 
+=== per-cpu cache (cpu0 as bound: cpu 38-75 on node1) ===
+-- cpu0:
+  L1 Data 32K shared=0
+  L1 Instruction 32K shared=0
+  L2 Unified 768K shared=0
+-- cpu38:
+  L1 Data 32K shared=38
+  L1 Instruction 32K shared=38
+  L2 Unified 768K shared=38
+=== numactl -H (topology) ===
+available: 32 nodes (0-31)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37
+node 0 size: 31336 MB
+node 0 free: 18132 MB
+node 1 cpus: 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75
+node 1 size: 32250 MB
+node 1 free: 18420 MB
+node 2 cpus: 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113
+=== DONE
