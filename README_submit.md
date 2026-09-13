@@ -16,8 +16,9 @@ bash run.sh
 ```
 
 run.sh 自动加载 HPCKit 编译环境（兼容题面 module 路径与本集群 setvars.sh 两种布局），
-以 `-march=armv9-a+sme+sme-f64f64+sve2` 编译；内存放置用 `numactl -N 1 --preferred=<就近纯内存节点>`
-（按 NUMA 距离表探测，探测不到时自动省略该参数）。也可按题面命令直接编译运行：
+以 `-march=armv9-a+sme+sme-f64f64+sve2` 编译；CPU 绑定默认 node 7（不可用时自动回退 node 1），
+内存放置用 `--preferred=<就近纯内存节点>`（按 NUMA 距离表探测，探测不到时自动省略该参数）。
+也可按题面命令直接编译运行：
 
 ```bash
 gcc -O3 -march=armv9-a+sme+sme-f64f64+sve2 bench_trsm.c trsm.c -o trsm_test -lm -lkblas -fopenmp
