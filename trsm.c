@@ -5613,12 +5613,14 @@ static void build_owner_bounds(ctx_t* c, int nth)
     int shapep = env_int("TRSM_SHAPEP", 100);
     if (shapep > 0 && c->nrb >= 2) {
         static const double PEN_US8[8] = {0, 56, 37, 60, 70, 149, 112, 78};   // nrb=8（TC1 形状）实测表
+        int shi = env_int("TRSM_SHAPEP_HI", 100);                             // 只放大深相位（ia≥5）惩罚（残余 ia=5 仍略慢）
         double pen[/*ia*/ 64];
         long nrb = c->nrb; if (nrb > 64) nrb = 64;
         for (long r = 0; r < nrb; r++) {
             long idx = nrb == 8 ? r : (r * 8 + nrb / 2) / nrb;                // 其他 nrb 按相位比例映射
             if (idx > 7) idx = 7;
-            pen[r] = PEN_US8[idx] / 8.7 * a * ((double)shapep / 100.0);
+            double hi = idx >= 5 ? (double)shi / 100.0 : 1.0;
+            pen[r] = PEN_US8[idx] / 8.7 * a * ((double)shapep / 100.0) * hi;
         }
         double penbar = 0;                                                    // 上一轮平均惩罚
         long* bnd = c->owner_bound;
