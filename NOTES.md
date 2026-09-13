@@ -594,6 +594,31 @@ Xnode/Lnode/pp0/hbmfree 由 prof 行直读。**坑（两次复现）**：进程�
 （~7 GB 映射 + pp mbind）上锁竞争挂死，勿用；进程内 SMAPS 每调用 ~4ms(TC1)/~190ms(TC2 prep 桶) 但全程可完成，
 且只污染 setup/prep 桶，判别桶（kloop/load/store/dkloop）干净。
 
+### 判题机诊断实锤 + 压实助手方案（2026-09-13，诊断包首战）
+
+**诊断包读数（euler-33，用户提交）——TC1 退化态假说全面证实并定量**：
+- **`thp_defrag = [madvise]`（判题机）≠ 本地的 `never`**：madvise 区缺页会做直接压实——我们自己的缓冲（mmap+MADV_HUGEPAGE）
+  因此全大页（pp0 100%），bench 的 malloc 缓冲（无 madvise，廉价 THP 尝试）碎片下退 4 KB。**这是判题机与本地最大的行为差异，
+  也是 run.sh 级修复的钥匙**。
+- **bench X 覆盖率：TC1 25% / TC2 58% / TC3 68%**（本地波动带 21~68% 的下端）。
+- **分相换算比（判题 2 GHz / 本机 1.55）**：TC1 load **×1.01（完全不缩放）**、kloop ×1.16、store ×1.17、dkloop ×1.20——
+  病灶精确落在读 X 的 load 相 + kloop 的少量欠缩放；干净态推算 TC1 ≈ 1.65-1.70 ms ≈ 3050-3150（现 2895）。
+- **共租户实锤**：loadavg 89~120（608 核上百可运行线程）；tc3 某轮线程唤醒 572 µs（本机 15 µs）。glibc 2.34
+  （GLIBC_TUNABLES hugetlb 在判题机同样无效）；node17 HBM 4 GB 用例间全空。
+- 诊断包分数失真如预期（SMAPS 每调用扫描），仅供读数；用户已重交正式包顶分。
+
+**REHUGE 复活测量（fresh27，cn20484）**：干净节点 ±0（v45 三度复现）、重铺机制正常（98-100%）；
+fragger 碎片器两版教训：v1 钉半节点 = 容量挤占混淆（官方 TC2/3 −29/−33% 是放置税不是页税）；
+v2 散布毒化（order-9 清零、容量保留）仍剩 184 MB 大块，X 158 MB 恰好吃饱 → 本地始终无法复现"X 低覆盖率"态
+（全毒化相 fastbench 5× 异常另有病理，数据不采信）。**判题机 defrag=madvise 使本地碎片实验失去代表性，
+后续页问题一律以判题机诊断为准。**
+
+**压实助手（probe/compact.c + run_diag v4，待判题机 A/B）**：run.sh 级预处理——mmap + mbind(HBM) +
+MADV_HUGEPAGE + 每 2 MB 触碰（defrag=madvise 下每次缺页触发直接压实，搬移可移动页凑 2 MB 块）→ munmap
+（完整大块归还伙伴系统）→ bench 随后 malloc 的 X 走廉价 THP 路径时直接命中现成大块。算子与调用方缓冲零接触。
+预期收回 TC1 的 load 超额 + kloop 页相关欠缩放 ≈ +100~250 分；本地 defrag=never 无法验证压实（触碰退化为无害 no-op），
+验证 = 再交一次带压实与 buddyinfo 的诊断包，与今日无压实基线对照。
+
 ### 10g-pair. TC3 跨面板 A 复用第三形态（配对任务）证伪（2026-09-13，fresh24 留档）
 
 **立项**（用户点名 §10g-route 的"换分块主序"）：TC3 的 A（打包 L 1.16 GB）×4 面板重读 = 4.6 GB，占总流量 78%。

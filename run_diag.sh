@@ -78,12 +78,27 @@ envsnap() {
     echo "thp_enabled=$(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null)"
     echo "thp_defrag=$(cat /sys/kernel/mm/transparent_hugepage/defrag 2>/dev/null)"
     nodefree
+    for n in $cpunode $hbm; do
+        [[ -n "$n" ]] && grep "Node $n," /proc/buddyinfo 2>/dev/null
+    done
     echo "glibc=$(ldd --version 2>/dev/null | head -1)"
     echo "gcc=$(gcc --version 2>/dev/null | head -1)"
 }
 
+# 压实助手：mmap+MADV_HUGEPAGE+触碰（defrag=madvise 时每次缺页做直接压实）→ munmap 归还 2MB 块。
+# 算子与调用方缓冲零接触；纯 run.sh 级预处理。规模按 HBM 当前空闲减 512MB 余量。
+gcc -O2 -o compact_helper probe_compact.c 2>/dev/null || true
+compact_run() {
+    [[ -x compact_helper && -n "$hbm" ]] || return 0
+    local freekb mb
+    freekb=$(grep MemFree /sys/devices/system/node/node$hbm/meminfo | tr -s " " | cut -d" " -f4)
+    mb=$(( freekb / 1024 - 512 )); (( mb > 3400 )) && mb=3400; (( mb < 256 )) && return 0
+    ./compact_helper $hbm $mb 1
+}
+
 run_case() {   # $1=名字 $2..=参数；结果行照常走 stdout，stderr 收进文件
     envsnap "before-$1" >> "$D/env.txt" 2>&1
+    compact_run >> "$D/compact_$1.txt" 2>&1
     numactl -N $cpunode $MEMOPT ./trsm_test "${@:2}" 2> "$D/$1.err"
 }
 
@@ -97,6 +112,8 @@ envsnap "after-all" >> "$D/env.txt" 2>&1
 echo "===================== [trsm-diag] ====================="
 cat "$D/env.txt"
 for c in tc1 tc2 tc3; do
+    echo "--- [trsm-diag] $c 压实 ---"
+    cat "$D/compact_$c.txt" 2>/dev/null
     echo "--- [trsm-diag] $c stderr ---"
     cat "$D/$c.err" 2>/dev/null
 done
