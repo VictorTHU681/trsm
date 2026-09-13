@@ -2129,7 +2129,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     // 每个内核调用边界 prfm 下一片源行（异步、趟内核执行时飞行）+ 拷贝上一片（已达 L2）。
     // 换面板不预拷（目标 cbuf[0..64) 与本任务 GEMM 读区 [0,i0) 冲突）；行 [i0+64,i0+128) 与本任务读写区不相交。
     // 档 1 = 纯 prfm（B 预拉 L2，装载相自提速，零 L1 污染）；档 2 = prfm + 非临时拷贝（滞后一个边界，每边界 ≤2 行）
-    const int pl_on = fast_owner && g_ldpipe && nchunks > 0 && tkn && tkn->kind == 0 &&
+    const int pl_on = fast_owner && g_ldpipe >= 2 && nchunks > 0 && tkn && tkn->kind == 0 &&
                       tkn->p == p && tkn->i == i + 1;
     const double* pl_src = pl_on ? c->B + (i0 + 64) * ldb + c0 : NULL;
     double* pl_dst = pl_on ? tb->cbuf + (size_t)(i0 + 64) * ncp : NULL;
@@ -2471,6 +2471,12 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
+            // LDPIPE 档 1：下一任务（同面板下一行块）B 的 prfm 也借回写循环逐行发（NEXTA 同款节奏；
+            // NT 写相是写吞吐瓶颈，读预取白飞；store(T)→load(T+1) 相邻，L2 存活期最短）。
+            // 边界突发 prfm / 边界拷贝两版已证伪（kloop +0.13/+0.24：MSHR 占满 + L1 污染），档 2 仅留档对照。
+            const char* nbp = NULL;
+            if (fast_owner && g_ldpipe && tkn && tkn->kind == 0 && tkn->p == p && tkn->i == i + 1)
+                nbp = (const char*)(c->B + (i0 + 64) * ldb + c0);
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
@@ -2483,6 +2489,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                         const char* q2 = na2 + r * 512;
                         for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
                     }
+                }
+                if (nbp) {
+                    const char* qb = nbp + (size_t)r * ldb * 8;
+                    for (long b = 0; b < 768; b += 64) __builtin_prefetch(qb + b, 0, 2);
                 }
                 long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
                 if (pre > nci) pre = nci;
