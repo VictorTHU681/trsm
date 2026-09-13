@@ -1,0 +1,27 @@
+=== HOST cn20483 03:00:03 331f897 probe: 宽面板 c256 现码复测作业（TC3 nc256 vs nc128）
+[env] host=cn20483 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+--- RUN nc128_1
+ 17024 x   512        36.14    4105.8218     1.50e-15     PASS
+--- RUN nc256_1
+ 17024 x   512        62.94    2357.7058     1.05e-15     PASS
+--- RUN nc128_2
+ 17024 x   512        35.81    4144.2066     1.50e-15     PASS
+--- RUN nc256_2
+ 17024 x   512        62.43    2376.8619     1.05e-15     PASS
+--- RUN nc128_3
+ 17024 x   512        36.07    4114.3911     1.50e-15     PASS
+--- RUN nc256_3
+ 17024 x   512        53.66    2765.2806     1.05e-15     PASS
+--- RUN nc128_4
+ 17024 x   512        35.87    4136.2713     1.50e-15     PASS
+--- RUN nc256_4
+ 17024 x   512        62.76    2364.4537     1.05e-15     PASS
+--- 分相 nc128
+[trsm prof]  并行区唤醒：最慢线程 573.8 µs，平均 571.0 µs
+[trsm prof]  每线程平均 ms：prep 0.739 | load 0.575 pack 3.094 xcopy 0.000 wait 0.865 kloop 27.807 dump 0.000 epi 0.004 dkloop 0.299 ddump 0.057 depi 0.017 store 0.330 | task 合计 31.142 | 尾部不均衡 0.807 ms（平均空闲 0.426 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 70.1%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+--- 分相 nc256
+[trsm prof]  并行区唤醒：最慢线程 537.8 µs，平均 534.8 µs
+[trsm prof]  每线程平均 ms：prep 0.747 | load 1.100 pack 2.954 xcopy 0.000 wait 4.189 kloop 49.725 dump 0.000 epi 0.004 dkloop 0.312 ddump 0.056 depi 0.015 store 0.287 | task 合计 56.994 | 尾部不均衡 2.578 ms（平均空闲 1.546 ms）| k 步 145044480（对角 1766400）（理想 19.700 ms，kloop 效率 39.4%）
+[trsm prof]  托管回写：排队 0 行，同步收尾 0 行（0.0%）
+=== DONE 03:00:38
