@@ -1858,6 +1858,7 @@ typedef struct {
     sw_t swq[16];
     int swn, swi;
     long n_swflush, n_swq;   // 同步收尾拷的 cache 行数 / 排队的总行数（诊断托管走线器是否生效）
+    long pl_key, pl_rows;    // LDPIPE：上一任务已为 (i<<32|p) 预拷入 cbuf 的 B 行数（装载与 GEMM 软件流水）
     // 分相计时（cntvct 周期），TRSM_PROFILE=2 时累计
     uint64_t t_load, t_pack, t_pf, t_wait, t_kloop, t_epi, t_dkloop, t_depi, t_store, t_task;
     long n_task, n_kstep;
@@ -1995,6 +1996,7 @@ static inline __attribute__((always_inline)) void kloop_owner_cursor0(const doub
 static inline __attribute__((always_inline)) void kloop_owner_cursor4(const double*,const double*,double*,const char*,const char*,const char*);
 // Select once per owner task; keep the original kernel for same-binary comparisons.
 static int g_owner_cursor;
+static int g_ldpipe;   // TRSM_LDPIPE：下一任务 B 装载与本任务 GEMM 软件流水（owner 路径，边界 prfm+拷贝）
 
 // Full 16x32 diagonal results can go straight from ZA to the resident panel.
 // All columns are independent; storing this tile before the next column tile
@@ -2068,6 +2070,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : cb;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
+    // LDPIPE：上一任务若已把本任务的 B 预拷进 cbuf（键 = i<<32|p），跳过对应行
+    long plskip = 0;
+    if (fast_owner && g_ldpipe && tb->pl_key == (((long)i << 32) | p)) plskip = tb->pl_rows;
+    if (g_ldpipe) tb->pl_key = -1;
     if (split) {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
@@ -2077,7 +2083,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
-        for (long r = 0; r < 16L * S; r++) {
+        for (long r = plskip; r < 16L * S; r++) {
             double* d = cb + r * ncp;
             if (lpf > 0 && r + lpf < mbi) {
                 const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
@@ -2119,6 +2125,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     const long nchunks = (kend - chfirst * kc + kc - 1) / kc;
     const long nstrips = nchunks * (fast_owner ? S / 2 : S);
     double* Abuf[2] = { tb->astrip, tb->astrip + 64L * kc };
+    // LDPIPE（TRSM_LDPIPE）：把下一任务（同面板下一行块）的 B 拷入其 cbuf 行，与本任务 GEMM 软件流水——
+    // 每个内核调用边界 prfm 下一片源行（异步、趟内核执行时飞行）+ 拷贝上一片（已达 L2）。
+    // 换面板不预拷（目标 cbuf[0..64) 与本任务 GEMM 读区 [0,i0) 冲突）；行 [i0+64,i0+128) 与本任务读写区不相交。
+    const int pl_on = fast_owner && g_ldpipe && nchunks > 0 && tkn && tkn->kind == 0 &&
+                      tkn->p == p && tkn->i == i + 1;
+    const double* pl_src = pl_on ? c->B + (i0 + 64) * ldb + c0 : NULL;
+    double* pl_dst = pl_on ? tb->cbuf + (size_t)(i0 + 64) * ncp : NULL;
+    long pl_done = 0;
+    const long pl_rpb = pl_on ? (64 + 12 * nchunks - 1) / (12 * nchunks) : 0;
     // 对角条预取：GEMM 最后两段里走线器 2 的空闲槽顺序扫本行块的对角打包条（否则对角阶段开头全是冷读，约 20 µs/任务）
     const char* dpf = (const char*)(c->diag + c->diag_off[i]);
     const char* dend = dpf + (size_t)diag_strip_off(S) * 8;
@@ -2238,6 +2253,28 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 }
                 pend = 1; pend_c = cur + 16 * ncp; pend_cols = 16;
                 if (c->prof >= 2) tb->n_kstep += kk;
+                if (pl_on && pl_done < 64) {   // 装载流水边界：prfm 下一片 + 拷贝已飞达的上一片
+                    long r1 = pl_done + pl_rpb; if (r1 > 64) r1 = 64;
+                    uint64_t plt0 = c->prof >= 2 ? cyc() : 0;
+                    for (long r2 = r1; r2 < r1 + pl_rpb && r2 < 64; r2++) {
+                        const char* s2 = (const char*)(pl_src + r2 * ldb);
+                        __builtin_prefetch(s2, 0, 2);       __builtin_prefetch(s2 + 64, 0, 2);
+                        __builtin_prefetch(s2 + 128, 0, 2); __builtin_prefetch(s2 + 192, 0, 2);
+                        __builtin_prefetch(s2 + 256, 0, 2); __builtin_prefetch(s2 + 320, 0, 2);
+                        __builtin_prefetch(s2 + 384, 0, 2); __builtin_prefetch(s2 + 448, 0, 2);
+                        __builtin_prefetch(s2 + 512, 0, 2); __builtin_prefetch(s2 + 576, 0, 2);
+                        __builtin_prefetch(s2 + 640, 0, 2); __builtin_prefetch(s2 + 704, 0, 2);
+                    }
+                    const svbool_t plpg = svptrue_b64();
+                    for (long r2 = pl_done; r2 < r1; r2++) {
+                        const double* s3 = pl_src + r2 * ldb;
+                        double* d3 = pl_dst + r2 * ncp;
+                        for (long j3 = 0; j3 < 96; j3 += 8)
+                            svst1_f64(plpg, d3 + j3, svld1_f64(plpg, s3 + j3));
+                    }
+                    pl_done = r1;
+                    if (c->prof >= 2) tb->t_pf += cyc() - plt0;
+                }
                 continue;
             }
             sw_advance(tb);
@@ -2280,6 +2317,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     }
     if (fast_owner && pend) { PROF_T(c, za_flush_duplex_bank4(pend_c, cs), t_epi); pend = 0; }
     if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); pend = 0; }
+    if (fast_owner && g_ldpipe) { tb->pl_key = pl_on && pl_done > 0 ? (((long)(i + 1) << 32) | p) : -1; tb->pl_rows = pl_done; }
 
     if (split) {
         // 段完成：最后完成者归约全部部分和到 C 块并继续对角求解，其余线程返回
@@ -5780,6 +5818,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.m = m; c.n = n; c.lda = lda; c.ldb = ldb; c.L = L; c.B = B;
     c.prof = env_int("TRSM_PROFILE", 0);
     g_owner_cursor=env_int("TRSM_OWNER_CURSOR",1); // Fixed KC64 prefetch offsets; 0 restores v48 owner kernels.
+    g_ldpipe=env_int("TRSM_LDPIPE",0);
     g_abhoist = env_int("TRSM_ABHOIST", 1); // 0 retains the original duplex kernels for comparisons
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
