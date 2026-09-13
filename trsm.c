@@ -1468,6 +1468,8 @@ typedef struct {
     double* B;
     int mb, nc, kc;
     int lchunk, direct, special;
+    int pgrp;               // 每任务的面板数（TRSM_PAIRP：special=4 且偶数个等宽面板时为 2）：同一行块的相邻两个面板在一个任务里做，
+                            // 打包 L 条带第二个面板从 L2 重读（A 的 DRAM 流量减半），C 块/部分和缓冲按面板数扩容
     int owner;              // 面板驻留模式（小 m、宽 X）：线程独占整列面板并按行块顺序做完，B 操作数来自本线程 L2 中的面板缓冲，不写 Xp、无跨线程依赖
     long* owner_bound;      // 面板驻留模式：线程 t 的连续任务区间 [owner_bound[t], owner_bound[t+1])（面板主序，按代价均衡）
     int dnt;                // 对角阶段 A 条用 ldnt1d（面板驻留模式默认开；只对能留在 L1 的短条带生效）
@@ -2554,6 +2556,32 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4(const double
  "mov w12, #6\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+// 跨面板 A 复用（TRSM_PAIRP）：第一面板的 bank4 不是 A 的最后一次读（第二面板还要从 L2 重读同一条），
+// 用 ld1d 保留 A 条带的正常驻留资格；第二面板仍走 ldnt1d 版（最后一读的缓存卫生不变）
+static inline __attribute__((always_inline)) void kloop_duplex_bank4_keep(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #128\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_NEXT(128, "ld1d ") DUPLEX4_U_TAIL(1024)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(128, 1024, 8192, 8256, "ld1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
 #undef DUPLEX4_U_LAST
@@ -3077,6 +3105,34 @@ static inline __attribute__((always_inline)) void kloop_hoist_bank4(const double
  "mov w12, #6\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
  "mov w12, #7\n\t" HDUPLEX4_BODY HDUPLEX4_LAST HDUPLEX4_TAIL
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+// 跨面板 A 复用（TRSM_PAIRP）：第一面板的 bank4 用 ld1d（A 条带还有第二面板要读，保留 L2 驻留资格）。
+// HDUPLEX4_* 宏在使用点展开 DUP4_ALD，这里切换后再实例化一份。
+#undef DUP4_ALD
+#define DUP4_ALD "ld1d "
+static inline __attribute__((always_inline)) void kloop_hoist_bank4_keep(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "add %[a], %[a], #512\n\t"
+ "ld1d z0.d, p0/z, [%[a], #-8, mul vl]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #-7, mul vl]\n\t"
+ "add %[b], %[b], #512\n\t"
+ "ld1d z4.d, p0/z, [%[b], #-8, mul vl]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #-7, mul vl]\n\t"
+ "mov w12, #0\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #1\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #2\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #3\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #4\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #5\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #6\n\t" HDUPLEX4_BODY HDUPLEX4_NEXT HDUPLEX4_TAIL
+ "mov w12, #7\n\t" HDUPLEX4_BODY HDUPLEX4_LAST HDUPLEX4_TAIL
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #undef HDUPLEX4_BODY
 #undef HDUPLEX4_NEXT
 #undef HDUPLEX4_LAST
@@ -3084,7 +3140,7 @@ static inline __attribute__((always_inline)) void kloop_hoist_bank4(const double
 // Select the address-hoisted KC64 kernels once per solve. Keeping both task
 // versions permits same-binary profiling without changing the owner path.
 static int g_abhoist;
-static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist)
+static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist, int pgrp)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
     long tnext = -1;
@@ -3098,6 +3154,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     long nci=128;
     const int S = c->S_of[i];
     const long ntile = (nci + 31) / 32;
+    // 跨面板 A 复用（pgrp=2）：本任务连做面板 p、p+1（准入保证 cshift=0、两面板均完整），
+    // 每条 A 只从 DRAM 读一遍，第二面板从 L2 重读；C 块 / 部分和按面板错开 pstride
+    const size_t pstride = (size_t)mb * ncp;
     double* cb = tb->cbuf;
     double* scratch = tb->scratch;
     const long ldb = c->ldb, lda = c->lda;
@@ -3109,26 +3168,29 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
 
     // 分裂段：部分和写到专用缓冲（从 0 开始累加），普通任务直接用 C 块
     const int split = tk->nseg > 1;
-    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : cb;
+    double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * pgrp * mb * ncp : cb;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
     if (split) {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
-        for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
+        for (int g = 0; g < pgrp; g++)
+            for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + g * pstride + q, svdup_f64(0.0));
         if (c->prof >= 2) tb->t_load += cyc() - t0;
     } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        for (int g = 0; g < pgrp; g++)
         for (long r = 0; r < 16L * S; r++) {
-            double* d = cb + r * ncp;
+            double* d = cb + g * pstride + r * ncp;
+            const double* Bg = Bblk + g * nc;
             if (lpf > 0 && r + lpf < mbi) {
-                const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
+                const char* pr = (const char*)(Bg + (r + lpf) * ldb);
                 for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
             }
             if (r < mbi) {
-                const double* s = Bblk + r * ldb;
+                const double* s = Bg + r * ldb;
                 long j = 0;
                 for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
                 if (j < nci) {
@@ -3182,7 +3244,10 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         long kk = i0 - k0; if (kk > kc) kk = kc;
         const long row0 = i0 + 16 * r;
         const long k0n = k0 + kc;
-        if (r == 0) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+        if (r == 0) {
+            PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p), t_wait);
+            if (pgrp == 2) PROF_T(c, wait_flag(c, (k0 / mb) * c->npan + p + 1), t_wait);   // 配对任务的生产者同为配对任务，两个 flag 一起发布
+        }
         const double* Xk = c->xp + ((size_t)ch * c->npan + p) * kc * ncp;         // 本段 B 面板（连续，行距 ncp）
         const double* Xkn = c->xp + ((size_t)(ch + 1) * c->npan + p) * kc * ncp;  // 下一段面板（预取目标）
         (void)xlines;
@@ -3224,10 +3289,17 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         hosted_next = host_now;
         // 2 条之后（预取目标）：转置读的是 q+1 的行，因此预取 q+2；不托管时预取 q+1
         long pfq = q + (host_now ? 2 : 1);
+        for (int g = 0; g < pgrp; g++) {
+        // 配对任务：面板 g 的 B 段 / 下一段 / C 块各自错开；A（打包 L 条带）两面板共用，g=1 从 L2 重读
+        const double* Xk_g = g ? c->xp + ((size_t)ch * c->npan + p + 1) * kc * ncp : Xk;
+        const double* Xkn_g = g ? c->xp + ((size_t)(ch + 1) * c->npan + p + 1) * kc * ncp : Xkn;
+        double* acc_g = acc + g * pstride;
         for (long t = 0; t < ntile; t++) {
             pf_t pf = pf_dummy;
-            // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
+            // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）。
+            // 配对任务共 2*ntile 个微块：槽 u≥ntile 顺延预取条 q+2（打包缓冲按 (ch,r) 连续），越过任务 A 区则不发
             if (pf_on && pfq < nstrips) {
+                long u = (long)g * ntile + t;
                 long pr0 = i0 + 16 * (r + 1 == S ? 0 : r + 1);
                 long pk0 = (ch + (r + 1 == S)) * kc;
                 long pkk = i0 - pk0; if (pkk > kc) pkk = kc;
@@ -3240,15 +3312,16 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                         pf.pfn = lines_per_row;
                         pf.pfj = lda * 8 - lines_per_row * 64;
                     }
-                } else {
+                } else if (u < ntile || pfq + 1 < nstrips) {
                     const double* An = c->pp[cpy] + ((mode==2 || mode==4) ? (c->pp_off[i0/16]+((size_t)(ch+(r+1==S))*S+(r+1==S?0:r+1))*1024)
                             : special_l_offset(c,mode,pr0/16,pk0));
-                    pf.p = (const char*)An + (size_t)t * (kk / 2) * 64;
+                    pf.p = (const char*)An + (size_t)u * (kk / 2) * 64;
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
                 }
             }
-            // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
+            // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条。
+            // 配对任务两面板各用自己的 ntile 个槽预取各自的下一段面板，公式与单面板一致
             int p2_used = 0;
             if (pf_on && k0n < kend) {
                 long slots_needed = (kk * ncp * 8 + kk * 32 - 1) / (kk * 32);  // 每槽 kk/2 行
@@ -3256,7 +3329,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 long xstart = S - strips_needed; if (xstart < 0) xstart = 0;
                 if (r >= xstart) {
                     long slot = (r - xstart) * ntile + t;
-                    if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
+                    if (slot < slots_needed) { pf.p2 = (const char*)Xkn_g + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
             if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
@@ -3265,17 +3338,23 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
             long cols = nci - 32 * t; if (cols > 32) cols = 32;
             // 游标 3：本微块的 C 行（其回写在下一微块的 K 循环里），pldl2keep 提前触碰
-            if (pf_on) { pf.pc = (const char*)(acc + 16L * r * ncp + 32 * t); pf.pcs = cs; }
+            if (pf_on) { pf.pc = (const char*)(acc_g + 16L * r * ncp + 32 * t); pf.pcs = cs; }
             if((mode==2 || mode==4)) {
                 // Keep ZA live between strips; each call drains the other bank.
-                double* cur=acc+16L*r*ncp+32*t;
+                double* cur=acc_g+16L*r*ncp+32*t;
                 const char* ap=pf.p; const char* bp=pf.p2;
                 if (hoist) {
-                PROF_T(c,kloop_hoist_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
-                PROF_T(c,kloop_hoist_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                PROF_T(c,kloop_hoist_bank0(A,Xk_g+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
+                if (pgrp == 2 && g == 0)   // A 还有第二面板要读：bank4 用 ld1d 保留驻留资格
+                PROF_T(c,kloop_hoist_bank4_keep(A,Xk_g+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                else
+                PROF_T(c,kloop_hoist_bank4(A,Xk_g+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
                 } else {
-                PROF_T(c,kloop_duplex_bank0(A,Xk+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
-                PROF_T(c,kloop_duplex_bank4(A,Xk+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                PROF_T(c,kloop_duplex_bank0(A,Xk_g+32*t*kc,(pend?pend_c:cur)+16,ap,bp,pf.pc),t_kloop);
+                if (pgrp == 2 && g == 0)
+                PROF_T(c,kloop_duplex_bank4_keep(A,Xk_g+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
+                else
+                PROF_T(c,kloop_duplex_bank4(A,Xk_g+32*t*kc+1024,cur,ap+1024,bp+1024,pf.pc+128),t_kloop);
                 }
                 pend=1;pend_c=cur;pend_cols=cols;
                 if(c->prof>=2)tb->n_kstep+=kk;
@@ -3284,40 +3363,41 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
 
             sw_advance(tb);
             if((mode==1)) {
-                PROF_T(c,za_load_fixed(acc+16L*r*ncp+32*t,cs,cols),t_load);
+                PROF_T(c,za_load_fixed(acc_g+16L*r*ncp+32*t,cs,cols),t_load);
             } else sme_zero_za();
             if((mode==1)) {
-                if(c->ant)PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
-                else PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk+32*t,cs,kk,cols,&pf),t_kloop);
+                if(c->ant)PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk_g+32*t,cs,kk,cols,&pf),t_kloop);
+                else PROF_T(c,kloop_fixed_direct(A,ase,aso,Xk_g+32*t,cs,kk,cols,&pf),t_kloop);
             } else if (host_now) {
                 int epi = pend && kk >= 96;
                 if (pend && !epi) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi); }
                 long kb0 = t * (kk / 4);
                 if (epi)
-                    PROF_T(c, kloop_tr_epi(A, Xk + 32 * t, cs, kk, &pf, scratch, pend_c, cs, pend_cols,
+                    PROF_T(c, kloop_tr_epi(A, Xk_g + 32 * t, cs, kk, &pf, scratch, pend_c, cs, pend_cols,
                                            c->L + nrow0 * lda + nk0 + kb0, lda * 8, Abuf[(q + 1) & 1] + kb0 * 16), t_kloop);
                 else
-                    PROF_T(c, kloop_tr_noepi(A, Xk + 32 * t, cs, kk, &pf,
+                    PROF_T(c, kloop_tr_noepi(A, Xk_g + 32 * t, cs, kk, &pf,
                                              c->L + nrow0 * lda + nk0 + kb0, lda * 8, Abuf[(q + 1) & 1] + kb0 * 16), t_kloop);
             } else if (pend && kk >= 65) {
-                if (c->ant) PROF_T(c, kloop_epi_sub(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
-                else PROF_T(c, kloop_epi_sub_t(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                if (c->ant) PROF_T(c, kloop_epi_sub(A, ase, aso, Xk_g + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                else PROF_T(c, kloop_epi_sub_t(A, ase, aso, Xk_g + 32 * t, cs, kk, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else if (pend && kk == 64) {
-                if (c->ant) PROF_T(c, kloop_fixed_epi(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
-                else PROF_T(c, kloop_fixed_epi(A, ase, aso, Xk + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                if (c->ant) PROF_T(c, kloop_fixed_epi(A, ase, aso, Xk_g + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
+                else PROF_T(c, kloop_fixed_epi(A, ase, aso, Xk_g + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_kloop);
             } else {
                 if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_epi);
-                if (c->ant) PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
-                else PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk + 32 * t, cs, kk, cols, &pf), t_kloop);
+                if (c->ant) PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk_g + 32 * t, cs, kk, cols, &pf), t_kloop);
+                else PROF_T(c, kloop_fixed_plain(A, ase, aso, Xk_g + 32 * t, cs, kk, cols, &pf), t_kloop);
             }
             if((mode==1)) {
-                PROF_T(c,za_store_fixed(acc+16L*r*ncp+32*t,cs,cols),t_dump);
+                PROF_T(c,za_store_fixed(acc_g+16L*r*ncp+32*t,cs,cols),t_dump);
                 pend=0;
             } else {
                 PROF_T(c, za_dump(scratch), t_dump);
-                pend = 1; pend_c = acc + 16L * r * ncp + 32 * t; pend_cols = cols;
+                pend = 1; pend_c = acc_g + 16L * r * ncp + 32 * t; pend_cols = cols;
             }
             if (c->prof >= 2) tb->n_kstep += kk;
+        }
         }
     }
     if((mode==2 || mode==4) && pend) {PROF_T(c,za_flush_duplex_bank4(pend_c+16,cs),t_epi);pend=0;}
@@ -3330,14 +3410,16 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        for (int g = 0; g < pgrp; g++)
         for (long r = 0; r < 16L * S; r++) {
-            double* d = cb + r * ncp;
+            double* d = cb + g * pstride + r * ncp;
+            const double* Bg = Bblk + g * nc;
             if (lpf > 0 && r + lpf < mbi) {
-                const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
+                const char* pr = (const char*)(Bg + (r + lpf) * ldb);
                 for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
             }
             if (r < mbi) {
-                const double* s = Bblk + r * ldb;
+                const double* s = Bg + r * ldb;
                 long j = 0;
                 for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
                 if (j < nci) {
@@ -3350,10 +3432,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
         }
+        for (int g = 0; g < pgrp; g++)
         for (int sg = 0; sg < tk->nseg; sg++) {
-            const double* P = c->part + tk->part_off + (size_t)sg * mb * ncp;
+            const double* P = c->part + tk->part_off + (size_t)sg * pgrp * mb * ncp + g * pstride;
             for (long q = 0; q < 16L * S * ncp; q += 8)
-                svst1_f64(pg, cb + q, svadd_f64_x(pg, svld1_f64(pg, cb + q), svld1_f64(pg, P + q)));
+                svst1_f64(pg, cb + g * pstride + q, svadd_f64_x(pg, svld1_f64(pg, cb + g * pstride + q), svld1_f64(pg, P + q)));
         }
         if (c->prof >= 2) tb->t_load += cyc() - t0;
     }
@@ -3381,6 +3464,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             nb_lines = (nnci * 8 + 63) / 64;
             nb_base = c->B + ni0 * ldb + nc0;
         }
+        // 配对任务：两个面板各做一遍对角求解（对角打包条 D 共用，第二面板从 L2 重读）
+        for (int g = 0; g < pgrp; g++) {
+        double* cbg = cb + g * pstride;
         for (int s = 0; s < S; s++) {
             const double* A = D + diag_strip_off(s);
             long K = 16L * (s + 1);
@@ -3395,44 +3481,47 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     nb_done += rows_this;
                 }
                 long cols = nci - 32 * t; if (cols > 32) cols = 32;
-                if (pf_on) { pf.pc = (const char*)(cb + 16L * s * ncp + 32 * t); pf.pcs = cs; }
+                if (pf_on) { pf.pc = (const char*)(cbg + 16L * s * ncp + 32 * t); pf.pcs = cs; }
                 sw_advance(tb);
                 sme_zero_za();
                 if (pend && K >= 65) {
-                    PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    PROF_T(c, kloop_epi_set(A, 128, 128, cbg + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else if (pend && K == 64) {
-                    PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    PROF_T(c, kloop_epi64_set(A, 128, 128, cbg + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    PROF_T(c, kloop_plain(A, 128, 128, cbg + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
-                pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
+                pend = 1; pend_c = cbg + 16L * s * ncp + 32 * t; pend_cols = cols;
                 if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
             // 条末必须落地：下一条把这些行当 B 操作数
             if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
         }
+        }
     }
 
     // 4. C 块 → Xp（同步，消费者要读）→ X（可托管到后续 K 循环），发布 flag
+    // 配对任务：两个面板先各写 Xp 并发布各自 flag（下游尽早解锁），X 回写放到两个 flag 之后
     {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         // 上一任务遗留的托管回写先同步收尾（通常已在 K 循环里完成）
         sw_flush(tb);
         // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
-        double* Bout=Bblk;
-
         const int last_rb = (i + 1 == c->nrb);
+        for (int g = 0; g < pgrp; g++) {
+        const double* cbg = cb + g * pstride;
+        const long pgn = p + g;
         if (!last_rb && (mode==2 || mode==4) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
-                double* pan = c->xp + ((size_t)((i0 + ch0) / kc) * c->npan + p) * kc * ncp;
+                double* pan = c->xp + ((size_t)((i0 + ch0) / kc) * c->npan + pgn) * kc * ncp;
                 for (long j = 0; j < nc; j += 16) {
                     double* dj = pan + (j / 16) * kc * 16;
-                    const double* sj = cb + ch0 * ncp + j;
+                    const double* sj = cbg + ch0 * ncp + j;
                     for (long r = 0; r < rows; r++) {
                         svst1_f64(pg, dj + r * 16, svld1_f64(pg, sj + r * ncp));
                         svst1_f64(pg, dj + r * 16 + 8, svld1_f64(pg, sj + r * ncp + 8));
@@ -3441,8 +3530,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
         } else if (!last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
-            double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
-            const double* s = cb + r * ncp;
+            double* d = c->xp + ((size_t)(gr / kc) * c->npan + pgn) * kc * ncp + (gr % kc) * ncp;
+            const double* s = cbg + r * ncp;
             if (c->xpnt) for (long j = 0; j < nc; j += 8) {
                 double* dj=((mode==2 || mode==4))?d-(gr%kc)*ncp+(j/16)*kc*16+(gr%kc)*16+j%16:d+j;
                 svstnt1_f64(pg,dj,svld1_f64(pg,s+j));
@@ -3455,16 +3544,20 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         }
         // 专用路径的消费者只读 Xp（列块主序副本），不读 X：Xp 写完就发布 flag，X 的回写放到 flag 之后——
         // 缩短行块间依赖链（case3 每环 ≈ 最后一段 GEMM + 归约 + 对角 + 回写，89 环串行），下游任务少等一次 X 回写的时间
-        if (c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+        if (c->eflag) __atomic_store_n(&c->flags[i * c->npan + pgn], 1, __ATOMIC_RELEASE);
+        }
         // 托管条件：整面板（nci==nc，Xp 行距 = 每行 64 B 段数×64）且有 Xp 副本可作源。X 行可以不对齐（bench 的 malloc 只有 16 B 对齐），
         // stnt1d 支持非对齐，只是跨行的 64 B 段会拆成两次部分行写。
         // The specialized Xp layout is tiled; copy final output from C below.
+        for (int g = 0; g < pgrp; g++) {
+        const double* cbg = cb + g * pstride;
+        double* Bout = Bblk + g * nc;
         const int can_sw = 0;
         if (can_sw) {
             for (long r0 = 0; r0 < mbi; r0 += kc) {
                 long rows = mbi - r0; if (rows > kc) rows = kc;
                 sw_t w;
-                w.src = (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p) * kc * ncp);
+                w.src = (const char*)(c->xp + ((size_t)((i0 + r0) / kc) * c->npan + p + g) * kc * ncp);
                 w.dst = (char*)(Bout + r0 * ldb);
                 w.lpr = nc * 8 / 64; w.cnt = w.lpr;
                 w.dstj = ldb * 8 - nc * 8;
@@ -3476,7 +3569,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
-                const double* s = cb + r * ncp;
+                const double* s = cbg + r * ncp;
                 double* d = Bout + r * ldb;
                 long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
                 if (pre > nci) pre = nci;
@@ -3490,7 +3583,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             }
         } else {
             for (long r = 0; r < mbi; r++) {
-                const double* s = cb + r * ncp;
+                const double* s = cbg + r * ncp;
                 double* d = Bout + r * ldb;
                 long j = 0;
                 for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
@@ -3500,19 +3593,23 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 }
             }
         }
+        }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    if (!c->eflag) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (!c->eflag) for (int g = 0; g < pgrp; g++) __atomic_store_n(&c->flags[i * c->npan + p + g], 1, __ATOMIC_RELEASE);
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
 }
 
-static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1,0);}
-static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,0);}
-static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0);}
-static long run_task_hoist2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,1);}
-static long run_task_hoist4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1);}
+static long run_task_special1(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,1,0,1);}
+static long run_task_special2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,0,1);}
+static long run_task_special4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0,1);}
+static long run_task_hoist2(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,2,1,1);}
+static long run_task_hoist4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1,1);}
+// 跨面板 A 复用（TRSM_PAIRP）：special=4 的配对任务包装（非 hoist / hoist）
+static long run_task_pair4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,0,2);}
+static long run_task_pairh4(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid) {return run_task_special_impl(c,tb,tk,guess,tid,4,1,2);}
 // KC64 owner kernels: prefetch bases remain fixed and PRFM uses immediate
 // offsets. A/B loads, FP64 FMOPA order and hosted C stores match the old kernels.
 // This removes cursor ADD instructions without changing the addresses prefetched.
@@ -5270,11 +5367,14 @@ static void build_tasks(ctx_t* c, int nth)
             total += cost[i] * c->npan;
         }
         int splitf = c->owner ? 0 : env_int("TRSM_SPLITF", 12);   // 面板驻留模式不分裂 K
-        int maxseg = env_int("TRSM_MAXSEG", 8);
+        // 配对任务（pgrp=2）：每任务代价 ×2 → nseg 目标值 ×2（每段的 K 段数减半，行块间依赖环的末段工作量与单面板一致）；
+        // maxseg / tailseg 默认同步放大（显式环境变量仍为绝对值）
+        const int pg = c->pgrp > 0 ? c->pgrp : 1;
+        int maxseg = env_int("TRSM_MAXSEG", 8 * pg);
         // Narrow RHS panels leave too few long tasks at the end of the solve.
         // Split only the last two row blocks more finely to shorten that tail.
         int tailrows = env_int("TRSM_TAIL_ROWS", 2);
-        int tailseg = env_int("TRSM_TAIL_SEG", 6);
+        int tailseg = env_int("TRSM_TAIL_SEG", 6 * pg);
         // 宽 n（面板数 ≥ 线程数）时最后 tailrows_w 个行块也分裂成 tailseg_w 段：最后一个行块的任务最长（case2 约 1.7 ms），
         // 不分裂时尾部平均空闲约半个任务
         int tailrows_w = env_int("TRSM_TAILW_ROWS", 1);
@@ -5287,14 +5387,14 @@ static void build_tasks(ctx_t* c, int nth)
             long nch = (i * mb) / kc;
             int nseg = 1;
             if (splitf > 0 && nch >= minch) {
-                nseg = (int)(cost[i] / target + 0.5);
+                nseg = (int)(pg * cost[i] / target + 0.5);
                 if (c->npan < nth && i >= c->nrb - tailrows && nseg < tailseg) nseg = tailseg;
                 if (c->npan >= nth && i >= c->nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
                 if (nseg > maxseg) nseg = maxseg;
                 if (nseg > nch) nseg = (int)nch;
                 if (nseg < 1) nseg = 1;
             }
-            nitems += (long)nseg * c->npan;
+            nitems += (long)nseg * (c->npan / pg);
             if (nseg > 1) part_doubles += (size_t)nseg * c->npan * mb * c->ncp;
         }
         if (c->ppmode == 1) nitems += c->nstrip;   // 打包任务
@@ -5360,7 +5460,7 @@ static void build_tasks(ctx_t* c, int nth)
             long nch = (i * mb) / kc;
             int nseg = 1;
             if (splitf > 0 && nch >= minch) {
-                nseg = (int)(cost[i] / target + 0.5);
+                nseg = (int)(pg * cost[i] / target + 0.5);
                 if (c->npan < nth && i >= c->nrb - tailrows && nseg < tailseg) nseg = tailseg;
                 if (c->npan >= nth && i >= c->nrb - tailrows_w && nseg < tailseg_w) nseg = tailseg_w;
                 if (nseg > maxseg) nseg = maxseg;
@@ -5373,7 +5473,7 @@ static void build_tasks(ctx_t* c, int nth)
             size_t poff0 = poff;
             for (int pass = 0; pass < (lastlate ? 2 : 1); pass++) {
                 poff = poff0;
-                for (long p = 0; p < c->npan; p++) {
+                for (long p = 0; p < c->npan; p += pg) {   // 配对任务：p 为面板组首（p, p+1）
                     for (int s = 0; s < nseg; s++) {
                         int is_last = s == nseg - 1;
                         if (lastlate && (pass == 0) == is_last) continue;   // pass 0：非末段；pass 1：末段
@@ -5383,7 +5483,7 @@ static void build_tasks(ctx_t* c, int nth)
                         t->ch0 = nch * s / nseg; t->ch1 = nch * (s + 1) / nseg;
                         t->part_off = poff;
                     }
-                    if (nseg > 1) poff += (size_t)nseg * mb * c->ncp;
+                    if (nseg > 1) poff += (size_t)nseg * pg * mb * c->ncp;
                 }
             }
         }
@@ -5504,6 +5604,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.swhost=0; // Kx16 Xp is copied to B directly after the diagonal solve.
       }
     }
+    // 跨面板 A 复用（TRSM_PAIRP，§10g-pair，2026-09-13 证伪，默认关）：special=4 且偶数个等宽面板时，
+    // 一个任务连做同一行块的相邻两个面板：打包 L 条带只从 DRAM 读一遍（第一面板 bank4 用 ld1d 保留驻留，
+    // 第二面板从 L2 重读后由 ldnt1d 降级），A 的 DRAM 流量减半（17024×512：4.6→2.3 GB）。
+    // 实测 TC3 34.8→53.4 ms（kloop 效率 71%→46%）：双 C 块驻留 393 KB + 双 Xk 段把 L2 挤爆，
+    // Xk/C 重读打回 DRAM，与 §10g0 nc256（+49%）同机制；mb 缩小则 Xp 读 ∝ m²/mb 反噬。留档勿再试。
+    c.pgrp = (c.special == 4 && !c.cshift && c.npan % 2 == 0 && env_int("TRSM_PAIRP", 0)) ? 2 : 1;
 
     // Paired row strips require full 64-row tasks and full 96-column panels.
     if (c.owner && m % 64 == 0 && n % 96 == 0 && env_int("TRSM_SPECIAL", 1) && mb == 64 && nc == 96 && kc == 64 && c.ncp == 96
@@ -5674,7 +5780,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         int tid = omp_get_thread_num();
         if (c.prof >= 2) g_wake_cyc[tid] = cyc();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
+        ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : c.pgrp * mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
@@ -5787,7 +5893,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         long (*taskfn)(const ctx_t*,tbuf_t*,const task_t*,const task_t*,int)=run_task;
         if(c.special==1)taskfn=run_task_special1;
         if(c.special==2)taskfn=g_abhoist ? run_task_hoist2 : run_task_special2;
-        if(c.special==4)taskfn=g_abhoist ? run_task_hoist4 : run_task_special4;
+        if(c.special==4)taskfn=c.pgrp==2 ? (g_abhoist ? run_task_pairh4 : run_task_pair4)
+                                         : (g_abhoist ? run_task_hoist4 : run_task_special4);
         long t = __atomic_fetch_add(&c.next, 1, __ATOMIC_RELAXED);
         while (t < c.ntask_items) {
             // 下一任务：reserve=1 时在对角阶段开始处预占（精确预取其 C 块）；否则启发式猜测 t+nth，不提前占号
