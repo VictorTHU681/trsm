@@ -2002,6 +2002,7 @@ static inline void zgeo_flush(const double*,double*,long);
 static int g_owner_cursor;
 static int g_zgeo;   // TRSM_ZGEO：TC1 owner GEMM 段走 zgemm 几何（K 链融合 + 窗口化回写），默认关
 static int g_zgeo_cpc; // TRSM_ZGEO_CPC：每调用 chunk 数（0=整链）
+static int g_zgeo_nodrain; // TRSM_ZGEO_NODRAIN：诊断用——跳过回写窗（结果错误，仅测 8 瓦片纯算地板）
 
 // Full 16x32 diagonal results can go straight from ZA to the resident panel.
 // All columns are independent; storing this tile before the next column tile
@@ -2154,7 +2155,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     for (long t = 0; t < 6; t++) {
                         const double* B0 = Xk0 + (size_t)cb0 * 64 * ncp + 16 * t;
                         double* cur = acc + 16L * rr * ncp + 16 * t;
-                        if (zpend) { PROF_T(c, kloop_zgeo_head_wb(Ab, B0, zscr, zpend_c), t_kloop); }
+                        if (zpend && !g_zgeo_nodrain) { PROF_T(c, kloop_zgeo_head_wb(Ab, B0, zscr, zpend_c), t_kloop); }
                         else       { PROF_T(c, kloop_zgeo_head(Ab, B0), t_kloop); }
                         if (nblk > 1)
                             PROF_T(c, kloop_zgeo_body(Ab + 4096, B0 + 64 * ncp, nblk - 1,
@@ -6035,6 +6036,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     g_owner_cursor=env_int("TRSM_OWNER_CURSOR",1); // Fixed KC64 prefetch offsets; 0 restores v48 owner kernels.
     g_zgeo=env_int("TRSM_ZGEO",0);
     g_zgeo_cpc=env_int("TRSM_ZGEO_CPC",0);
+    g_zgeo_nodrain=env_int("TRSM_ZGEO_NODRAIN",0);
     g_abhoist = env_int("TRSM_ABHOIST", 1); // 0 retains the original duplex kernels for comparisons
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
