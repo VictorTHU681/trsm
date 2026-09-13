@@ -561,6 +561,27 @@ TC2/3 研究了显式临时矩阵的 Strassen，再逐步剖析 SME GEMM 组件�
 
 主线分叉修复（本地 20 提交 rebase 到 Codex b138512 之上，trsm.c 逐字节不变）后，master 165087b（= v53 认证代码，trsm.c 自 v53 认证零改动）在 cn20483 过 final_job 全门禁：run.sh ×2（2722/4227/4207、2647/4314/4154，六 PASS）+ 原样 ×2（六 PASS）+ gen_test 80/40/20（三组 0 failures）。打 v53 提交包替换 v50 包（a536122 线上 12382.47）；预计线上 ~12520（v51/52/53 合计 +1.1% 按换算比折算，TC1 异常比按 ×1.0 保守记）。
 
+### 提交包修正 + TC1 线上诊断包（2026-09-13）
+
+**出分慢的原因（用户报告"trsm 提交总是不能及时出分"，zgemm/conv 正常）**：并排比对三题提交包发现 trsm 包两处不同——
+(1) **缺 bench_trsm.c**（zgemm/conv 都带 bench 源），解压后 `bash run.sh` 两条编译命令必失败，违反"ZIP 解压后必须能
+直接执行 run.sh 完成编译及全部测试"，自动判题流水线跑不了、只能人工兜底 → 出分慢；(2) 包里带 80 KB NOTES.md
+（conv 在合规整改时已专门从包里删除）。修正：**v53r 包** = trsm/{run.sh, trsm.c, bench_trsm.c, README(最小化重写)}，
+trsm.c 与 v53 逐字节相同；cn20483 自包含验收（解压→bash run.sh，零注入）3 PASS，1.92/23.76/35.55 ms = v53 认证水平。
+`trsm_submit_v53r_e637bd2.zip` sha256 `27e3a0ef…`。**此后打包一律带 bench、不带 NOTES**。
+
+**TC1 线上诊断包**（背景：v53 线上 12525.87 vs 榜2 12490.83 仅 +35 分；TC1 2770.7 vs 3273.9 落后 15.4%，
+且 TC1 换算比 ×1.01（TC2/TC3 正常 ×1.17/×1.13、v41 曾 ×1.10）——判题机侧被吃掉 250~500 分，账本退化态假说无直接证据。
+zgemm/conv 均靠诊断包破过同类案）：`run_diag.sh` = 正式 run.sh + `TRSM_PROFILE=2`（分相）+ `TRSM_SMAPS=1`（X/L/pp 的
+THP 覆盖率）+ run.sh 层用例前后系统快照（THP 设置、节点 MemFree、loadavg、glibc/gcc），stderr 在三行正式结果之后
+统一打到 stdout（判题日志只回显 stdout）。算子源码零改动。`trsm_submit_diag_88ea355.zip` sha256 `b829294a…`，
+cn20483 自包含验收 3 PASS + 85 行诊断段；诊断分数不作数（SMAPS 每调用扫描：TC1 ~757、TC2 3737、TC3 3516）。
+**判读指南**（2 GHz 健康预期）：TC2 kloop ≈16.9/1.29≈13.1 ms、TC1 kloop ≈0.79 ms——若 TC1 kloop 不缩放 → 频率/共租户
+（loadavg 佐证）；若 kloop 正常但 load/store/对角直写膨胀 → X 的 THP/TLB 税（smaps 覆盖率直读佐证）；
+Xnode/Lnode/pp0/hbmfree 由 prof 行直读。**坑（两次复现）**：进程外采样器（后台读 /proc/pid/smaps）在 TC3
+（~7 GB 映射 + pp mbind）上锁竞争挂死，勿用；进程内 SMAPS 每调用 ~4ms(TC1)/~190ms(TC2 prep 桶) 但全程可完成，
+且只污染 setup/prep 桶，判别桶（kloop/load/store/dkloop）干净。
+
 ### 10g-pair. TC3 跨面板 A 复用第三形态（配对任务）证伪（2026-09-13，fresh24 留档）
 
 **立项**（用户点名 §10g-route 的"换分块主序"）：TC3 的 A（打包 L 1.16 GB）×4 面板重读 = 4.6 GB，占总流量 78%。
