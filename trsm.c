@@ -1993,8 +1993,14 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4(const double
 
 static inline __attribute__((always_inline)) void kloop_owner_cursor0(const double*,const double*,double*,const char*,const char*,const char*);
 static inline __attribute__((always_inline)) void kloop_owner_cursor4(const double*,const double*,double*,const char*,const char*,const char*);
+static inline __attribute__((always_inline)) void kloop_zgeo_head_wb(const double*,const double*,const double*,double*);
+static inline __attribute__((always_inline)) void kloop_zgeo_head(const double*,const double*);
+static inline __attribute__((always_inline)) void kloop_zgeo_body(const double*,const double*,long,const char*);
+static inline __attribute__((always_inline)) void kloop_zgeo_tail(double*);
+static inline void zgeo_flush(const double*,double*,long);
 // Select once per owner task; keep the original kernel for same-binary comparisons.
 static int g_owner_cursor;
+static int g_zgeo;   // TRSM_ZGEO：TC1 owner GEMM 段走 zgemm 几何（K 链融合 + 窗口化回写），默认关
 
 // Full 16x32 diagonal results can go straight from ZA to the resident panel.
 // All columns are independent; storing this tile before the next column tile
@@ -2125,6 +2131,35 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     int hosted_next = 0;     // 下一条已由本条 K 循环转置好
     const int can_host = !(fast_owner ? 0 : c->direct) && (fast_owner ? 0 : c->jit) && (fast_owner ? 1 : c->packmode) != 0 && ntile == 4 && (kc & 31) == 0 && kc >= 32;
     if (fast_owner) sme_zero_za();
+    if (fast_owner == 3) {
+        // ZGEO（§10g-port）：带主序 + K 链融合。带 rr∈{0,2}（32 行），每带 6 个 16 列微块，
+        // 单调用吃满 nchunks×64 步；上一微块经 str-za 暂存，回写窗交错进下一微块 chunk0。
+        if (nchunks > 0) {
+            const double* Xk0 = tb->cbuf;
+            double* zscr = tb->scratch;
+            int zpend = 0; double* zpend_c = NULL;
+            const double* Abase = c->pp[cpy] + c->pp_off[i0 / 16];
+            for (int rr = 0; rr < 4; rr += 2) {
+                const double* Ab = Abase + (size_t)rr * 1024;
+                // 体循环每圈预取 4 KB 下一带 A；每调用错开 1/6 切片（rr=2 时无下一带，打哑地址）
+                const char* pfa0 = rr == 0 ? (const char*)(Abase + 2 * 1024) : (const char*)tb->scratch2;
+                const size_t pfslice = rr == 0 ? ((size_t)nchunks * 16384 / 6) & ~63UL : 0;
+                for (long t = 0; t < 6; t++) {
+                    const double* B0 = Xk0 + 16 * t;
+                    double* cur = acc + 16L * rr * ncp + 16 * t;
+                    if (zpend) { PROF_T(c, kloop_zgeo_head_wb(Ab, B0, zscr, zpend_c), t_kloop); }
+                    else       { PROF_T(c, kloop_zgeo_head(Ab, B0), t_kloop); }
+                    if (nchunks > 1)
+                        PROF_T(c, kloop_zgeo_body(Ab + 4096, B0 + 64 * ncp, nchunks - 1,
+                                                  pfa0 + (size_t)t * pfslice), t_kloop);
+                    PROF_T(c, kloop_zgeo_tail(zscr), t_kloop);
+                    zpend = 1; zpend_c = cur;
+                    if (c->prof >= 2) tb->n_kstep += 64 * nchunks;
+                }
+            }
+            if (zpend) PROF_T(c, zgeo_flush(zscr, zpend_c, ncp), t_epi);
+        }
+    } else
     for (long q = 0; q < nstrips; q++) {
         const long ch = chfirst + q / (fast_owner ? S / 2 : S);
         const int r = fast_owner ? (int)(q % (S / 2)) * 2 : (int)(q % S);
@@ -2479,6 +2514,8 @@ static long run_task_owner(const ctx_t* c, tbuf_t* tb, const task_t* tk, const t
 #endif
 static __attribute__((aligned(TRSM_OWNER_ALIGN))) long run_task_owner_cursor(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid)
 { return run_task_impl(c,tb,tk,guess,tid,2); }
+static __attribute__((aligned(TRSM_OWNER_ALIGN))) long run_task_owner_zgeo(const ctx_t* c,tbuf_t* tb,const task_t* tk,const task_t* guess,int tid)
+{ return run_task_impl(c,tb,tk,guess,tid,3); }
 
 // Constant block configurations let the compiler remove generic index and mode work.
 // Keep the general task independent; it handles all unmatched settings and layouts.
@@ -5577,6 +5614,214 @@ static inline __attribute__((always_inline)) void kloop_owner_cursor4(const doub
  "\n\t"
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 
+// ---------------------------------------------------------------- ZGEO：zgemm 几何移植（TC1 owner）
+// 纪律（zgemm 实测 98% 发射效率的三要素，账本 §10g-port）：
+//   1. K 循环内零 ZA 触碰：不做逐步 mova 排水，za0-7 累加完整条 K 链后一次 str-za 转存到 4 KB 暂存；
+//   2. 上一微块的回写（ld 暂存 + ld C + fsub + st C）作为"前置窗"交错进本微块首 chunk 的 64 步；
+//   3. K 链融合：单调用吃满 nch×64 步（A 跨 chunk 跳 S*1024 双字，B 在 cbuf 内行连续无缝），
+//      C 读改写从每 chunk 一次降为整链一次（÷nch），chunk≥2 后循环体全净（8 fmopa + 6 ld + 3 add/步）。
+// 几何：单调用 8 瓦片 32 行 × 16 列（za0-3 = 行 0-15 两半列，za4-7 = 行 16-31），B 载入两 bank 共享（减半）。
+// 仅接 fast_owner 整面板（ncp=96 硬编码，同 cursor 内核）；TRSM_ZGEO=1 启用，默认关。
+
+// 一个 k 步：8 fmopa + 4 ldnt1d(A) + 2 ld1d(B) + 3 add，S1-S4 为窗口/预取槽（字符串，可空）。
+// CUR=本步操作数（已载好），NXT=下步目标；E 步 cur=z0-5 nxt=z8-13，O 步反之。
+#define ZG_STEP(A0,A1,A2,A3,B0,B1, N0,N1,N2,N3,N4,N5, S1,S2,S3,S4) \
+ "ldnt1d " N0 ".d, p0/z, [%[a]]\n\t"                        \
+ "fmopa za0.d, p0/m, p0/m, " A0 ".d, " B0 ".d\n\t"          \
+ "fmopa za1.d, p0/m, p0/m, " A0 ".d, " B1 ".d\n\t"          \
+ S1                                                          \
+ "ldnt1d " N1 ".d, p0/z, [%[a], #1, mul vl]\n\t"            \
+ "fmopa za2.d, p0/m, p0/m, " A1 ".d, " B0 ".d\n\t"          \
+ "fmopa za3.d, p0/m, p0/m, " A1 ".d, " B1 ".d\n\t"          \
+ S2                                                          \
+ "ldnt1d " N2 ".d, p0/z, [%[a1]]\n\t"                       \
+ "fmopa za4.d, p0/m, p0/m, " A2 ".d, " B0 ".d\n\t"          \
+ "fmopa za5.d, p0/m, p0/m, " A2 ".d, " B1 ".d\n\t"          \
+ S3                                                          \
+ "ldnt1d " N3 ".d, p0/z, [%[a1], #1, mul vl]\n\t"           \
+ "fmopa za6.d, p0/m, p0/m, " A3 ".d, " B0 ".d\n\t"          \
+ "ld1d " N4 ".d, p0/z, [%[b]]\n\t"                          \
+ "fmopa za7.d, p0/m, p0/m, " A3 ".d, " B1 ".d\n\t"          \
+ "ld1d " N5 ".d, p0/z, [%[b], #1, mul vl]\n\t"              \
+ "add %[a], %[a], #128\n\t"                                 \
+ "add %[a1], %[a1], #128\n\t"                               \
+ "add %[b], %[b], #768\n\t"                                 \
+ S4
+
+#define ZG_E(S1,S2,S3,S4) ZG_STEP("z0","z1","z2","z3","z4","z5", "z8","z9","z10","z11","z12","z13", S1,S2,S3,S4)
+#define ZG_O(S1,S2,S3,S4) ZG_STEP("z8","z9","z10","z11","z12","z13", "z0","z1","z2","z3","z4","z5", S1,S2,S3,S4)
+// 末步：只算不载（chunk 边界由调用方重新灌初始载入）
+#define ZG_LAST(A0,A1,A2,A3,B0,B1, S1,S2,S3,S4) \
+ "fmopa za0.d, p0/m, p0/m, " A0 ".d, " B0 ".d\n\t" \
+ "fmopa za1.d, p0/m, p0/m, " A0 ".d, " B1 ".d\n\t" S1 \
+ "fmopa za2.d, p0/m, p0/m, " A1 ".d, " B0 ".d\n\t" \
+ "fmopa za3.d, p0/m, p0/m, " A1 ".d, " B1 ".d\n\t" S2 \
+ "fmopa za4.d, p0/m, p0/m, " A2 ".d, " B0 ".d\n\t" \
+ "fmopa za5.d, p0/m, p0/m, " A2 ".d, " B1 ".d\n\t" S3 \
+ "fmopa za6.d, p0/m, p0/m, " A3 ".d, " B0 ".d\n\t" \
+ "fmopa za7.d, p0/m, p0/m, " A3 ".d, " B1 ".d\n\t" S4
+#define ZG_LAST_O(S1,S2,S3,S4) ZG_LAST("z8","z9","z10","z11","z12","z13", S1,S2,S3,S4)
+
+// 初始载入（chunk 首行 → z0-5，指针推进一行）
+#define ZG_INIT \
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"             \
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "ldnt1d z2.d, p0/z, [%[a1]]\n\t"            \
+ "ldnt1d z3.d, p0/z, [%[a1], #1, mul vl]\n\t"\
+ "ld1d z4.d, p0/z, [%[b]]\n\t"               \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"   \
+ "add %[a], %[a], #128\n\t"                  \
+ "add %[a1], %[a1], #128\n\t"                \
+ "add %[b], %[b], #768\n\t"
+
+// 窗口槽（回写上一微块一个向量）：暂存顺序读（str-za 布局 v=slice*8+tile），C 地址按行组寄存器 + 高低半列。
+#define ZGW_LD        "ld1d z16.d, p0/z, [%[scr]]\n\t add %[scr], %[scr], #64\n\t"
+#define ZGW_LDC(CR)   "ld1d z17.d, p0/z, [%[" CR "]]\n\t"
+#define ZGW_LDCH(CR)  "ld1d z17.d, p0/z, [%[" CR "], #1, mul vl]\n\t"
+#define ZGW_FSUB      "fsub z17.d, z17.d, z16.d\n\t"
+#define ZGW_ST(CR)    "st1d z17.d, p0, [%[" CR "]]\n\t"
+#define ZGW_STH(CR)   "st1d z17.d, p0, [%[" CR "], #1, mul vl]\n\t"
+#define ZGW_BUMP      "add %[c0], %[c0], #768\n\t add %[c1], %[c1], #768\n\t add %[c2], %[c2], #768\n\t add %[c3], %[c3], #768\n\t"
+// 一片（slice）= 8 步：行组 c0..c3 各两向量（低/高半列），步间 E/O 交替；末片由调用体特化
+#define ZG_WSLICE \
+ ZG_E(ZGW_LD, ZGW_LDC("c0"),  ZGW_FSUB, ZGW_ST("c0"))   \
+ ZG_O(ZGW_LD, ZGW_LDCH("c0"), ZGW_FSUB, ZGW_STH("c0"))  \
+ ZG_E(ZGW_LD, ZGW_LDC("c1"),  ZGW_FSUB, ZGW_ST("c1"))   \
+ ZG_O(ZGW_LD, ZGW_LDCH("c1"), ZGW_FSUB, ZGW_STH("c1"))  \
+ ZG_E(ZGW_LD, ZGW_LDC("c2"),  ZGW_FSUB, ZGW_ST("c2"))   \
+ ZG_O(ZGW_LD, ZGW_LDCH("c2"), ZGW_FSUB, ZGW_STH("c2"))  \
+ ZG_E(ZGW_LD, ZGW_LDC("c3"),  ZGW_FSUB, ZGW_ST("c3"))   \
+ ZG_O(ZGW_LD, ZGW_LDCH("c3"), ZGW_FSUB, ZGW_STH("c3") ZGW_BUMP)
+// 无槽片与预取片（prfm 每对 k 步一行，覆盖下一带 A）
+#define ZG_SLICE  ZG_E("","","","") ZG_O("","","","") ZG_E("","","","") ZG_O("","","","") \
+                  ZG_E("","","","") ZG_O("","","","") ZG_E("","","","") ZG_O("","","","")
+#define ZG_PF     "prfm pldl2keep, [%[pfa]]\n\t add %[pfa], %[pfa], #128\n\t"
+#define ZG_PSLICE ZG_E(ZG_PF,"","","") ZG_O("","","","") ZG_E(ZG_PF,"","","") ZG_O("","","","") \
+                  ZG_E(ZG_PF,"","","") ZG_O("","","","") ZG_E(ZG_PF,"","","") ZG_O("","","","")
+
+// 带窗头：清 ZA + chunk0 的 64 步，前 64 向量窗口回写上一微块（cprev，行距 768B）
+static inline __attribute__((always_inline)) void kloop_zgeo_head_wb(const double* a, const double* b,
+                                      const double* scr, double* cprev)
+{
+    const double* a1 = a + 1024;
+    char* c0 = (char*)cprev;
+    char* c1 = c0 + 8 * 768;
+    char* c2 = c0 + 16 * 768;
+    char* c3 = c0 + 24 * 768;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za}\n\t"
+ ZG_INIT
+ ZG_WSLICE ZG_WSLICE ZG_WSLICE ZG_WSLICE
+ ZG_WSLICE ZG_WSLICE ZG_WSLICE
+ // 末片：前 7 步照常，末步只算不载 + 最后一个窗口向量
+ ZG_E(ZGW_LD, ZGW_LDC("c0"),  ZGW_FSUB, ZGW_ST("c0"))
+ ZG_O(ZGW_LD, ZGW_LDCH("c0"), ZGW_FSUB, ZGW_STH("c0"))
+ ZG_E(ZGW_LD, ZGW_LDC("c1"),  ZGW_FSUB, ZGW_ST("c1"))
+ ZG_O(ZGW_LD, ZGW_LDCH("c1"), ZGW_FSUB, ZGW_STH("c1"))
+ ZG_E(ZGW_LD, ZGW_LDC("c2"),  ZGW_FSUB, ZGW_ST("c2"))
+ ZG_O(ZGW_LD, ZGW_LDCH("c2"), ZGW_FSUB, ZGW_STH("c2"))
+ ZG_E(ZGW_LD, ZGW_LDC("c3"),  ZGW_FSUB, ZGW_ST("c3"))
+ ZG_LAST_O(ZGW_LD, ZGW_LDCH("c3"), ZGW_FSUB, ZGW_STH("c3"))
+: [a] "+&r"(a),[a1] "+&r"(a1),[b] "+&r"(b),[scr] "+&r"(scr),
+  [c0] "+&r"(c0),[c1] "+&r"(c1),[c2] "+&r"(c2),[c3] "+&r"(c3)
+:: "memory","cc",VCLOB,PCLOB);
+}
+
+// 无窗头（任务首微块）：清 ZA + chunk0 的 64 步
+static inline __attribute__((always_inline)) void kloop_zgeo_head(const double* a, const double* b)
+{
+    const double* a1 = a + 1024;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za}\n\t"
+ ZG_INIT
+ ZG_SLICE ZG_SLICE ZG_SLICE ZG_SLICE
+ ZG_SLICE ZG_SLICE ZG_SLICE
+ ZG_E("","","","") ZG_O("","","","") ZG_E("","","","") ZG_O("","","","")
+ ZG_E("","","","") ZG_O("","","","") ZG_E("","","","")
+ ZG_LAST_O("","","","")
+: [a] "+&r"(a),[a1] "+&r"(a1),[b] "+&r"(b)
+:: "memory","cc",VCLOB,PCLOB);
+}
+
+// 循环体：chunks 1..nch-1，每圈 64 步全净 + 预取下一带 A（每圈 4 KB）；A 跨 chunk 跳 (S-1)*1024 双字
+static inline __attribute__((always_inline)) void kloop_zgeo_body(const double* a, const double* b,
+                                      long n, const char* pfa)
+{
+    const double* a1 = a + 1024;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "1:\n\t"
+ ZG_INIT
+ ZG_PSLICE ZG_PSLICE ZG_PSLICE ZG_PSLICE
+ ZG_PSLICE ZG_PSLICE ZG_PSLICE
+ ZG_E(ZG_PF,"","","") ZG_O("","","","") ZG_E(ZG_PF,"","","") ZG_O("","","","")
+ ZG_E(ZG_PF,"","","") ZG_O("","","","") ZG_E(ZG_PF,"","","")
+ ZG_LAST_O("","","","")
+ "add %[a], %[a], #24576\n\t"
+ "add %[a1], %[a1], #24576\n\t"
+ "subs %[n], %[n], #1\n\t"
+ "b.ne 1b\n\t"
+: [a] "+&r"(a),[a1] "+&r"(a1),[b] "+&r"(b),[n] "+&r"(n),[pfa] "+&r"(pfa)
+:: "memory","cc",VCLOB,PCLOB);
+}
+
+// 尾：整块 ZA 一次转存（64 向量，v = slice*8 + tile 顺序）
+static inline __attribute__((always_inline)) void kloop_zgeo_tail(double* scr)
+{
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "mov w12, #0\n\t"
+ "str za[w12, #0], [%[s]]\n\t"                "str za[w12, #1], [%[s], #1, mul vl]\n\t"
+ "str za[w12, #2], [%[s], #2, mul vl]\n\t"    "str za[w12, #3], [%[s], #3, mul vl]\n\t"
+ "str za[w12, #4], [%[s], #4, mul vl]\n\t"    "str za[w12, #5], [%[s], #5, mul vl]\n\t"
+ "str za[w12, #6], [%[s], #6, mul vl]\n\t"    "str za[w12, #7], [%[s], #7, mul vl]\n\t"
+ "str za[w12, #8], [%[s], #8, mul vl]\n\t"    "str za[w12, #9], [%[s], #9, mul vl]\n\t"
+ "str za[w12, #10], [%[s], #10, mul vl]\n\t"  "str za[w12, #11], [%[s], #11, mul vl]\n\t"
+ "str za[w12, #12], [%[s], #12, mul vl]\n\t"  "str za[w12, #13], [%[s], #13, mul vl]\n\t"
+ "str za[w12, #14], [%[s], #14, mul vl]\n\t"  "str za[w12, #15], [%[s], #15, mul vl]\n\t"
+ "add %[s], %[s], #1024\n\t mov w12, #16\n\t"
+ "str za[w12, #0], [%[s]]\n\t"                "str za[w12, #1], [%[s], #1, mul vl]\n\t"
+ "str za[w12, #2], [%[s], #2, mul vl]\n\t"    "str za[w12, #3], [%[s], #3, mul vl]\n\t"
+ "str za[w12, #4], [%[s], #4, mul vl]\n\t"    "str za[w12, #5], [%[s], #5, mul vl]\n\t"
+ "str za[w12, #6], [%[s], #6, mul vl]\n\t"    "str za[w12, #7], [%[s], #7, mul vl]\n\t"
+ "str za[w12, #8], [%[s], #8, mul vl]\n\t"    "str za[w12, #9], [%[s], #9, mul vl]\n\t"
+ "str za[w12, #10], [%[s], #10, mul vl]\n\t"  "str za[w12, #11], [%[s], #11, mul vl]\n\t"
+ "str za[w12, #12], [%[s], #12, mul vl]\n\t"  "str za[w12, #13], [%[s], #13, mul vl]\n\t"
+ "str za[w12, #14], [%[s], #14, mul vl]\n\t"  "str za[w12, #15], [%[s], #15, mul vl]\n\t"
+ "add %[s], %[s], #1024\n\t mov w12, #32\n\t"
+ "str za[w12, #0], [%[s]]\n\t"                "str za[w12, #1], [%[s], #1, mul vl]\n\t"
+ "str za[w12, #2], [%[s], #2, mul vl]\n\t"    "str za[w12, #3], [%[s], #3, mul vl]\n\t"
+ "str za[w12, #4], [%[s], #4, mul vl]\n\t"    "str za[w12, #5], [%[s], #5, mul vl]\n\t"
+ "str za[w12, #6], [%[s], #6, mul vl]\n\t"    "str za[w12, #7], [%[s], #7, mul vl]\n\t"
+ "str za[w12, #8], [%[s], #8, mul vl]\n\t"    "str za[w12, #9], [%[s], #9, mul vl]\n\t"
+ "str za[w12, #10], [%[s], #10, mul vl]\n\t"  "str za[w12, #11], [%[s], #11, mul vl]\n\t"
+ "str za[w12, #12], [%[s], #12, mul vl]\n\t"  "str za[w12, #13], [%[s], #13, mul vl]\n\t"
+ "str za[w12, #14], [%[s], #14, mul vl]\n\t"  "str za[w12, #15], [%[s], #15, mul vl]\n\t"
+ "add %[s], %[s], #1024\n\t mov w12, #48\n\t"
+ "str za[w12, #0], [%[s]]\n\t"                "str za[w12, #1], [%[s], #1, mul vl]\n\t"
+ "str za[w12, #2], [%[s], #2, mul vl]\n\t"    "str za[w12, #3], [%[s], #3, mul vl]\n\t"
+ "str za[w12, #4], [%[s], #4, mul vl]\n\t"    "str za[w12, #5], [%[s], #5, mul vl]\n\t"
+ "str za[w12, #6], [%[s], #6, mul vl]\n\t"    "str za[w12, #7], [%[s], #7, mul vl]\n\t"
+ "str za[w12, #8], [%[s], #8, mul vl]\n\t"    "str za[w12, #9], [%[s], #9, mul vl]\n\t"
+ "str za[w12, #10], [%[s], #10, mul vl]\n\t"  "str za[w12, #11], [%[s], #11, mul vl]\n\t"
+ "str za[w12, #12], [%[s], #12, mul vl]\n\t"  "str za[w12, #13], [%[s], #13, mul vl]\n\t"
+ "str za[w12, #14], [%[s], #14, mul vl]\n\t"  "str za[w12, #15], [%[s], #15, mul vl]\n\t"
+: [s] "+&r"(scr)
+:: "memory","cc","x12",PCLOB);
+}
+
+// 收尾回写（任务最后一个微块，无下一个 K 循环可交错）
+static inline void zgeo_flush(const double* scr, double* cprev, long ncp)
+{
+    const svbool_t pg = svptrue_b64();
+    for (int v = 0; v < 64; v++) {
+        int r = ((v & 7) >> 1) * 8 + (v >> 3), h = v & 1;
+        double* d = cprev + (size_t)r * ncp + h * 8;
+        svst1_f64(pg, d, svsub_f64_x(pg, svld1_f64(pg, d), svld1_f64(pg, scr + v * 8)));
+    }
+}
 
 // 任务表：按 (i, p) 顺序；代价大的行块按 K 分裂成多段（段内为连续 K 段区间），
 // 段数 = 该任务 k 步数 / 目标段大小，目标 = 总 k 步 / (nth * TRSM_SPLITF)。
@@ -5780,6 +6025,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     c.m = m; c.n = n; c.lda = lda; c.ldb = ldb; c.L = L; c.B = B;
     c.prof = env_int("TRSM_PROFILE", 0);
     g_owner_cursor=env_int("TRSM_OWNER_CURSOR",1); // Fixed KC64 prefetch offsets; 0 restores v48 owner kernels.
+    g_zgeo=env_int("TRSM_ZGEO",0);
     g_abhoist = env_int("TRSM_ABHOIST", 1); // 0 retains the original duplex kernels for comparisons
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
@@ -6174,7 +6420,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         if(s+1<k)guess=&c.tasks[sched[s+1]];
                     }
                     const int fullpan = !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
-                    (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, guess, tid);
+                    (c.special == 5 && fullpan ? (g_zgeo ? run_task_owner_zgeo : g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, guess, tid);
                 }
             }
         } else {
