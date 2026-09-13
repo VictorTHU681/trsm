@@ -96,22 +96,25 @@ compact_run() {
     ./compact_helper $hbm $mb 1
 }
 
-run_case() {   # $1=名字 $2..=参数；结果行照常走 stdout，stderr 收进文件
+run_case() {   # $1=名字 $2=压实0/1 $3=REHUGE0/1 $4..=参数；结果行照常走 stdout，stderr 收进文件
     envsnap "before-$1" >> "$D/env.txt" 2>&1
-    compact_run >> "$D/compact_$1.txt" 2>&1
-    numactl -N $cpunode $MEMOPT ./trsm_test "${@:2}" 2> "$D/$1.err"
+    if [[ "$2" == 1 ]]; then compact_run >> "$D/compact_$1.txt" 2>&1; fi
+    TRSM_REHUGE=$3 numactl -N $cpunode $MEMOPT ./trsm_test "${@:4}" 2> "$D/$1.err"
 }
 
 envsnap "before-all" > "$D/env.txt" 2>&1
-run_case tc1 512 19968 1
-run_case tc2 2432 17024 1
-run_case tc3 17024 512 1
+# TC1 三方对照：基线 / run.sh 压实器 / 算子内 REHUGE（重缺页时按判题机 defrag=madvise 现场压实）
+run_case tc1a 0 0 512 19968 1
+run_case tc1b 1 0 512 19968 1
+run_case tc1c 0 1 512 19968 1
+run_case tc2b 1 0 2432 17024 1
+run_case tc3b 1 0 17024 512 1
 envsnap "after-all" >> "$D/env.txt" 2>&1
 
 # 三行正式结果之后再打印诊断（判题解析先看到正常输出）
 echo "===================== [trsm-diag] ====================="
 cat "$D/env.txt"
-for c in tc1 tc2 tc3; do
+for c in tc1a tc1b tc1c tc2b tc3b; do
     echo "--- [trsm-diag] $c 压实 ---"
     cat "$D/compact_$c.txt" 2>/dev/null
     echo "--- [trsm-diag] $c stderr ---"
