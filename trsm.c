@@ -2049,10 +2049,6 @@ typedef struct {
     int dxw;                // DXW（TRSM_DXW，扫雷 P2）：owner 对角直写模式下双写 cbuf+X，消掉 store 相（筛查中）
     int steal;              // STEAL（TRSM_STEAL）：owner 完整面板段的面板粒度双端窃取（尾部救援，抢占免疫；筛查中）
     int xone;               // XONE（TRSM_XONE，fresh35 实验）：chunk-0 内核旁流装载 C 初值，消灭独立装载相（对手结构假说）
-    int osw;                // OSW（TRSM_OSW）：owner 回写交走线器在对角内核内配速排水（store 相消灭第一步），flag 顺延一任务
-    int xpw;                // XPW（TRSM_XPW）：special 对角 EV 托管步双写 Xp（消 store 相 Xp 拷贝大头，Fable-TC2 候选 A）
-    int pchain;             // PCHAIN（TRSM_PCHAIN）：pend 跨条链——条末块由下一条首内核托管落地（消 depi 突发）
-    int dpf;                // TRSM_DPF=0 关 GEMM 尾段对角条扫铺（对角内核 PFX 已覆盖，候选 B 因子）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2091,6 +2087,11 @@ typedef struct {
     long ntask_items;
     double* part;           // 分裂任务的部分和缓冲池
     volatile int* seg_cnt;  // 每个 (i,p) 的已完成段数
+    // —— 新增开关一律放结构体尾部：中部插入会平移 v63 既有热字段（next/flags 等）的缓存行邻居，TC1 实测 −1% ——
+    int osw;                // OSW（TRSM_OSW）：owner 回写交走线器在对角内核内配速排水（store 相消灭第一步），flag 顺延一任务
+    int xpw;                // XPW（TRSM_XPW）：special 对角 EV 托管步双写 Xp（消 store 相 Xp 拷贝大头，Fable-TC2 候选 A）
+    int pchain;             // PCHAIN（TRSM_PCHAIN）：pend 跨条链——条末块由下一条首内核托管落地（消 depi 突发）
+    int dpf;                // TRSM_DPF=0 关 GEMM 尾段对角条扫铺（对角内核 PFX 已覆盖，候选 B 因子）
 } ctx_t;
 
 typedef struct task_s {
