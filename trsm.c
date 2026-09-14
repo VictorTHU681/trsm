@@ -1814,6 +1814,8 @@ typedef struct {
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
                      // （首面板 nc−cshift 列、末面板 cshift 列走通用路径），内部面板的 X 装载/回写全对齐（TRSM_CSHIFT）
+    int cfold;       // 折叠面板（TRSM_CFOLD，审计 #2）：owner 且 n%nc==0 时面板 0 = 头 nc−cshift 列 ∪ 尾 cshift 列（cbuf 列身份
+                     // 对 GEMM/对角无意义），面板 1..npan-1 全对齐整宽——无奇面板，208 面板全走 fast owner；仅 load/store/khead 两段拷
     long ncp;        // cbuf / Xp 面板 / 部分和缓冲的行距（double）：nc + 8，避免 1 KB 行距的 L1 组冲突
     int* S_of;              // 每行块的子块数
     double* diag;           // 全部行块的对角打包
@@ -2048,6 +2050,7 @@ static inline void za_owner_dstore(double* c)
 static inline long pan_c0(const ctx_t* c, long p) { return p ? p * c->nc - c->cshift : 0; }
 static inline long pan_nci(const ctx_t* c, long p)
 {
+    if (c->cfold && p == 0) return c->nc;   // 折叠：面板 0 = 头 nc−cshift 列 ∪ 尾 cshift 列，cbuf 内等效整宽
     long e = (p + 1) * c->nc - c->cshift;
     if (e > c->n) e = c->n;
     return e - pan_c0(c, p);
@@ -2064,6 +2067,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     long mbi = fast_owner ? 64 : c->m - i0; if (mbi > mb) mbi = mb;
     const long c0 = pan_c0(c, p);   // fast_owner 只接整面板（奇面板由调度路由到通用路径），公式对两者一致
     long nci = fast_owner ? 96 : pan_nci(c, p); if (nci > nc) nci = nc;
+    const int cfp0 = c->cfold && p == 0;                      // 折叠面板 0：头 headc 列 + 尾 cshift 列两段拷贝
+    const long headc = cfp0 ? nc - c->cshift : nci;           // 非折叠时 = nci，循环语义不变
     const int S = fast_owner ? 4 : c->S_of[i];
     const long ntile = (nci + 31) / 32;
     double* cb = tb->cbuf;
@@ -2102,11 +2107,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                for (; j + 8 <= headc; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (j < headc) {
+                    svbool_t pj = svwhilelt_b64((long)j, (long)headc);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
                     j += 8;
+                }
+                if (cfp0) {   // 折叠尾段：B 末 cshift 列 → cbuf 列 [headc, nc)
+                    svbool_t pt = svwhilelt_b64(0L, c->cshift);
+                    svst1_f64(pt, d + headc, svld1_f64(pt, c->B + (size_t)(i0 + r) * ldb + (c->n - c->cshift)));
                 }
                 for (; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             } else {
@@ -2447,7 +2456,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             // 进面板缓冲。回写走 WC/写通路、装载走 L1 MSHR×延迟，资源不同（§1 混合读写 445 GB/s > 单向 305），
             // 并置后 store 相近乎免费；cbuf 冷目标行无 RFO 惩罚（rfoprobe 实测 B_cold≈A_hot）。
             const double* sB = NULL; double* sD = NULL; int slx_pre = 0;
-            if (fast_owner && c->slx && !split && tkn && tkn->kind == 0 && tkn->nseg == 1
+            if (fast_owner && c->slx && !split && !cfp0 && tkn && tkn->kind == 0 && tkn->nseg == 1
                 && tkn->p == p && tkn->i == i + 1 && mbi == mb && nci == nc && i0 + 2 * mb <= c->m) {
                 sB = c->B + (i0 + mb) * ldb + c0;
                 sD = tb->cbuf + (size_t)(i0 + mb) * ncp;
@@ -2472,13 +2481,17 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                         }
                     }
                     long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
-                    if (pre > nci) pre = nci;
+                    if (pre > headc) pre = headc;
                     long j = 0;
                     if (pre) { svbool_t ph = svwhilelt_b64(0L, pre); svstnt1_f64(ph, d, svld1_f64(ph, s)); j = pre; }
-                    for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
-                    if (j < nci) {
-                        svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                    for (; j + 8 <= headc; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
+                    if (j < headc) {
+                        svbool_t pj = svwhilelt_b64((long)j, (long)headc);
                         svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
+                    }
+                    if (cfp0) {   // 折叠尾段：cbuf 列 [headc, nc) → B 末 cshift 列（行首 64 B 对齐，单次部分行 NT 写）
+                        svbool_t pt = svwhilelt_b64(0L, c->cshift);
+                        svstnt1_f64(pt, c->B + (size_t)(i0 + r) * ldb + (c->n - c->cshift), svld1_f64(pt, s + headc));
                     }
                 }
                 if (slx_pre) for (long r = r0; r < re; r++) {   // 下一任务行段：B → 面板缓冲（demand load 突发）
@@ -2493,10 +2506,14 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 const double* s = cb + r * ncp;
                 double* d = Bout + r * ldb;
                 long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                for (; j + 8 <= headc; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (j < headc) {
+                    svbool_t pj = svwhilelt_b64((long)j, (long)headc);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
+                }
+                if (cfp0) {   // 折叠尾段
+                    svbool_t pt = svwhilelt_b64(0L, c->cshift);
+                    svst1_f64(pt, c->B + (size_t)(i0 + r) * ldb + (c->n - c->cshift), svld1_f64(pt, s + headc));
                 }
             }
         }
@@ -5891,13 +5908,22 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // 门控 !owner：面板驻留模式（TC1）收益节点敏感（cn20481 +1%、cn20483 −2%——奇面板走通用路径 + owner 区间形状变化
     // 撞上"慢线程集合绑定区间形状"的已知噪声），owner 的对齐收益由装载循环单独收割。TRSM_CSHIFT：0 关，1 自动（默认），2 强开。
     c.cshift = 0;
+    c.cfold = 0;
     {
         int cs_mode = env_int("TRSM_CSHIFT", 1);
         long npan0 = (n + nc - 1) / nc;
         if (cs_mode && (((size_t)ldb * 8) & 63) == 0 && (cs_mode >= 2 || (npan0 >= 64 && !owner_auto)))
             c.cshift = (long)(((uintptr_t)B >> 3) & 7);
+        // 折叠面板（审计 #2）：owner 且 n%nc==0 且 B 错位 → 面板 0 收编尾部 cshift 列，1..npan-1 全对齐整宽。
+        // 与 v51 证伪的 owner-cshift（奇面板走通用路径 ≈ 慢 10% + 幻影份额）不同：无奇面板、SHAPEP/内核零改动。
+        if (env_int("TRSM_CFOLD", 0) && owner_auto && n % nc == 0 && npan0 >= 8
+            && (((size_t)ldb * 8) & 63) == 0) {
+            long mis = (long)(((uintptr_t)B >> 3) & 7);
+            if (mis) { c.cshift = mis; c.cfold = 1; }
+        }
     }
-    c.npan = c.cshift ? (n > nc - c.cshift ? 1 + (n - (nc - c.cshift) + nc - 1) / nc : 1) : (n + nc - 1) / nc;
+    c.npan = c.cfold ? (n / nc)
+           : c.cshift ? (n > nc - c.cshift ? 1 + (n - (nc - c.cshift) + nc - 1) / nc : 1) : (n + nc - 1) / nc;
     c.ncp = nc + TRSM_NCPAD;
     if (c.swhost < 0) c.swhost = c.npan <= 8;
     c.ntask = c.nrb * c.npan;
@@ -5970,7 +5996,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     if (c.special == 5) c.loadpf = env_int("TRSM_LOADPF", 0);
 
     g_implicit_owner = env_int("TRSM_IMPLICIT_OWNER",1) && c.special==5 && c.m<=1024
-        && c.cshift==0 && c.ppmode==0 && c.mb==64 && c.nc==96 && c.kc==64
+        && (c.cshift==0 || c.cfold) && c.ppmode==0 && c.mb==64 && c.nc==96 && c.kc==64
         && c.m%64==0 && c.n%96==0 && env_int("TRSM_KHEADW",0)==0
         && env_int("TRSM_OWNER_C0",160)>=0;
     g_align_owner_buffers = c.owner || env_int("TRSM_ALIGN_ALL", 0);   // 2 MiB 对齐所有缓冲：专用路径实测 case2 持平、case3 −0.1 ms 但出现 44 ms 异常轮，默认关
@@ -6270,6 +6296,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
                     uint64_t tk0 = c.prof >= 2 ? cyc() : 0;
                     long pc0 = pan_c0(&c, pa), pnci = pan_nci(&c, pa); if (pnci > c.nc) pnci = c.nc;
+                    const long pheadc = (c.cfold && pa == 0) ? c.nc - c.cshift : pnci;   // 折叠面板 0：两段
                     for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
                     double* buf = g_tb[tid].cbuf;
                     const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
@@ -6277,8 +6304,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         double* d = buf + (size_t)gr * c.ncp;
                         const double* sp = B + (size_t)gr * ldb + pc0;
                         long j = 0;
-                        for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
-                        if (j < pnci) { svbool_t pj = svwhilelt_b64(j, pnci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
+                        for (; j + 8 <= pheadc; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
+                        if (j < pheadc) { svbool_t pj = svwhilelt_b64(j, pheadc); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
+                        if (c.cfold && pa == 0) {   // 折叠尾段：B 末 cshift 列 → cbuf 列 [pheadc, nc)
+                            svbool_t pt = svwhilelt_b64(0L, c.cshift);
+                            svst1_f64(pt, d + pheadc, svld1_f64(pt, B + (size_t)gr * ldb + (c.n - c.cshift)));
+                        }
                         for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
                     }
                     if (c.prof >= 2) g_tb[tid].t_khead += cyc() - tk0;
@@ -6293,7 +6324,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                         tsk=&c.tasks[sched[s]];
                         if(s+1<k)guess=&c.tasks[sched[s+1]];
                     }
-                    const int fullpan = !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
+                    const int fullpan = c.cfold || !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
                     (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, guess, tid);
                 }
             }
