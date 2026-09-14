@@ -4149,6 +4149,10 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
     const int S = c->S_of[i];
     const long ntile = (nci + 31) / 32;
     double* cb = tb->cbuf;
+    {   // Xr 预筛 G3（诊断）：cbuf 冷环——每任务换一块 C 缓冲，复现"冷块装载 + 后台写回"的 Xr 物理
+        int g3 = env_int("TRSM_G3RING", 1);
+        if (g3 > 1 && mode == 2) cb = tb->cbuf + (size_t)((tb->n_task) % g3) * mb * ncp;
+    }
     double* scratch = tb->scratch;
     const long ldb = c->ldb, lda = c->lda;
     const long cs = ncp * 8;      // C / X 面板缓冲行距（字节）
@@ -4485,7 +4489,8 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         double* Bout=Bblk;
 
         const int last_rb = (i + 1 == c->nrb);
-        if (!last_rb && (mode==2 || mode==4) && c->xptm) {
+        const int g2skip = env_int("TRSM_G2SKIPXP", 0);   // Xr 预筛 G2（诊断）：跳过 Xp 写=天花板；消费者读陈旧 Xp，校验必 FAIL
+        if (!g2skip && !last_rb && (mode==2 || mode==4) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
@@ -4499,7 +4504,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     }
                 }
             }
-        } else if (!last_rb) for (long r = 0; r < mbi; r++) {
+        } else if (!g2skip && !last_rb) for (long r = 0; r < mbi; r++) {
             long gr = i0 + r;
             double* d = c->xp + ((size_t)(gr / kc) * c->npan + p) * kc * ncp + (gr % kc) * ncp;
             const double* s = cb + r * ncp;
@@ -6905,7 +6910,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         int tid = omp_get_thread_num();
         if (c.prof >= 2) g_wake_cyc[tid] = cyc();
         pin_self(tid);
-        ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
+        ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb * env_int("TRSM_G3RING", 1)) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         g_tb[tid].pre_i = g_tb[tid].pre_p = -1;   // SLX：跨调用遗留的预装标记失效（B 指针/内容可能已变）
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
