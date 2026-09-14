@@ -2806,9 +2806,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
-            // OSW+ v4 守卫：同面板下任务查行号；跨面板仅放行 i''==0（i''>0 触发 khead 拷贝，写 cbuf 行 [0,64*ia) 会
-            // 覆写未排干的队列区——os96 官方 FAIL 根因）；tkn==NULL 由区域尾 flush+发布兜底
-            const int osw_q = !tkn || (tkn->kind == 0 && (tkn->p == p ? tkn->i != i : (tkn->i == 0 && i != 0)));
+            // OSW v5 守卫（Fable 侦探闭环）：未知后继不排队——STEAL 认领循环对每认领面板末块传 gs=NULL，
+            // "下任务未知"≠"线程末任务"，此时真实后继（khead 后的 (ia=nrb-1,pa) 任务）的 XONE/装载相会在排水前
+            // 覆写队列源 cbuf 行（os96-98 官方 FAIL 根因，确定性 4 线程/调用）。跨面板 (0,p') 后继全路径已证安全。
+            const int osw_q = tkn && tkn->kind == 0 && (tkn->p == p ? tkn->i != i : (tkn->i == 0 && i != 0));
             if (osw_on && osw_q) {
                 // OSW+：排队守卫 = 下任务行号 != 本块行号（同行号时下任务 XONE 旁流会在排水前覆写同批 cbuf 行——
                 // v1 官方 FAIL 的根因，含 khead ia==i 与 thief 撞行两类）；tkn==NULL（线程末任务）由区域尾 flush+发布兜底。
