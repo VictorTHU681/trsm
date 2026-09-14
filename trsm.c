@@ -618,6 +618,25 @@ DEF_KLOOP_EPI(kloop_epi_set, EV_SET)
 #undef LDA_CUR
 #define LDA_CUR LDA_NT_INSN
 DEF_KLOOP_PLAIN(kloop_plain_nt)
+// DWPF2（TRSM_DWPF2）：对角窗 B-next 预取密度 ×2（2 prfm/2 步，覆盖 20→40 行/任务）。
+// post-XONE 价值模型改判：dwpf 喂的是下任务 chunk-0 旁流（46% 热点）而非装载相（DIAGPULL 阶段 A）
+#pragma push_macro("KLOOP_REST")
+#undef KLOOP_REST
+#define KLOOP_REST                                                                \
+    "cbz %[k], 6f\n\t"                                                            \
+    "1:\n\t"                                                                      \
+    KS_EVEN PFL PFL PFX SWS_GATE_K SWS                                            \
+    "subs %[k], %[k], #1\n\t"                                                     \
+    "b.eq 5f\n\t"                                                                 \
+    KS_ODD PFC                                                                    \
+    "subs %[k], %[k], #1\n\t"                                                     \
+    "b.ne 1b\n\t"                                                                 \
+    "6:\n\t" FM_EVEN                                                              \
+    "b 7f\n\t"                                                                    \
+    "5:\n\t" FM_ODD                                                               \
+    "7:\n\t"
+DEF_KLOOP_PLAIN(kloop_plain_nt2)
+#pragma pop_macro("KLOOP_REST")
 DEF_KLOOP_EPI(kloop_epi_sub, EV_SUB)
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
@@ -2161,6 +2180,7 @@ typedef struct {
     int packnt;             // P0（TRSM_PACKNT）：pack 写回 str za → mova+stnt1d（无 RFO/不占 L2，Fable-TC3）
     int ddx;                // DDX（TRSM_DDX）：TC2 对角双 bank + K64 分块（消 za_dump 转存；probe W 门 −19%）
     int dntc;               // DNTC（TRSM_DNTC）：compact 对角 A 条带 ldnt1d（保 cbuf 驻留，残余盘点 #1）
+    int dwpf2;              // DWPF2（TRSM_DWPF2）：对角窗 B-next 预取密度 ×2（DIAGPULL 阶段 A）
 } ctx_t;
 
 typedef struct task_s {
@@ -2779,7 +2799,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 pf_t pf = pf_dummy;
                 if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
                 if (c->dwpf == 1 && nb_base && nb_done < nb_rows) {   // 游标版（消融=死预取）
-                    long rows_this = (K / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
+                    long rows_this = ((c->dwpf2 ? K : K / 2) / nb_lines); if (rows_this < 1) rows_this = 1;
                     pf.p = (const char*)(nb_base + nb_done * ldb);
                     pf.pfn = nb_lines;
                     pf.pfj = nb_ldb8 - nb_lines * 64;
@@ -2792,7 +2812,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 // ldnt1d 只在条带能留在 L1 时用（K*128 B ≤ 32 KB）：更长的条带 ntile 次重读要靠 L2，非临时装载会让后几个微块重新去内存取
                 const int dnt = (fast_owner ? 1 : c->dnt) && K <= 256;
                 if (fast_owner && c->ddirect) {
-                    PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    PROF_T(c, (c->dwpf2 ? kloop_plain_nt2 : kloop_plain_nt)(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                     if (dxw_on) PROF_T(c, za_owner_dstore_x(cb + 16L * s * ncp + 32 * t,
                                                             Bblk + 16L * s * ldb + 32 * t, ldb * 8), t_ddump);
                     else PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump);
@@ -7714,6 +7734,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.packnt = env_int("TRSM_PACKNT", 0);   // P0：筛查中
         c.ddx = env_int("TRSM_DDX", 0);          // DDX：筛查中
         c.dntc = env_int("TRSM_DNTC", 0);        // DNTC：筛查中
+        c.dwpf2 = env_int("TRSM_DWPF2", 0);      // DWPF2：筛查中
         g_ddxpf = env_int("TRSM_DDXPF", 1);
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
