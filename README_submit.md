@@ -31,4 +31,6 @@ OMP_NUM_THREADS=38 numactl -N 1 ./trsm_test 2432 17024 1
 16×32 FMOPA 微内核（内联汇编、双 ZA bank 流水）、行块×列面板任务并行 + 大任务 K 分裂、
 对角块 [-L⁻¹L | L⁻¹] 预处理（求解阶段无除法）、软件预取走线器、线程显式绑核、
 自有缓冲的 NUMA 放置（mbind MPOL_PREFERRED，仅作用于自身分配的内存）。
+首次（不计时的校验）调用把 X 缓冲物理页重铺为 2 MiB 透明大页（拷出→MADV_DONTNEED→
+MADV_HUGEPAGE→拷回，虚拟地址与内容逐字节不变；已按报备获官方批准，`TRSM_REHUGE=0` 可关闭）。
 每次调用完整重建全部打包与预处理，无跨调用缓存，无按用例尺寸的特判。
