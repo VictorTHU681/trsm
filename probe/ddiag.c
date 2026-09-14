@@ -733,6 +733,8 @@ static void dd_flush_b4_set(double* c, long cs)
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
 static char g_dum[2 << 20] __attribute__((aligned(64)));
 static sw_t g_swd;
+static int g_newmax = 15;
+static int g_alt = 0;
 static pf_t pf_dummy;   // main 里初始化：pfn 大值 + pfj=0（避免 pfn=1 的每次行末处理税，贴近生产真游标形态）
 #define NCP 128L
 #define CS  1024L
@@ -843,8 +845,6 @@ static void new_strip(int s, double* cb, double** d4c)
     }
 }
 
-static int g_newmax = 15;
-static int g_alt = 0;
 int main(void)
 {
     { const char* e = getenv("DD_NEWMAX"); if (e) g_newmax = atoi(e); }
