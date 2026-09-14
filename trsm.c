@@ -420,6 +420,15 @@ static inline uint64_t cyc_hz(void) { uint64_t v; asm volatile("mrs %0, cntfrq_e
 #define EV_SET(j, pj, zt, zu)                                                     \
     "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
     "st1d " zt ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"
+// XPW：托管 SET 双写——zt 即最终 X 值，顺手 stnt1d 直写 Xp 微面板（j=0,1 相对 xq，j=2,3 相对 x11=xq+kc*128）
+#define XQA_0 "[%[xq]]"
+#define XQA_1 "[%[xq], #1, mul vl]"
+#define XQA_2 "[x11]"
+#define XQA_3 "[x11, #1, mul vl]"
+#define EV_SET_X(j, pj, zt, zu)                                                   \
+    "ld1d " zt ".d, p0/z, [%[xs], #" #j ", mul vl]\n\t"                           \
+    "st1d " zt ".d, " pj ", [%[xc], #" #j ", mul vl]\n\t"                         \
+    "stnt1d " zt ".d, " pj ", " XQA_##j "\n\t"
 #define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], %[cs]\n\t"
 // 一行回写 = 4 个 k 步（E O E O）各带一个向量
 // 回写阶段不发预取：hosted epilogue 的 C 行 load/store 会让同期发出的预取大半丢失（kbench 第 9/10 节）
@@ -895,6 +904,78 @@ DEF_COMPACT_DIAG_EPI(kloop_diag_set_compact, EV_SET)
 #undef DEF_COMPACT_DIAG_EPI
 DEF_COMPACT_DIAG_EPI64(kloop_diag64_set_compact, EV_SET)
 #undef DEF_COMPACT_DIAG_EPI64
+// ---- XPW 变体：同形态 + xq/x11 双写游标（EV_ROW_ADV 追加 xq 步进）----
+#undef EV_ROW_ADV
+#define EV_ROW_ADV "add %[xs], %[xs], #512\n\t add %[xc], %[xc], #1024\n\t add %[xq], %[xq], #128\n\t add x11, x11, #128\n\t"
+#define DEF_COMPACT_DIAG_EPI_X(NAME, EV)                                                                                 \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols, char* xq, long xqj)                \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    long k = K - 65, pfc = pf->pfn;                                                                                \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        "add x11, %[xq], %[xqj]\n\t"                                                                              \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #8\n\t"                                                                                         \
+        "3:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KLOOP_REST                                                                                                \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc), [xq] "+&r"(xq) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [xqj] "r"(xqj) \
+        : "memory", "cc", "x9", "x10", "x11",  VCLOB, PCLOB);                                              \
+}
+#define DEF_COMPACT_DIAG_EPI64_X(NAME, EV)                                                                               \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols, char* xq, long xqj)                \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    long pfc = pf->pfn;                                                                                           \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+        "add x11, %[xq], %[xqj]\n\t"                                                                              \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #7\n\t"                                                                                         \
+        "3:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KS_EVEN EV(0, "p1", "z16", "z17") HPF1                                                                    \
+        KS_ODD  EV(1, "p2", "z18", "z19") HPF2                                                                    \
+        KS_EVEN EV(2, "p3", "z16", "z17") HPF1                                                                    \
+        FM_ODD  EV(3, "p4", "z18", "z19")                                                                         \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc), [xq] "+&r"(xq) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs), [xqj] "r"(xqj) \
+        : "memory", "cc", "x9", "x10", "x11",  VCLOB, PCLOB);                                              \
+}
+DEF_COMPACT_DIAG_EPI_X(kloop_diag_set_compact_x, EV_SET_X)
+#undef DEF_COMPACT_DIAG_EPI_X
+DEF_COMPACT_DIAG_EPI64_X(kloop_diag64_set_compact_x, EV_SET_X)
+#undef DEF_COMPACT_DIAG_EPI64_X
 #pragma pop_macro("KLOOP_REST")
 #pragma pop_macro("SWS_GATE_R")
 #pragma pop_macro("SWS_GATE_K")
@@ -1969,6 +2050,9 @@ typedef struct {
     int steal;              // STEAL（TRSM_STEAL）：owner 完整面板段的面板粒度双端窃取（尾部救援，抢占免疫；筛查中）
     int xone;               // XONE（TRSM_XONE，fresh35 实验）：chunk-0 内核旁流装载 C 初值，消灭独立装载相（对手结构假说）
     int osw;                // OSW（TRSM_OSW）：owner 回写交走线器在对角内核内配速排水（store 相消灭第一步），flag 顺延一任务
+    int xpw;                // XPW（TRSM_XPW）：special 对角 EV 托管步双写 Xp（消 store 相 Xp 拷贝大头，Fable-TC2 候选 A）
+    int pchain;             // PCHAIN（TRSM_PCHAIN）：pend 跨条链——条末块由下一条首内核托管落地（消 depi 突发）
+    int dpf;                // TRSM_DPF=0 关 GEMM 尾段对角条扫铺（对角内核 PFX 已覆盖，候选 B 因子）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2485,7 +2569,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
-            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
+            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend && c->dpf) {
                 pf.p2 = dpf;
                 dpf += (kk / 2) * 64;
             }
@@ -4327,7 +4411,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
-            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend) {
+            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend && c->dpf) {
                 pf.p2 = dpf;
                 dpf += (kk / 2) * 64;
             }
@@ -4442,6 +4526,9 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
     }
+    // XPW：EV 托管步双写 Xp 的启用谓词（compact 对角 + special 布局 + 整面板 + 非末行块）
+    const int xpw_on = c->xpw && g_diag_compact && (mode == 2 || mode == 4) && c->xptm && nci == nc && (i + 1 < c->nrb);
+    char* pend_xq = NULL;
     {
         const double* D = c->diag + c->diag_off[i];
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
@@ -4473,8 +4560,14 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 sw_advance(tb);
                 sme_zero_za();
                 if (pend && K >= 65) {
+                    if (xpw_on && pend_xq)
+                        PROF_T(c, kloop_diag_set_compact_x(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols, pend_xq, kc * 128), t_dkloop);
+                    else
                     PROF_T(c, (g_diag_compact ? kloop_diag_set_compact(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
                 } else if (pend && K == 64) {
+                    if (xpw_on && pend_xq)
+                        PROF_T(c, kloop_diag64_set_compact_x(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols, pend_xq, kc * 128), t_dkloop);
+                    else
                     PROF_T(c, (g_diag_compact ? kloop_diag64_set_compact(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
@@ -4482,10 +4575,14 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
+                pend_xq = xpw_on ? (char*)(c->xp + ((size_t)((i0 + 16L * s) / kc) * c->npan + p) * kc * ncp
+                                           + 2L * t * kc * 16 + ((16L * s) % kc) * 16) : NULL;
                 if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
-            // 条末必须落地：下一条把这些行当 B 操作数
-            if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
+            // 条末落地：默认同步 epi；PCHAIN 且下一条首内核 K>=64 时跨条托管（(s,末瓦片) 只被 (s+1,末瓦片) 读，落地先于其使用）
+            if (pend && !(c->pchain && s + 1 < S && 16L * (s + 2) >= 64)) {
+                PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0;
+            }
         }
     }
 
@@ -4500,7 +4597,27 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
 
         const int last_rb = (i + 1 == c->nrb);
         const int g2skip = env_int("TRSM_G2SKIPXP", 0);   // Xr 预筛 G2（诊断）：跳过 Xp 写=天花板；消费者读陈旧 Xp，校验必 FAIL
-        if (!g2skip && !last_rb && (mode==2 || mode==4) && c->xptm) {
+        if (!g2skip && !last_rb && (mode==2 || mode==4) && c->xptm && xpw_on) {
+            // XPW：托管块已在对角内核内 stnt1d 直写 Xp，这里只补非托管块（短 K 条 + 末条末瓦片）
+            long nts = nc / 32;
+            for (long ss = 0; ss * 16 < mbi; ss++) {
+                for (long t = 0; t < nts; t++) {
+                    int hosted = (t < nts - 1) ? (16L * (ss + 1) >= 64)
+                                               : ((ss + 1) * 16 < mbi && 16L * (ss + 2) >= 64);
+                    if (hosted) continue;
+                    double* pan = c->xp + ((size_t)((i0 + 16 * ss) / kc) * c->npan + p) * kc * ncp;
+                    long rk = (16L * ss) % kc;
+                    for (long j = 32 * t; j < 32 * (t + 1); j += 16) {
+                        double* dj = pan + (j / 16) * kc * 16 + rk * 16;
+                        const double* sj = cb + 16L * ss * ncp + j;
+                        for (long r = 0; r < 16; r++) {
+                            svst1_f64(pg, dj + r * 16, svld1_f64(pg, sj + r * ncp));
+                            svst1_f64(pg, dj + r * 16 + 8, svld1_f64(pg, sj + r * ncp + 8));
+                        }
+                    }
+                }
+            }
+        } else if (!g2skip && !last_rb && (mode==2 || mode==4) && c->xptm) {
             // 列块主序写 Xp（K×16 微面板布局）：每个 16 列微面板内按行连续写 128 B，8 条顺序写流代替每行 8 处散写
             for (long ch0 = 0; ch0 < mbi; ch0 += kc) {
                 long rows = mbi - ch0; if (rows > kc) rows = kc;
@@ -6689,6 +6806,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
         c.xone = env_int("TRSM_XONE", 1);        // XONE v61 默认开：装载相融入 chunk-0 旁流（双节点认证 −4.7%）
         c.osw = env_int("TRSM_OSW", 0);          // OSW：owner 回写走线器化（筛查中）
+        c.xpw = env_int("TRSM_XPW", 0);          // XPW：对角 EV 双写 Xp（筛查中）
+        c.pchain = env_int("TRSM_PCHAIN", 0) || c.xpw;   // XPW 依赖跨条链（store 跳过规则一致）
+        c.dpf = env_int("TRSM_DPF", 1);
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
