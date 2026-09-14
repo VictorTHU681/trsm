@@ -1348,3 +1348,8 @@ os98 消融锁死相克项：**STEAL**（osw_nosteal/osw_min 唯二 PASS，其�
 （池不缩），=1 反把池缩到 1、TC1 每调用重建 37 线程。分数净 −360 量级。池税的正解需要"池保 38 且 kblas 随意"
 的机制，libgomp 无此旋钮（WAIT_POLICY=active 也拦不住 kblas 小 team 后的收缩）——**候选 A 关闭**。
 TC3 wake 税 ~0.5ms/调用 确认存在但暂无合规解。
+
+**2a 终局（xn99 双节点）**：t=末瓦片旁流槽 prfm 并非白发——它预热下一面板 tile-0（SHAPEP 线程面板连续，
+8 任务后消费）。两种去除形态都证伪：寄存器偏移 −5.5%（伤常态槽），专用无 prfm 实例 −4~5%。保留原样。
+kloop0 分桶（新诊断，保留在树上）证实 chunk-0 引擎超订：chunk-0 kloop ≈ 0.64ms / 总 kloop 1.38ms ≈ 46%，
+与 Fable-TC1 预算模型（chunk-0 承载 11.2µs 工作 vs 6.6µs 窗口）方向一致。

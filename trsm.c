@@ -2259,8 +2259,6 @@ static inline void za_flush_duplex_bank4(double*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank0_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
-static inline __attribute__((always_inline)) void kloop_owner_bank0_xn(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
-static inline __attribute__((always_inline)) void kloop_owner_bank4_xn(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank4_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 static inline __attribute__((always_inline)) void kloop_duplex_bank0_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 static inline __attribute__((always_inline)) void kloop_duplex_bank4_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
@@ -2593,17 +2591,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 const char* xs0 = (const char*)(Bblk + 16L * r * ldb + 16 * t);
                 // pend==0 时排水目标指向 xpan 哑区：首对的零 ZA 空排水若指向 cur，其体首读+锚点写会
                 // 夹住同组旁流填充（行 8-15 先读哨兵后覆写，xktest 实锤），哑区化后排水/填充永不相交
-                if (t + 1 < ntile) {
                 PROF_T(c, kloop_owner_bank0_x(A, Xk + 16 * t, pend ? pend_c : tb->xpan, pf.p, pf.p2, (const char*)cur,
                     xs0, (char*)cur, ldb * 8 - 64), t_kloop0);
                 PROF_T(c, kloop_owner_bank4_x(A + 1024, Xk + 16 * t, cur, ap4v, bp4v, (const char*)(cur + 16 * ncp),
                     xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop0);
-                } else {
-                PROF_T(c, kloop_owner_bank0_xn(A, Xk + 16 * t, pend ? pend_c : tb->xpan, pf.p, pf.p2, (const char*)cur,
-                    xs0, (char*)cur, ldb * 8 - 64), t_kloop0);
-                PROF_T(c, kloop_owner_bank4_xn(A + 1024, Xk + 16 * t, cur, ap4v, bp4v, (const char*)(cur + 16 * ncp),
-                    xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop0);
-                }
                 }else{
                 PROF_T(c, kloop_owner_bank0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
                 PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, ap4v, bp4v,
@@ -3318,33 +3309,6 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_x(const doub
  "mov w12, #7\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
 
-// 末瓦片专用：无旁流 prfm（xs+128 落入下一面板 = 白发，Fable-TC1 2a）
-static inline __attribute__((always_inline)) void kloop_owner_bank0_xn(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc,
-                                      const char* xs, char* xd, long xj)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 6144;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
- "mov w12, #0\n\t"
- "ldnt1d z0.d, p0/z, [%[a]]\n\t"
- "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #768\n\t"
- "mov w12, #0\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #1\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #2\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #3\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #4\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #5\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #6\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #7\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
-
 // XONE-TC2：kloop_duplex_bank0 的旁流版（NC128 几何：16 行×16 列/bank，xd 行跳 960）
 static inline __attribute__((always_inline)) void kloop_duplex_bank0_x(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc,
@@ -3728,33 +3692,6 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_x(const doub
  "mov w12, #5\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #6\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
-: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
-
-// 末瓦片专用：无旁流 prfm（xs+128 落入下一面板 = 白发，Fable-TC1 2a）
-static inline __attribute__((always_inline)) void kloop_owner_bank4_xn(const double* a, const double* b, double* c,
-                                      const char* ap, const char* bp, const char* pc,
-                                      const char* xs, char* xd, long xj)
-{
-    char* ct = (char*)c;
-    char* cb = ct + 6144;
-    asm volatile(
- "ptrue p0.d\n\t"
- "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
- "mov w12, #0\n\t"
- "ldnt1d z0.d, p0/z, [%[a]]\n\t"
- "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
- "ld1d z4.d, p0/z, [%[b]]\n\t"
- "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
- "add %[a], %[a], #128\n\t"
- "add %[b], %[b], #768\n\t"
- "mov w12, #0\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #1\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #2\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #3\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #4\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #5\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #6\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #7\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
 
 // XONE-TC2：kloop_duplex_bank4 的旁流版（NC128 几何：16 行×16 列/bank，xd 行跳 960）
