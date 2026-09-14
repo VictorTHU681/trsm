@@ -21,7 +21,13 @@ fi
 
 # 首选：SME(FP64 FMOPA) 内核，需要支持 armv9-a+sme+sme-f64f64 的汇编器；运行期用 HWCAP2 检测硬件，缺失时自动回退。
 rm -f trsm_test
-if ! gcc -O3 -march=armv9-a+sme+sme-f64f64+sve2 -fopenmp bench_trsm.c trsm.c -o trsm_test -lm -lkblas 2>/dev/null; then
+# -mtune=tsv110 -flto：四节点双顺序 A/B 认证 TC1 +0.5~1.5%、TC2/TC3 非负（NOTES §10r）；
+# 若编译器不支持则整行失败、落入下方回退，任何工具链都能出分。
+if ! gcc -O3 -march=armv9-a+sme+sme-f64f64+sve2 -mtune=tsv110 -flto -fopenmp bench_trsm.c trsm.c -o trsm_test -lm -lkblas 2>/dev/null; then
+    echo "[run.sh] LTO 档不可用，回退基础 SME 编译" >&2
+    gcc -O3 -march=armv9-a+sme+sme-f64f64+sve2 -fopenmp bench_trsm.c trsm.c -o trsm_test -lm -lkblas 2>/dev/null
+fi
+if [[ ! -x trsm_test ]]; then
     echo "[run.sh] 编译器不支持 SME 扩展，回退通用实现" >&2
     gcc -O3 -fopenmp -DTRSM_NO_SME_ASM bench_trsm.c trsm.c -o trsm_test -lm -lkblas
 fi
