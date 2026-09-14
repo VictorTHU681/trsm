@@ -705,9 +705,9 @@ static void dd_flush_b4_set(double* c, long cs)
 
 // ---------------- 调度与对照 ----------------
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
-static char g_dum[4096] __attribute__((aligned(64)));
+static char g_dum[2 << 20] __attribute__((aligned(64)));
 static sw_t g_swd;
-static pf_t pf_dummy;   // main 里初始化（p/p2/pc 指向 g_dum，pfn=1, pfj=-64）
+static pf_t pf_dummy;   // main 里初始化：pfn 大值 + pfj=0（避免 pfn=1 的每次行末处理税，贴近生产真游标形态）
 #define NCP 128L
 #define CS  1024L
 #define SS  16
@@ -820,8 +820,8 @@ int main(void)
     gxpan = al(32 * 1024);
     for (long i = 0; i < 35000; i++) gA[i] = (double)((i * 40503u) % 913) / 911.0 - 0.5;
 
-    pf_dummy.p = g_dum; pf_dummy.pfn = 1; pf_dummy.pfj = -64;
-    pf_dummy.p2 = g_dum; pf_dummy.pc = g_dum; pf_dummy.pcs = 0; pf_dummy.sw = &g_swd;
+    pf_dummy.p = g_dum; pf_dummy.pfn = 1 << 20; pf_dummy.pfj = 0;
+    pf_dummy.p2 = g_dum + (1 << 20); pf_dummy.pc = g_dum; pf_dummy.pcs = 1024; pf_dummy.sw = &g_swd;
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
     seed(gCB1); seed(gCB2);
     {
@@ -836,8 +836,12 @@ int main(void)
         sme_stop();
     }
     int bitok = memcmp(gCB1, gCB2, 256 * NCP * 8) == 0;
-    long diffrow = -1;
-    if (!bitok) for (long r = 0; r < 256; r++) if (memcmp(gCB1 + r * NCP, gCB2 + r * NCP, NCP * 8)) { diffrow = r; break; }
+    long diffrow = -1, diffcol = -1; double dv1 = 0, dv2 = 0; long ndiff = 0;
+    if (!bitok) for (long r = 0; r < 256; r++) for (long cjj = 0; cjj < NCP; cjj++)
+        if (gCB1[r * NCP + cjj] != gCB2[r * NCP + cjj]) {
+            if (diffrow < 0) { diffrow = r; diffcol = cjj; dv1 = gCB1[r * NCP + cjj]; dv2 = gCB2[r * NCP + cjj]; }
+            ndiff++;
+        }
     // ---- 计时：strips 3..15，R 轮（每轮两个独立流式段，库调用全部在区外）----
     const int R = 9;
     double olds[R], news[R];
@@ -879,7 +883,8 @@ int main(void)
     }
     double om = olds[R / 2], nm = news[R / 2];
     printf("bitwise: %s%s\n", bitok ? "PASS" : "FAIL", bitok ? "" : "（见 diffrow）");
-    if (!bitok) printf("  first diff row %ld\n", diffrow);
+    if (!bitok) printf("  first diff (row %ld, col %ld) old=%.17g new=%.17g；共 %ld 元素异（块行=%ld 块列=%ld）\n",
+        diffrow, diffcol, dv1, dv2, ndiff, diffrow / 16, diffcol / 32);
     long ksteps = 0; for (int s = 3; s < SS; s++) ksteps += 4 * 16 * (s + 1);
     printf("== strips 3..15（%ld k 步 ×4 瓦片）==\n", ksteps);
     printf("old（compact+za_dump+chain）: %.0f cyc  %.2f cyc/步\n", om, om / ksteps);
