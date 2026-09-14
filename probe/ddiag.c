@@ -705,6 +705,9 @@ static void dd_flush_b4_set(double* c, long cs)
 
 // ---------------- 调度与对照 ----------------
 static double* al(size_t bytes) { void* p = aligned_alloc(4096, bytes); memset(p, 0, bytes); return p; }
+static char g_dum[4096] __attribute__((aligned(64)));
+static sw_t g_swd;
+static pf_t pf_dummy;   // main 里初始化（p/p2/pc 指向 g_dum，pfn=1, pfj=-64）
 #define NCP 128L
 #define CS  1024L
 #define SS  16
@@ -817,6 +820,8 @@ int main(void)
     gxpan = al(32 * 1024);
     for (long i = 0; i < 35000; i++) gA[i] = (double)((i * 40503u) % 913) / 911.0 - 0.5;
 
+    pf_dummy.p = g_dum; pf_dummy.pfn = 1; pf_dummy.pfj = -64;
+    pf_dummy.p2 = g_dum; pf_dummy.pc = g_dum; pf_dummy.pcs = 0; pf_dummy.sw = &g_swd;
     sme_start();
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）----
     seed(gCB1); seed(gCB2);
