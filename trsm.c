@@ -6503,7 +6503,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     memset(&c, 0, sizeof(c));
     c.m = m; c.n = n; c.lda = lda; c.ldb = ldb; c.L = L; c.B = B;
     c.prof = env_int("TRSM_PROFILE", 0);
-    g_owner_cursor=env_int("TRSM_OWNER_CURSOR",1); // Fixed KC64 prefetch offsets; 0 restores v48 owner kernels.
+    g_owner_cursor = env_int("TRSM_OWNER_CURSOR", env_int("TRSM_XONE", 1) ? 0 : 1); // XONE 默认走 bank+旁流内核（v61）；显式 TRSM_OWNER_CURSOR=1 可回 cursor
     g_abhoist = env_int("TRSM_ABHOIST", 1); // 0 retains the original duplex kernels for comparisons
     c.pf = env_int("TRSM_PF", 1);
     c.packmode = env_int("TRSM_PACK", 1);
@@ -6608,7 +6608,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xpre = env_int("TRSM_XPRE", 0);        // XPRE：下一任务 X 块借白发游标槽铺 L2（审计 §10w 候选 1），筛查中
         c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
         c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
-        c.xone = env_int("TRSM_XONE", 0);        // XONE：仅 bank 内核路径（TRSM_OWNER_CURSOR=0）生效
+        c.xone = env_int("TRSM_XONE", 1);        // XONE v61 默认开：装载相融入 chunk-0 旁流（双节点认证 −4.7%）
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
