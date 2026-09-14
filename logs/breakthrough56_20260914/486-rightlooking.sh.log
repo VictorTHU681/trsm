@@ -1,0 +1,268 @@
+INDEPENDENT m=64 n=96 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=64 n=96 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=1 maxerr=1.180e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=0 maxerr=1.166e-15 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=1 maxerr=1.388e-15 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=0 maxerr=1.277e-15 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=1 maxerr=1.554e-15 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=0 maxerr=1.277e-15 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=1 maxerr=1.554e-15 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=0 maxerr=1.055e-15 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=1 maxerr=1.110e-15 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=0 maxerr=1.665e-15 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=1 maxerr=1.499e-15 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=0 maxerr=1.277e-15 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=1 maxerr=1.332e-15 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=0 maxerr=1.443e-15 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=1 maxerr=1.388e-15 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=0 maxerr=1.166e-15 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=1 maxerr=1.110e-15 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=0 maxerr=1.554e-15 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=1 maxerr=1.499e-15 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=0 maxerr=1.943e-15 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=1 maxerr=1.499e-15 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=0 maxerr=1.776e-15 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=1 maxerr=1.554e-15 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=0 maxerr=1.388e-15 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=1 maxerr=1.554e-15 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=0 maxerr=2.054e-15 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=1 maxerr=1.665e-15 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=0 maxerr=1.998e-15 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=1 maxerr=2.331e-15 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=0 maxerr=1.665e-15 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=1 maxerr=1.776e-15 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=0 maxerr=1.832e-15 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=1 maxerr=1.998e-15 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=0 maxerr=2.442e-15 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=1 maxerr=2.220e-15 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=0 maxerr=2.054e-15 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=1 maxerr=2.220e-15 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=0 maxerr=2.776e-15 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=1 maxerr=2.165e-15 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=0 maxerr=2.387e-15 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=1 maxerr=2.387e-15 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-15
+RIGHT_CONTROL m=512 n=19968
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.94    2696.8522     3.33e-16     PASS
+RIGHT_FORMAL m=512 n=19968 nb=128 nc=32
+RIGHT m=512 n=19968 nb=128 nc=32 mb=256 diag_ms=24.069506 pack_ms=1.270615 update_ms=2.034900 total_ms=27.641217
+RIGHT m=512 n=19968 nb=128 nc=32 mb=256 diag_ms=1.351433 pack_ms=0.612371 update_ms=2.012416 total_ms=3.982930
+RIGHT m=512 n=19968 nb=128 nc=32 mb=256 diag_ms=1.266863 pack_ms=0.622360 update_ms=2.015828 total_ms=3.911523
+RIGHT m=512 n=19968 nb=128 nc=32 mb=256 diag_ms=1.188737 pack_ms=0.623920 update_ms=2.011368 total_ms=3.830895
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         4.03    1299.1517     2.16e-15     PASS
+RIGHT_FORMAL m=512 n=19968 nb=128 nc=128
+RIGHT m=512 n=19968 nb=128 nc=128 mb=256 diag_ms=17.553819 pack_ms=1.532330 update_ms=3.042528 total_ms=22.379261
+RIGHT m=512 n=19968 nb=128 nc=128 mb=256 diag_ms=1.359963 pack_ms=0.831471 update_ms=3.001684 total_ms=5.200189
+RIGHT m=512 n=19968 nb=128 nc=128 mb=256 diag_ms=1.262273 pack_ms=0.854054 update_ms=2.962291 total_ms=5.086038
+RIGHT m=512 n=19968 nb=128 nc=128 mb=256 diag_ms=1.191626 pack_ms=0.856573 update_ms=3.089673 total_ms=5.144693
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         5.26     995.7604     2.16e-15     PASS
+RIGHT_FORMAL m=512 n=19968 nb=256 nc=32
+RIGHT m=512 n=19968 nb=256 nc=32 mb=256 diag_ms=16.135411 pack_ms=0.990117 update_ms=1.004268 total_ms=18.373169
+RIGHT m=512 n=19968 nb=256 nc=32 mb=256 diag_ms=1.443771 pack_ms=0.381688 update_ms=1.020880 total_ms=2.852510
+RIGHT m=512 n=19968 nb=256 nc=32 mb=256 diag_ms=1.363564 pack_ms=0.375267 update_ms=1.014989 total_ms=2.758671
+RIGHT m=512 n=19968 nb=256 nc=32 mb=256 diag_ms=1.315238 pack_ms=0.377417 update_ms=1.016710 total_ms=2.714036
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.89    1810.0569     2.05e-15     PASS
+RIGHT_FORMAL m=512 n=19968 nb=256 nc=128
+RIGHT m=512 n=19968 nb=256 nc=128 mb=256 diag_ms=24.646054 pack_ms=1.269514 update_ms=1.234451 total_ms=27.395103
+RIGHT m=512 n=19968 nb=256 nc=128 mb=256 diag_ms=1.406827 pack_ms=0.664205 update_ms=1.228031 total_ms=3.302983
+RIGHT m=512 n=19968 nb=256 nc=128 mb=256 diag_ms=1.326931 pack_ms=0.663095 update_ms=1.219429 total_ms=3.213325
+RIGHT m=512 n=19968 nb=256 nc=128 mb=256 diag_ms=1.369074 pack_ms=0.668925 update_ms=1.228060 total_ms=3.269970
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         3.38    1546.8073     2.05e-15     PASS
+RIGHT_FORMAL m=512 n=19968 nb=512 nc=32
+RIGHT m=512 n=19968 nb=512 nc=32 mb=256 diag_ms=14.522892 pack_ms=0.000000 update_ms=0.000000 total_ms=14.753824
+RIGHT m=512 n=19968 nb=512 nc=32 mb=256 diag_ms=2.011957 pack_ms=0.000000 update_ms=0.000000 total_ms=2.015997
+RIGHT m=512 n=19968 nb=512 nc=32 mb=256 diag_ms=2.019837 pack_ms=0.000000 update_ms=0.000000 total_ms=2.024098
+RIGHT m=512 n=19968 nb=512 nc=32 mb=256 diag_ms=1.922527 pack_ms=0.000000 update_ms=0.000000 total_ms=1.927128
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.11    2482.9363     3.33e-16     PASS
+RIGHT_FORMAL m=512 n=19968 nb=512 nc=128
+RIGHT m=512 n=19968 nb=512 nc=128 mb=256 diag_ms=23.496816 pack_ms=0.000000 update_ms=0.000000 total_ms=23.764491
+RIGHT m=512 n=19968 nb=512 nc=128 mb=256 diag_ms=1.950861 pack_ms=0.000000 update_ms=0.000000 total_ms=1.954721
+RIGHT m=512 n=19968 nb=512 nc=128 mb=256 diag_ms=1.885834 pack_ms=0.000000 update_ms=0.000000 total_ms=1.890635
+RIGHT m=512 n=19968 nb=512 nc=128 mb=256 diag_ms=1.932259 pack_ms=0.000000 update_ms=0.000000 total_ms=1.936469
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.04    2561.8424     3.33e-16     PASS
+RIGHT_CONTROL m=2432 n=17024
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.73    4243.2863     7.77e-16     PASS
+RIGHT_FORMAL m=2432 n=17024 nb=128 nc=32
+RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 diag_ms=22.986729 pack_ms=4.368885 update_ms=66.860030 total_ms=94.467007
+RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 diag_ms=5.309887 pack_ms=3.533262 update_ms=66.982699 total_ms=75.846069
+RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 diag_ms=5.240612 pack_ms=3.534372 update_ms=66.722871 total_ms=75.518478
+RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 diag_ms=5.200046 pack_ms=3.521254 update_ms=67.015528 total_ms=75.756600
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        75.83    1327.8467     6.49e-15     PASS
+RIGHT_FORMAL m=2432 n=17024 nb=128 nc=128
+RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 diag_ms=23.036906 pack_ms=6.144988 update_ms=70.957732 total_ms=100.399601
+RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 diag_ms=5.502225 pack_ms=5.419868 update_ms=71.706595 total_ms=82.661223
+RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 diag_ms=5.313527 pack_ms=5.499374 update_ms=71.277627 total_ms=82.122239
+RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 diag_ms=5.376090 pack_ms=5.512266 update_ms=71.963193 total_ms=82.886114
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        82.69    1217.7510     6.49e-15     PASS
+RIGHT_FORMAL m=2432 n=17024 nb=256 nc=32
+RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 diag_ms=20.404105 pack_ms=3.825132 update_ms=67.807767 total_ms=92.283867
+RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 diag_ms=6.176539 pack_ms=3.079440 update_ms=65.443769 total_ms=74.714910
+RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 diag_ms=6.210794 pack_ms=3.059497 update_ms=66.055159 total_ms=75.340031
+RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 diag_ms=6.178051 pack_ms=3.106662 update_ms=64.181875 total_ms=73.480380
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        74.64    1348.9813     6.49e-15     PASS
+RIGHT_FORMAL m=2432 n=17024 nb=256 nc=128
+RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 diag_ms=21.756049 pack_ms=6.710712 update_ms=42.401968 total_ms=71.127013
+RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 diag_ms=6.105571 pack_ms=5.957149 update_ms=41.821103 total_ms=53.899794
+RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 diag_ms=6.159867 pack_ms=5.952546 update_ms=42.350984 total_ms=54.478390
+RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 diag_ms=6.071129 pack_ms=5.914713 update_ms=42.149884 total_ms=54.150158
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        54.30    1854.3559     6.49e-15     PASS
+RIGHT_FORMAL m=2432 n=17024 nb=512 nc=32
+RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 diag_ms=20.077996 pack_ms=3.725600 update_ms=57.156800 total_ms=81.189839
+RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 diag_ms=8.576070 pack_ms=3.009052 update_ms=55.844933 total_ms=67.441276
+RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 diag_ms=8.604685 pack_ms=2.970698 update_ms=56.924746 total_ms=68.508500
+RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 diag_ms=8.624605 pack_ms=2.959766 update_ms=56.673889 total_ms=68.267750
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        68.20    1476.3680     6.61e-15     PASS
+RIGHT_FORMAL m=2432 n=17024 nb=512 nc=128
+RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 diag_ms=23.632805 pack_ms=5.861975 update_ms=34.939689 total_ms=64.667041
+RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 diag_ms=8.611203 pack_ms=5.104543 update_ms=34.931456 total_ms=48.655843
+RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 diag_ms=8.637335 pack_ms=5.124054 update_ms=34.989442 total_ms=48.759343
+RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 diag_ms=8.726904 pack_ms=5.020125 update_ms=34.845777 total_ms=48.600518
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        48.79    2063.5782     6.61e-15     PASS
+RIGHT_CONTROL m=17024 n=512
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        37.45    3961.8463     1.50e-15     PASS
+RIGHT_FORMAL m=17024 n=512 nb=128 nc=32
+RIGHT m=17024 n=512 nb=128 nc=32 mb=256 diag_ms=27.975288 pack_ms=39.959552 update_ms=106.542664 total_ms=174.818915
+RIGHT m=17024 n=512 nb=128 nc=32 mb=256 diag_ms=16.776953 pack_ms=39.463907 update_ms=106.113981 total_ms=162.475590
+RIGHT m=17024 n=512 nb=128 nc=32 mb=256 diag_ms=16.497022 pack_ms=38.913355 update_ms=108.807186 total_ms=164.344124
+RIGHT m=17024 n=512 nb=128 nc=32 mb=256 diag_ms=16.545470 pack_ms=39.754741 update_ms=105.882653 total_ms=162.301587
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       163.17     909.3723     1.53e-14     PASS
+RIGHT_FORMAL m=17024 n=512 nb=128 nc=128
+RIGHT m=17024 n=512 nb=128 nc=128 mb=256 diag_ms=28.159495 pack_ms=29.574605 update_ms=77.945619 total_ms=136.012220
+RIGHT m=17024 n=512 nb=128 nc=128 mb=256 diag_ms=16.065248 pack_ms=29.319822 update_ms=77.678322 total_ms=123.172159
+RIGHT m=17024 n=512 nb=128 nc=128 mb=256 diag_ms=16.485942 pack_ms=29.385965 update_ms=77.701933 total_ms=123.677952
+RIGHT m=17024 n=512 nb=128 nc=128 mb=256 diag_ms=15.927005 pack_ms=29.121987 update_ms=77.700014 total_ms=122.848413
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       123.37    1202.7779     1.53e-14     PASS
+RIGHT_FORMAL m=17024 n=512 nb=256 nc=32
+RIGHT m=17024 n=512 nb=256 nc=32 mb=256 diag_ms=25.751006 pack_ms=21.933001 update_ms=83.281032 total_ms=131.249099
+RIGHT m=17024 n=512 nb=256 nc=32 mb=256 diag_ms=14.882250 pack_ms=21.078292 update_ms=82.883843 total_ms=118.910545
+RIGHT m=17024 n=512 nb=256 nc=32 mb=256 diag_ms=15.744598 pack_ms=21.333652 update_ms=83.755538 total_ms=120.897435
+RIGHT m=17024 n=512 nb=256 nc=32 mb=256 diag_ms=15.997788 pack_ms=21.180040 update_ms=83.789074 total_ms=121.041130
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       120.42    1232.2302     1.54e-14     PASS
+RIGHT_FORMAL m=17024 n=512 nb=256 nc=128
+RIGHT m=17024 n=512 nb=256 nc=128 mb=256 diag_ms=28.877244 pack_ms=23.266431 update_ms=56.951013 total_ms=109.399086
+RIGHT m=17024 n=512 nb=256 nc=128 mb=256 diag_ms=14.931259 pack_ms=19.498231 update_ms=56.849853 total_ms=91.348949
+RIGHT m=17024 n=512 nb=256 nc=128 mb=256 diag_ms=15.763848 pack_ms=19.501776 update_ms=56.812314 total_ms=92.141785
+RIGHT m=17024 n=512 nb=256 nc=128 mb=256 diag_ms=14.515540 pack_ms=19.728956 update_ms=57.128619 total_ms=91.443588
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        91.78    1616.7226     1.54e-14     PASS
+RIGHT_FORMAL m=17024 n=512 nb=512 nc=32
+RIGHT m=17024 n=512 nb=512 nc=32 mb=256 diag_ms=26.718769 pack_ms=14.390251 update_ms=69.944715 total_ms=111.316252
+RIGHT m=17024 n=512 nb=512 nc=32 mb=256 diag_ms=15.441522 pack_ms=14.120717 update_ms=70.050667 total_ms=99.648439
+RIGHT m=17024 n=512 nb=512 nc=32 mb=256 diag_ms=16.159088 pack_ms=13.831282 update_ms=70.555362 total_ms=100.580017
+RIGHT m=17024 n=512 nb=512 nc=32 mb=256 diag_ms=15.478652 pack_ms=14.192899 update_ms=70.418871 total_ms=100.126604
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       100.25    1480.1190     1.52e-14     PASS
+RIGHT_FORMAL m=17024 n=512 nb=512 nc=128
+RIGHT m=17024 n=512 nb=512 nc=128 mb=256 diag_ms=24.444699 pack_ms=16.222211 update_ms=59.198265 total_ms=100.115239
+RIGHT m=17024 n=512 nb=512 nc=128 mb=256 diag_ms=15.861091 pack_ms=15.602663 update_ms=59.099357 total_ms=90.599883
+RIGHT m=17024 n=512 nb=512 nc=128 mb=256 diag_ms=15.787566 pack_ms=15.620304 update_ms=58.935891 total_ms=90.383602
+RIGHT m=17024 n=512 nb=512 nc=128 mb=256 diag_ms=15.776923 pack_ms=18.672996 update_ms=58.899238 total_ms=93.391369
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        91.59    1620.0926     1.52e-14     PASS
+900744bc003c434ed191c337719472e9314ffe65c2103da67ac0bb02b0617f14  rightlooking.c
+8094d1c87338f8f275377d5c732fb1fcdfd6034a62c92b1c6d56fbcbd91c55b4  right-kernel.h
+1f6a3dc4712bbb04c4a7f8cfbc042ba8c306681bcfd253a51242a47b4c518350  trsm-v55.c
+e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac  bench_trsm.c
+RIGHTLOOKING_DONE
