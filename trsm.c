@@ -1489,6 +1489,64 @@ static void pack_strip_ld4(const double* L, long lda, long row0, long k0, long k
         : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
 }
 
+// P0（TRSM_PACKNT）：pack_strip_ld4 的 NT 写回变体（Fable-TC3 pack lane）。str za 是普通可缓存写
+// （write-allocate：RFO 读 DDR + L2 占位 + 事后逐出），换 mova+stnt1d 整行 NT 写：无 RFO、不占 L2。
+// ZA 阵列向量 v=8r+T ↔ 行 r 提取 tile T → 写 dst+512r+64T，与 ZA_DUMP_GROUP 的 v 序逐字节同址同值
+// （mova p0/m 全谓词 = 整拷；za_owner_dstore 同构先例）。z8-z15 本内核空闲，p0 已 ptrue。
+#define PACKNT_DUMP_ROW(R) \
+    "mov w12, #" #R "\n\t" \
+    "mova z8.d, p0/m, za0h.d[w12, 0]\n\t" \
+    "mova z9.d, p0/m, za1h.d[w12, 0]\n\t" \
+    "mova z10.d, p0/m, za2h.d[w12, 0]\n\t" \
+    "mova z11.d, p0/m, za3h.d[w12, 0]\n\t" \
+    "mova z12.d, p0/m, za4h.d[w12, 0]\n\t" \
+    "mova z13.d, p0/m, za5h.d[w12, 0]\n\t" \
+    "mova z14.d, p0/m, za6h.d[w12, 0]\n\t" \
+    "mova z15.d, p0/m, za7h.d[w12, 0]\n\t" \
+    "stnt1d z8.d, p0, [%[b], #0, mul vl]\n\t" \
+    "stnt1d z9.d, p0, [%[b], #1, mul vl]\n\t" \
+    "stnt1d z10.d, p0, [%[b], #2, mul vl]\n\t" \
+    "stnt1d z11.d, p0, [%[b], #3, mul vl]\n\t" \
+    "stnt1d z12.d, p0, [%[b], #4, mul vl]\n\t" \
+    "stnt1d z13.d, p0, [%[b], #5, mul vl]\n\t" \
+    "stnt1d z14.d, p0, [%[b], #6, mul vl]\n\t" \
+    "stnt1d z15.d, p0, [%[b], #7, mul vl]\n\t" \
+    "add %[b], %[b], #512\n\t"
+#define PACKNT_DUMP_ALL \
+    PACKNT_DUMP_ROW(0) PACKNT_DUMP_ROW(1) PACKNT_DUMP_ROW(2) PACKNT_DUMP_ROW(3) \
+    PACKNT_DUMP_ROW(4) PACKNT_DUMP_ROW(5) PACKNT_DUMP_ROW(6) PACKNT_DUMP_ROW(7)
+
+static void pack_strip_ld4_nt(const double* L, long lda, long row0, long k0, long kk, double* dst)
+{
+    const char* xl = (const char*)(L + row0 * lda + k0);
+    char* xd = (char*)dst;
+    long n = kk / 32, lda8 = lda * 8;
+    asm volatile(
+        "ptrue p0.d\n\t"
+        "ld1d z16.d, p0/z, [%[u]]\n\t"
+        "ld1d z17.d, p0/z, [%[u], #1, mul vl]\n\t"
+        "ld1d z18.d, p0/z, [%[u], #2, mul vl]\n\t"
+        "ld1d z19.d, p0/z, [%[u], #3, mul vl]\n\t"
+        "ld1d z20.d, p0/z, [%[u], #4, mul vl]\n\t"
+        "ld1d z21.d, p0/z, [%[u], #5, mul vl]\n\t"
+        "ld1d z22.d, p0/z, [%[u], #6, mul vl]\n\t"
+        "ld1d z23.d, p0/z, [%[u], #7, mul vl]\n\t"
+        "1:\n\t"
+        "zero {za}\n\t"
+        "mov x9, %[xl]\n\t"
+        P4_EVEN("z16") P4_ODD("z17") P4_EVEN("z18") P4_ODD("z19")
+        P4_EVEN("z20") P4_ODD("z21") P4_EVEN("z22") P4_ODD("z23")
+        P4_EVEN_H("z16") P4_ODD_H("z17") P4_EVEN_H("z18") P4_ODD_H("z19")
+        P4_EVEN_H("z20") P4_ODD_H("z21") P4_EVEN_H("z22") P4_ODD_H("z23")
+        PACKNT_DUMP_ALL
+        "add %[xl], %[xl], #256\n\t"
+        "subs %[n], %[n], #1\n\t"
+        "b.ne 1b\n\t"
+        : [xl] "+&r"(xl), [b] "+&r"(xd), [n] "+&r"(n)
+        : [lda8] "r"(lda8), [u] "r"(g_unit)
+        : "memory", "cc", "x9", "x12", VCLOB, PCLOB);
+}
+
 // 变体 B：ld2d + 4 tile，两组交替（za0-3 / za4-7），使 str za 与下一组的 fmopa 有机会重叠。
 // 16 个 k 一组：z_q[j] = L[r][k0+2j+q]，tile (2q + [r≥8]) (+4 奇数组)。布局：k 偶 → 256(k-k0)，k 奇 → 256(k-k0)-128，
 // 即 K 循环步长交替 128 / 384。要求 kk % 32 == 0。
@@ -2092,6 +2150,7 @@ typedef struct {
     int xpw;                // XPW（TRSM_XPW）：special 对角 EV 托管步双写 Xp（消 store 相 Xp 拷贝大头，Fable-TC2 候选 A）
     int pchain;             // PCHAIN（TRSM_PCHAIN）：pend 跨条链——条末块由下一条首内核托管落地（消 depi 突发）
     int dpf;                // TRSM_DPF=0 关 GEMM 尾段对角条扫铺（对角内核 PFX 已覆盖，候选 B 因子）
+    int packnt;             // P0（TRSM_PACKNT）：pack 写回 str za → mova+stnt1d（无 RFO/不占 L2，Fable-TC3）
 } ctx_t;
 
 typedef struct task_s {
@@ -2228,7 +2287,7 @@ static void pack_l_chunked(const ctx_t* c, long g) {
     for(long k=0;k<kk;k+=c->kc) {
         double* dst=c->pp[0]+packed_l_offset(c,g,k);
         // The initial OpenMP packing stage has not enabled ZA; only task packing may use it.
-        if(c->ppmode==1 && rows==16 && (c->kc&31)==0)pack_strip_ld4(c->L,c->lda,row0,k,c->kc,dst);
+        if(c->ppmode==1 && rows==16 && (c->kc&31)==0)(c->packnt ? pack_strip_ld4_nt : pack_strip_ld4)(c->L,c->lda,row0,k,c->kc,dst);
         else pack_strip(c->L,c->lda,c->m,row0,k,c->kc,dst);
         if(c->pp[1])memcpy(c->pp[1]+packed_l_offset(c,g,k),dst,(size_t)c->kc*16*8);
     }
@@ -2246,7 +2305,7 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
     double* dst = c->pp[0] + c->pp_off[g];
     if (i0 > 0 && c->lchunk) { pack_l_chunked(c, g); }
     else if (i0 > 0) {
-        if (rows == 16 && (i0 & 31) == 0) pack_strip_ld4(c->L, c->lda, row0, 0, i0, dst);
+        if (rows == 16 && (i0 & 31) == 0) (c->packnt ? pack_strip_ld4_nt : pack_strip_ld4)(c->L, c->lda, row0, 0, i0, dst);
         else pack_strip(c->L, c->lda, c->m, row0, 0, i0, dst);
     }
     __atomic_store_n(&c->pflags[g], 1, __ATOMIC_RELEASE);
@@ -6833,6 +6892,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xpw = env_int("TRSM_XPW", 0);          // XPW：对角 EV 双写 Xp（筛查中）
         c.pchain = env_int("TRSM_PCHAIN", 1) || c.xpw;   // 跨条 pend 链默认开（xw93 双节点认证 −1.5%~−1.8% 三件套之一）
         c.dpf = env_int("TRSM_DPF", 1);
+        c.packnt = env_int("TRSM_PACKNT", 0);   // P0：筛查中
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
