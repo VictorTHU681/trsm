@@ -1968,6 +1968,7 @@ typedef struct {
     int dxw;                // DXW（TRSM_DXW，扫雷 P2）：owner 对角直写模式下双写 cbuf+X，消掉 store 相（筛查中）
     int steal;              // STEAL（TRSM_STEAL）：owner 完整面板段的面板粒度双端窃取（尾部救援，抢占免疫；筛查中）
     int xone;               // XONE（TRSM_XONE，fresh35 实验）：chunk-0 内核旁流装载 C 初值，消灭独立装载相（对手结构假说）
+    int osw;                // OSW（TRSM_OSW）：owner 回写交走线器在对角内核内配速排水（store 相消灭第一步），flag 顺延一任务
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2036,6 +2037,7 @@ typedef struct {
     long n_dkstep;
     uint64_t t_khead;        // owner 头部残段：等上一线程 flag + 从 X 拷入面板缓冲（诊断慢线程用）
     long pre_i, pre_p;       // SLX 相位交错：上一任务回写相已预装 (pre_i, pre_p) 的 C 块（-1=无），其 load 相跳过
+    long osw_pi, osw_pp;     // OSW：待发布 flag 的上一任务 (i,p)（-1=无）——其回写已排队走线器，flag 顺延到本任务 store
     // Keep counters from sharing a line with the next worker's pointers.
 } __attribute__((aligned(128))) tbuf_t;
 
@@ -2297,6 +2299,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     // XONE：C 初值由 chunk-0 内核旁流从 X 拉入 cbuf（每 2 步 1 线），独立装载相消失。
     // 仅 bank 内核（fast_owner==1）实现旁流；i>0 保证有 chunk-0；折叠面板 0 / 非整块回退普通装载。
     const int xone_on = fast_owner == 1 && c->xone && !split && !cfp0 && nci == nc && mbi == mb && i > 0;
+    // OSW：本块回写交走线器（对角内核 SWS 槽逐步 stnt1d），flag 顺延一任务；折叠面板 0 两段布局不适用
+    const int osw_on = fast_owner && c->osw && !split && !cfp0 && nci == nc;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
     if (split) {
@@ -2712,7 +2716,17 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
-            if (dxw_on) {
+            if (osw_on) {
+                // OSW：发布上一任务 flag（其回写已由本任务对角窗排水 + 刚才的 sw_flush 收尾），排队本任务回写
+                if (tb->osw_pi >= 0)
+                    __atomic_store_n(&c->flags[tb->osw_pi * c->npan + tb->osw_pp], 1, __ATOMIC_RELEASE);
+                sw_t w;
+                w.src = (const char*)cb; w.dst = (char*)Bout;
+                w.lpr = nc * 8 / 64; w.cnt = w.lpr;
+                w.dstj = ldb * 8 - nc * 8; w.rows = mbi;
+                tb->swq[tb->swn++] = w; tb->n_swq += mbi * w.lpr;
+                tb->osw_pi = i; tb->osw_pp = p;
+            } else if (dxw_on) {
                 // DXW：X 已在对角相双写完成，store 相整体跳过。NEXTA prfm 也不能留：紧跟 48KB 在途 NT 写
                 // 发 768 条 prfm 会逐条阻塞（§10t，dx70 实测 store 桶 1.05ms 全是它）；NEXTA 兜底后续按需回补。
                 ;
@@ -2785,7 +2799,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
+    if (!osw_on) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);   // OSW：flag 已顺延到下一任务 store
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
@@ -6670,6 +6684,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
         c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
         c.xone = env_int("TRSM_XONE", 1);        // XONE v61 默认开：装载相融入 chunk-0 旁流（双节点认证 −4.7%）
+        c.osw = env_int("TRSM_OSW", 0);          // OSW：owner 回写走线器化（筛查中）
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
@@ -6904,6 +6919,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         pin_self(tid);
         ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb * env_int("TRSM_G3RING", 1)) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
         g_tb[tid].pre_i = g_tb[tid].pre_p = -1;   // SLX：跨调用遗留的预装标记失效（B 指针/内容可能已变）
+        g_tb[tid].osw_pi = g_tb[tid].osw_pp = -1; // OSW：跨调用清空待发布记录
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
@@ -7108,6 +7124,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             uint64_t t0 = c.prof >= 2 ? cyc() : 0;
             sw_flush(&g_tb[tid]);
             if (c.prof >= 2) g_tb[tid].t_store += cyc() - t0;
+            if (g_tb[tid].osw_pi >= 0) {   // OSW：最后一个任务的顺延 flag
+                __atomic_store_n(&c.flags[g_tb[tid].osw_pi * c.npan + g_tb[tid].osw_pp], 1, __ATOMIC_RELEASE);
+                g_tb[tid].osw_pi = g_tb[tid].osw_pp = -1;
+            }
         }
         if (c.prof >= 2) g_tail_cyc[tid] = cyc();
     }
