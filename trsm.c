@@ -2076,6 +2076,7 @@ static tbuf_t g_tb[1024];
 // pf0 = 该线程完整面板段的首面板号。部分面板/khead 段不可窃取。串行 setup 里初始化。
 static unsigned long g_steal_fb[1024] __attribute__((aligned(128)));
 static long g_steal_pf0[1024];
+static int g_thief_cnt;   // STEAL v2 护栏：贼数上限（前 N 个完成者），build_tasks 每调用清零
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024], g_wake_cyc[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
@@ -6028,6 +6029,7 @@ static void build_tasks(ctx_t* c, int nth)
             g_steal_pf0[t] = pf0;
             __atomic_store_n(&g_steal_fb[t], (unsigned long)nfull, __ATOMIC_RELEASE);
         }
+        __atomic_store_n(&g_thief_cnt, 0, __ATOMIC_RELEASE);
         return;}
     const int mb = c->mb, nc = c->nc, kc = c->kc;
     const long n = c->n;
@@ -6673,12 +6675,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, guess, tid);
                 }
             }
-            if (c.steal && g_implicit_owner) {
-                // STEAL 段 3（贼）：本队列清空后扫描剩余量最大的受害者，从其尾部偷整面板（留 ≥1 面板余量）。
-                // 与已证伪 OWNER_HELP 的区别：面板级 CAS（全程 ≤npan 次）、只偷完整面板（自包含无部分和）、
-                // 偷尾部恰好提前满足下一线程 khead 依赖。干净节点下队列几乎同时清空 → 触发极少，≈零成本。
+            if (c.steal && g_implicit_owner
+                && __atomic_fetch_add(&g_thief_cnt, 1, __ATOMIC_ACQ_REL) < 2) {
+                // STEAL 段 3（贼）：仅前 2 个完成者有贼资格（防 36 贼踩踏同一认领字）；受害者须剩 ≥3 面板
+                //（阈值门控：只救真正的落后者，不在收尾期抢食）。偷尾部恰好提前满足下一线程 khead 依赖。
                 for (;;) {
-                    int best = -1; long bestrem = 1;
+                    int best = -1; long bestrem = 2;
                     for (int t2 = 0; t2 < nth; t2++) {
                         if (t2 == tid) continue;
                         unsigned long w2 = __atomic_load_n(&g_steal_fb[t2], __ATOMIC_RELAXED);
@@ -6688,7 +6690,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     if (best < 0) break;
                     unsigned long w2 = __atomic_load_n(&g_steal_fb[best], __ATOMIC_ACQUIRE);
                     long f2 = (long)(w2 >> 32), bk2 = (long)(w2 & 0xffffffffUL);
-                    if (bk2 - f2 < 2) continue;
+                    if (bk2 - f2 < 3) continue;
                     unsigned long nw2 = ((unsigned long)f2 << 32) | (unsigned long)(bk2 - 1);
                     if (!__atomic_compare_exchange_n(&g_steal_fb[best], &w2, nw2, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) continue;
                     long q0 = (g_steal_pf0[best] + bk2 - 1) * c.nrb;
