@@ -822,10 +822,10 @@ int main(void)
 
     pf_dummy.p = g_dum; pf_dummy.pfn = 1; pf_dummy.pfj = -64;
     pf_dummy.p2 = g_dum; pf_dummy.pc = g_dum; pf_dummy.pcs = 0; pf_dummy.sw = &g_swd;
-    sme_start();
-    // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）----
+    // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
     seed(gCB1); seed(gCB2);
     {
+        sme_start();
         double* pc1 = NULL; long pcols1 = 0; int pend1 = 0;
         for (int s = 0; s < SS; s++) pend1 = old_strip(s, gCB1, pend1, &pc1, &pcols1, s == SS - 1);
         double* pc2 = NULL; long pcols2 = 0; int pend2 = 0;
@@ -833,19 +833,18 @@ int main(void)
         double* d4c = gxpan;
         for (int s = 3; s < SS; s++) new_strip(s, gCB2, &d4c);
         dd_flush_b4_set(d4c, CS);
-        int ok = memcmp(gCB1, gCB2, 256 * NCP * 8) == 0;
-        printf("bitwise: %s\n", ok ? "PASS" : "FAIL");
-        if (!ok) { // 找首个不同行
-            for (long r = 0; r < 256; r++) if (memcmp(gCB1 + r * NCP, gCB2 + r * NCP, NCP * 8)) { printf("  first diff row %ld\n", r); break; }
-        }
+        sme_stop();
     }
-    // ---- 计时：strips 3..15，R 轮 ----
+    int bitok = memcmp(gCB1, gCB2, 256 * NCP * 8) == 0;
+    long diffrow = -1;
+    if (!bitok) for (long r = 0; r < 256; r++) if (memcmp(gCB1 + r * NCP, gCB2 + r * NCP, NCP * 8)) { diffrow = r; break; }
+    // ---- 计时：strips 3..15，R 轮（每轮两个独立流式段，库调用全部在区外）----
     const int R = 9;
     double olds[R], news[R];
     for (int r = 0; r < R; r++) {
         seed(gCB1); seed(gCB2);
+        sme_start();
         double* pc1 = NULL; long pcols1 = 0; int pend1 = 0;
-        // 预热 strips 0-2（两 cbuf 进 L2）
         for (int s = 0; s <= 2; s++) pend1 = old_strip(s, gCB1, pend1, &pc1, &pcols1, s == 2);
         double* pc2 = NULL; long pcols2 = 0; int pend2 = 0;
         for (int s = 0; s <= 2; s++) pend2 = old_strip(s, gCB2, pend2, &pc2, &pcols2, s == 2);
@@ -854,21 +853,22 @@ int main(void)
         for (int s = 3; s < SS; s++) pend1 = old_strip(s, gCB1, pend1, &pc1, &pcols1, s == SS - 1);
         uint64_t t1 = cyc();
         double* d4c = gxpan;
-        memset(t_b0, 0, sizeof t_b0); memset(t_b4, 0, sizeof t_b4);
-        memset((void*)n_b0, 0, sizeof n_b0); memset((void*)n_b4, 0, sizeof n_b4);
         for (int s = 3; s < SS; s++) new_strip(s, gCB2, &d4c);
         dd_flush_b4_set(d4c, CS);
         uint64_t t2 = cyc();
+        sme_stop();
         olds[r] = (double)(t1 - t0) * c2c;
         news[r] = (double)(t2 - t1) * c2c;
     }
-    {   // 诊断轮：分桶计时（不进 W）
-        g_tic = 1;
+    {   // 诊断轮：分桶计时（不进 W；memset 在区外）
         memset(t_b0, 0, sizeof t_b0); memset(t_b4, 0, sizeof t_b4);
         memset((void*)n_b0, 0, sizeof n_b0); memset((void*)n_b4, 0, sizeof n_b4);
+        g_tic = 1;
+        sme_start();
         double* d4c = gxpan;
         for (int s = 3; s < SS; s++) new_strip(s, gCB2, &d4c);
         dd_flush_b4_set(d4c, CS);
+        sme_stop();
         g_tic = 0;
     }
     sme_stop();
@@ -878,6 +878,8 @@ int main(void)
         if (news[j] < news[i]) { double x = news[i]; news[i] = news[j]; news[j] = x; }
     }
     double om = olds[R / 2], nm = news[R / 2];
+    printf("bitwise: %s%s\n", bitok ? "PASS" : "FAIL", bitok ? "" : "（见 diffrow）");
+    if (!bitok) printf("  first diff row %ld\n", diffrow);
     long ksteps = 0; for (int s = 3; s < SS; s++) ksteps += 4 * 16 * (s + 1);
     printf("== strips 3..15（%ld k 步 ×4 瓦片）==\n", ksteps);
     printf("old（compact+za_dump+chain）: %.0f cyc  %.2f cyc/步\n", om, om / ksteps);
