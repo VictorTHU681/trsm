@@ -1004,3 +1004,14 @@ parallel 35.458→35.207 ms。主要矩阵更新仍占 TC2/3 大部分时间，�
 源码 SHA256：`7a6eeb3803b32dcad0f40c2180e8a6246d5c150a7a121d06d8e69bcff7b29e97`。
 完整 [研究与负结果](probe/fold54_20260913/README.md)、[合规核查](probe/fold54_20260913/COMPLIANCE.md)、
 [最终确认统计](logs/fold54_20260913/final_summary.csv)。计算作业均已释放，未操作 PAC。
+
+### v57 提交包（2026-09-14）
+
+**`trsm_submit_v57_5e2f062.zip`** sha256 `f1b4b0bc…`：trsm/{run.sh, trsm.c, bench_trsm.c, README(最小化)}，
+trsm.c sha256 `26ca2376…` = v56(SHAPEP) + REHUGE 默认开（官方批复通过）；run.sh = node7 绑定 + `--preferred` 探测
++ LTO 编译（三级回退）。**门禁**：final57（cn20481，run.sh×2 + 原样×2 + gen 80/40/20 + LTO gen 40 全 0 失败）
++ rehuge31（cn20484，单次触发 ✓、on/off 交错 PASS、gen 五档 0 失败；on_17024_3 缺样系与 f57r 共享工作树的
+二进制互删竞态，非代码问题——f57r 里"LTO 档不可用"同因，独立验收中 LTO 正常咬合无回退）
++ 自包含验收（cn20483，解压→run.sh×2 = 6 PASS，`numactl -N 7 --preferred=23` 生效）。
+**线上预期 ≈ 12800–12930**（TC1 3020–3130 / TC2 4950–5010 / TC3 4750–4790），vs 榜首 12624.64。
+教训入档：共享工作树并行作业禁止同名二进制（含 run.sh 的 trsm_test）——后续并行门禁改用独立临时目录。
