@@ -28,9 +28,30 @@
 #endif
 
 // ---------------------------------------------------------------- 参数
+// 环境变量快照（扫雷 P3）：每计时调用 ~50 次 getenv 会整扫 environ（判题机 env 60-120 项 ≈12-15 µs/调用）。
+// 首次使用时把 TRSM_* 快照进静态表；此后 O(表长) 查找、无 environ 扫描。运行期 setenv 不再生效（无此用法）。
+extern char** environ;
+static char g_envk[64][32], g_envv[64][32];
+static int g_envn = -1;
+static const char* env_lookup(const char* name)
+{
+    if (g_envn < 0) {
+        g_envn = 0;
+        for (char** e = environ; *e && g_envn < 64; e++) {
+            if (strncmp(*e, "TRSM_", 5)) continue;
+            const char* eq = strchr(*e, '=');
+            if (!eq || (size_t)(eq - *e) >= sizeof(g_envk[0])) continue;
+            memcpy(g_envk[g_envn], *e, eq - *e); g_envk[g_envn][eq - *e] = 0;
+            strncpy(g_envv[g_envn], eq + 1, sizeof(g_envv[0]) - 1); g_envv[g_envn][sizeof(g_envv[0]) - 1] = 0;
+            g_envn++;
+        }
+    }
+    for (int i = 0; i < g_envn; i++) if (!strcmp(g_envk[i], name)) return g_envv[i];
+    return NULL;
+}
 static int env_int(const char* name, int def)
 {
-    const char* s = getenv(name);
+    const char* s = env_lookup(name);
     return (s && *s) ? atoi(s) : def;
 }
 
@@ -6185,8 +6206,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.owner = owner;
         if (c.owner) {
             c.swhost = 0;
-            if (!getenv("TRSM_ANT")) c.ant = 1;          // 面板缓冲要常驻 L2：A 条用 ldnt1d 流过
-            if (!getenv("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
+            if (!env_lookup("TRSM_ANT")) c.ant = 1;          // 面板缓冲要常驻 L2：A 条用 ldnt1d 流过
+            if (!env_lookup("TRSM_DIRECT")) c.direct = 0;    // mb=64 的段只有 64 步，直接 ZA 装载/存储每微块两次传输比托管回写贵（实测 2.97 vs 2.41 ms）
         }
         c.dnt = env_int("TRSM_DNT", c.owner);
         c.ddirect = env_int("TRSM_DDIRECT", 1);

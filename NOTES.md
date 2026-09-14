@@ -1139,6 +1139,31 @@ CAS 风暴本质不同）＞ kdup2-o9 诊断（A 真流 ×{ld1d,ldnt}×{软预�
 由 L2 硬件预取器带流 + X 双缓冲进 L2（可能 nc=128）。留核账（理论 +2.7%）被 nthr 实测 +24% 推翻——
 37 线程另有结构性失衡，不追。
 
+**o9 判决（kd9b，cn20486 双跑一致，[日志](logs/trsm_kd9b_1606274.out)）**：修正 o2 的 A 别名后（896KB 任务区
+真流，照 pp 布局），o9a=11.5 cyc/步（vs 假 o2 10.6、in-app 13.2——残差为 38 核 HBM 争用+真 X/C 流量）；
+**o9d（ld1d 无软预取，HW 预取器裸测）=14.0，比 o9a 差 22% → L2 硬件预取器带不动 A 流，接管假说证伪**；
+ld1d≈ldnt（11.5≈11.6）。**软预取游标被证明近优**（距全驻留地板 9.45 仅 2 cyc = DRAM 流每核硬成本）。
+"带宽化"路线全灭：A 投递 2.5cyc/步是硬约束；对手结构猜想修正为"字节数更少（nc=128 类）或环境/抢占差异"
+（其 TC2/TC3 弱于我们 → 不同平衡点，自洽）。SIGILL 教训：kdup2 流式区内禁 al/memset/任何库调用。
+
+**扫雷组报告（2026-09-14，898d1d1e）**：前提校正——校验→计时之间 bench 走 gen(L,38 线程)→validate(单线程
+扫 164MB 30-50ms，37 worker 空转自旋)→copy_matrix→计时：**计时开场时 L2 全冷 + 37 worker 自旋 50ms 拉满
+vruntime → 共租户线程一醒来就抢占我们**（线上方差物理源头）。排序清单：
+- **P1 诊断包 v4（裁判项）**：run_diag.sh 硬编码 cpunode=1——历史判题机分相全来自 node 1，而生产 v55n7 起绑
+  node 7；**node 7 仅有的两个线上 TC1 样本（2668/2656）都在 node 1 波动带（2713-2895）下沿，"node 7 更干净"
+  从未验证**。v4 = 生产配置 node 7 + getrusage(RUSAGE_THREAD) 非自愿切换计数（判抢占 vs 带宽）+ cgroup 配额/
+  权限/isolcpus/各节点忙闲快照。
+- **P2 DXW 对角双写（最大代码项，+2.5~4%）**：owner 对角 za_owner_dstore 只写 cbuf，store 相再整读 cbuf 逐行
+  NT 写 X（0.12ms=6.4%，单核写墙）。对角窗是唯一无 demand miss 的窗口——dstore 加双目标（ZA→cbuf + ZA→X 
+  stnt1d），写在 dkloop 计算期间后台排空，消掉 store 相整遍重读。非挪读非加事务，减事务族（同 CFOLD）。
+  风险：store queue 深度（K=16 瓦片盖不住 4KB 排空）；与 DWPF 分池交叉测。
+- **P3 env_int 缓存（0.6-0.8%，零风险）**：每计时调用 ~50 次 getenv 扫 environ，判题机 env 60-120 项
+  ≈12-15µs/调用。首调用快照 TRSM_* 进静态表。
+- **P4 run.sh 探测式 nice -20**（若判题以 root 跑：权重 87×，抢占免疫到手；探测失败零成本回退；压制共租户
+  需用户拍板）；P5 条件项（cgroup 节流实锤才换有限自旋）；P7 mtune neoverse 变体（±0.5%）。
+- 已盖确认无遗漏：LOADPF/NEXTA/C0/SHAPEP 拨盘、setup 缓存、khead 对齐、bench 热度、glibc tunables、
+  numa_balancing、LD_BIND_NOW、跨调用热身（bench 中间冲 164MB 不可保）。
+
 **XPRE 证伪（xp66，cn20491，[日志](logs/trsm_xp66_1606136.out)，n=25）**：机制完全落地（xp2 load 0.362→0.264，
 −0.098ms，白发槽预取全部命中）**但 L2 容量税反杀**：kloop 1.219→1.392（+0.173，bp 深 A 覆盖被牺牲 + 48KB X
 暂存挤逐 cbuf/A 过境行）、store 0.138→0.188（cbuf 行被逐出 → store 读源掉 DRAM），task 净 **+5.6% 更慢**；
