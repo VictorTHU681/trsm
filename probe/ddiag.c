@@ -949,6 +949,44 @@ int main(void)
             if (ref != out[r * 16 + cc]) { if (!bad) printf("UNIT4b diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, out[r * 16 + cc]); bad++; }
         }
         printf("UNIT4b F 自算 za0-3: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        // UNIT5：演化数据复刻——strips 0-3 旧路径演化 gCB1，然后按 new_strip(4) 逐瓦片跑 t=0,1，分块验证
+        seed(gCB1);
+        sme_start();
+        { double* pcx = NULL; long pcc = 0; int pd = 0;
+          for (int ss5 = 0; ss5 <= 3; ss5++) pd = old_strip(ss5, gCB1, pd, &pcx, &pcc, ss5 == 3); }
+        sme_stop();
+        static double bsnap[80 * NCP];             // 演化后 B 快照（rows 0-79）
+        memcpy(bsnap, gCB1, sizeof bsnap);
+        const double* A5 = gA + diag_strip_off(4);
+        sme_start();
+        {
+            double* d4c5 = gxpan;
+            for (long t = 0; t < 2; t++) {
+                const double* B0 = gCB1 + 32 * t;
+                const double* B4 = B0 + 16;
+                double* cur = gCB1 + 64 * NCP + 32 * t;
+                dd_b0_first(A5, B0, d4c5, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+                dd_b0_rem(A5 + 1024, B0 + 64 * NCP, 16);
+                dd_b4_zlast(A5, B4, cur, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+                dd_b4_rem(A5 + 1024, B4 + 64 * NCP, 16);
+                d4c5 = cur + 16;
+            }
+            dd_flush_b4_set(d4c5, CS);             // 排 (4,1) 的 bank4
+        }
+        sme_stop();
+        // 验证 (4,0) cols0-15 / (4,0) cols16-31（由 (4,1)F 排）/ (4,1) cols0-15 / (4,1) cols16-31（flush）
+        for (long blk = 0; blk < 4; blk++) {
+            long t = blk / 2, half = blk % 2;
+            bad = 0;
+            for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+                double ref = 0;
+                long col = 32 * t + 16 * half + cc;
+                for (long k = 0; k < 80; k++) ref += gA[diag_strip_off(4) + k * 16 + r] * bsnap[k * NCP + col];
+                double got = gCB1[(64 + r) * NCP + col];
+                if (ref != got) { if (!bad) printf("UNIT5[%ld] diff (r%ld,c%ld) ref=%.17g got=%.17g\n", blk, r, col, ref, got); bad++; }
+            }
+            printf("UNIT5 块(4,%ld) cols%s: %s（bad=%ld/256）\n", t, half ? "16-31" : "0-15", bad ? "FAIL" : "PASS", bad);
+        }
         return 0;
     } }
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
