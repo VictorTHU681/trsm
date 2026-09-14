@@ -900,10 +900,17 @@ static inline void NAME(const double* pa, long ase, long aso, const double* pb, 
 #undef LDA_CUR
 #define LDA_CUR "ld1d "
 DEF_COMPACT_DIAG_PLAIN(kloop_diag_plain_compact)
-#undef DEF_COMPACT_DIAG_PLAIN
 DEF_COMPACT_DIAG_EPI(kloop_diag_set_compact, EV_SET)
-#undef DEF_COMPACT_DIAG_EPI
 DEF_COMPACT_DIAG_EPI64(kloop_diag64_set_compact, EV_SET)
+// DNTC（TRSM_DNTC）：A 条带改 ldnt1d——v64 关 dwpf/dpf 后对角窗唯一大污染源是对角包自身过境，
+// NT 降优先级保 cbuf 驻留（TC2 承重墙）；v51 的 DNT 证伪测的旧 epi_set 路径，不覆盖本实例（残余盘点审计 #1）
+#undef LDA_CUR
+#define LDA_CUR "ldnt1d "
+DEF_COMPACT_DIAG_PLAIN(kloop_diag_plain_compact_nt)
+DEF_COMPACT_DIAG_EPI(kloop_diag_set_compact_nt, EV_SET)
+DEF_COMPACT_DIAG_EPI64(kloop_diag64_set_compact_nt, EV_SET)
+#undef DEF_COMPACT_DIAG_PLAIN
+#undef DEF_COMPACT_DIAG_EPI
 #undef DEF_COMPACT_DIAG_EPI64
 // ---- XPW 变体：同形态 + xq/x11 双写游标（EV_ROW_ADV 追加 xq 步进）----
 #undef EV_ROW_ADV
@@ -2153,6 +2160,7 @@ typedef struct {
     int dpf;                // TRSM_DPF=0 关 GEMM 尾段对角条扫铺（对角内核 PFX 已覆盖，候选 B 因子）
     int packnt;             // P0（TRSM_PACKNT）：pack 写回 str za → mova+stnt1d（无 RFO/不占 L2，Fable-TC3）
     int ddx;                // DDX（TRSM_DDX）：TC2 对角双 bank + K64 分块（消 za_dump 转存；probe W 门 −19%）
+    int dntc;               // DNTC（TRSM_DNTC）：compact 对角 A 条带 ldnt1d（保 cbuf 驻留，残余盘点 #1）
 } ctx_t;
 
 typedef struct task_s {
@@ -5448,15 +5456,15 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     if (xpw_on && pend_xq)
                         PROF_T(c, kloop_diag_set_compact_x(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols, pend_xq, kc * 128), t_dkloop);
                     else
-                    PROF_T(c, (g_diag_compact ? kloop_diag_set_compact(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
+                    PROF_T(c, (g_diag_compact ? (c->dntc ? kloop_diag_set_compact_nt : kloop_diag_set_compact)(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
                 } else if (pend && K == 64) {
                     if (xpw_on && pend_xq)
                         PROF_T(c, kloop_diag64_set_compact_x(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols, pend_xq, kc * 128), t_dkloop);
                     else
-                    PROF_T(c, (g_diag_compact ? kloop_diag64_set_compact(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
+                    PROF_T(c, (g_diag_compact ? (c->dntc ? kloop_diag64_set_compact_nt : kloop_diag64_set_compact)(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, (g_diag_compact ? kloop_diag_plain_compact(A, 128, 128, cb + 32 * t, cs, K, cols, &pf) : kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf)), t_dkloop);
+                    PROF_T(c, (g_diag_compact ? (c->dntc ? kloop_diag_plain_compact_nt : kloop_diag_plain_compact)(A, 128, 128, cb + 32 * t, cs, K, cols, &pf) : kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf)), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
@@ -7699,6 +7707,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dpf = env_int("TRSM_DPF", 1);
         c.packnt = env_int("TRSM_PACKNT", 0);   // P0：筛查中
         c.ddx = env_int("TRSM_DDX", 0);          // DDX：筛查中
+        c.dntc = env_int("TRSM_DNTC", 0);        // DNTC：筛查中
         g_ddxpf = env_int("TRSM_DDXPF", 1);
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）

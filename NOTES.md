@@ -1422,3 +1422,14 @@ XONE 旁流 768 对 ld/st 槽整体取消；② +B 项借 fadd 可交换性按�
 诊断包 v4（getrusage 非自愿切换）、节点轮换。已到顶勿动：自旋/绑核/preferred/LTO/REHUGE。
 
 **焊死确认**：store 消灭（对手也付 0.114 地板）、发射效率移植（cycle-parity 排除）、mb 重划。
+
+
+### 残余盘点审计（Fable lane，2026-09-14 晚）
+
+**载荷发现**：① TRSM_DNT 对现役 compact 对角是 no-op（LDA_CUR 固定 "ld1d "，v51 证伪测的旧 epi_set 路径）——
+历史证伪不覆盖现内核，且 v64 关 dwpf/dpf 后前提已变（对角窗唯一大污染源=对角包自身，cbuf 驻留是 TC2 承重墙）；
+② XONE 旁流密度被排水记账锁死（逐 chunk pend 链落账 → fill 必须 chunk-0 内滞后 1 单元完成）——chunk-0 超订
+是结构常数，密度侧勿再立项（E2）；XSPREAD 蓝图不受此锁（换排水代数，无 fill）。
+**Top3**：test_runs 10→30（冷轮权重 10%→3.3% + 毛刺稀释 ×3）；SHAPEP 残尾诊断→条件重拟合；DNT-compact 克隆。
+**E1 挂账**：DWPF 游标密度 ×2（退化节点保险，dw65 旧候选）。
+**焊死**：numactl 组合、尾块特化、wake 税、对角窗塞读、CFOLD-TC3、XONE 领先量（长尾）。
