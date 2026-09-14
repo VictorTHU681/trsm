@@ -4758,7 +4758,7 @@ static int g_diag_compact;
  "add %[cb], %[cb], #" #CS "\n\t"
 
 
-static inline __attribute__((always_inline)) void dd_b0_first(const double* a, const double* b, double* c,
+static __attribute__((noinline)) void dd_b0_first(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -4784,7 +4784,7 @@ static inline __attribute__((always_inline)) void dd_b0_first(const double* a, c
  :: "memory","cc","x12",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b0_pure(const double* a, const double* b, double* c,
+static __attribute__((noinline)) void dd_b0_pure(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -4809,7 +4809,7 @@ static inline __attribute__((always_inline)) void dd_b0_pure(const double* a, co
  :: "memory","cc","x12",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b4_zlast(const double* a, const double* b, double* c,
+static __attribute__((noinline)) void dd_b4_zlast(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -4835,7 +4835,7 @@ static inline __attribute__((always_inline)) void dd_b4_zlast(const double* a, c
  :: "memory","cc","x12",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b4_zpure(const double* a, const double* b, double* c,
+static __attribute__((noinline)) void dd_b4_zpure(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -4861,7 +4861,7 @@ static inline __attribute__((always_inline)) void dd_b4_zpure(const double* a, c
  :: "memory","cc","x12",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b4_pure(const double* a, const double* b, double* c,
+static __attribute__((noinline)) void dd_b4_pure(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -4886,7 +4886,7 @@ static inline __attribute__((always_inline)) void dd_b4_pure(const double* a, co
  :: "memory","cc","x12",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b4_last(const double* a, const double* b, double* c,
+static __attribute__((noinline)) void dd_b4_last(const double* a, const double* b, double* c,
                                       const char* ap, const char* bp, const char* pc)
 {
     char* ct = (char*)c;
@@ -4911,7 +4911,7 @@ static inline __attribute__((always_inline)) void dd_b4_last(const double* a, co
  :: "memory","cc","x12",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b0_rem(const double* a, const double* b, long k)
+static __attribute__((noinline)) void dd_b0_rem(const double* a, const double* b, long k)
 {
     asm volatile(
  "ptrue p0.d\n\t"
@@ -4948,7 +4948,7 @@ static inline __attribute__((always_inline)) void dd_b0_rem(const double* a, con
  :: "memory","cc",VCLOB,PCLOB);
 }
 
-static inline __attribute__((always_inline)) void dd_b4_rem(const double* a, const double* b, long k)
+static __attribute__((noinline)) void dd_b4_rem(const double* a, const double* b, long k)
 {
     asm volatile(
  "ptrue p0.d\n\t"
