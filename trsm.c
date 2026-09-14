@@ -2123,6 +2123,7 @@ typedef struct {
     uint64_t t_khead;        // owner 头部残段：等上一线程 flag + 从 X 拷入面板缓冲（诊断慢线程用）
     long pre_i, pre_p;       // SLX 相位交错：上一任务回写相已预装 (pre_i, pre_p) 的 C 块（-1=无），其 load 相跳过
     long osw_pi, osw_pp;     // OSW：待发布 flag 的上一任务 (i,p)（-1=无）——其回写已排队走线器，flag 顺延到本任务 store
+    uint64_t t_kloop0;       // 诊断：XONE chunk-0（带旁流）kloop 单桶（验证引擎超订模型）
     // Keep counters from sharing a line with the next worker's pointers.
 } __attribute__((aligned(128))) tbuf_t;
 
@@ -2258,6 +2259,8 @@ static inline void za_flush_duplex_bank4(double*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank0_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
+static inline __attribute__((always_inline)) void kloop_owner_bank0_xn(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
+static inline __attribute__((always_inline)) void kloop_owner_bank4_xn(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank4_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 static inline __attribute__((always_inline)) void kloop_duplex_bank0_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 static inline __attribute__((always_inline)) void kloop_duplex_bank4_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
@@ -2590,10 +2593,17 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 const char* xs0 = (const char*)(Bblk + 16L * r * ldb + 16 * t);
                 // pend==0 时排水目标指向 xpan 哑区：首对的零 ZA 空排水若指向 cur，其体首读+锚点写会
                 // 夹住同组旁流填充（行 8-15 先读哨兵后覆写，xktest 实锤），哑区化后排水/填充永不相交
+                if (t + 1 < ntile) {
                 PROF_T(c, kloop_owner_bank0_x(A, Xk + 16 * t, pend ? pend_c : tb->xpan, pf.p, pf.p2, (const char*)cur,
-                    xs0, (char*)cur, ldb * 8 - 64), t_kloop);
+                    xs0, (char*)cur, ldb * 8 - 64), t_kloop0);
                 PROF_T(c, kloop_owner_bank4_x(A + 1024, Xk + 16 * t, cur, ap4v, bp4v, (const char*)(cur + 16 * ncp),
-                    xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop);
+                    xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop0);
+                } else {
+                PROF_T(c, kloop_owner_bank0_xn(A, Xk + 16 * t, pend ? pend_c : tb->xpan, pf.p, pf.p2, (const char*)cur,
+                    xs0, (char*)cur, ldb * 8 - 64), t_kloop0);
+                PROF_T(c, kloop_owner_bank4_xn(A + 1024, Xk + 16 * t, cur, ap4v, bp4v, (const char*)(cur + 16 * ncp),
+                    xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop0);
+                }
                 }else{
                 PROF_T(c, kloop_owner_bank0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
                 PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, ap4v, bp4v,
@@ -3160,7 +3170,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "mov w12, #7\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #endif
-#define DUPLEX0_X_BODY(BS, CS, C8, C864, ALD, XDJ) \
+#define DUPLEX0_X_BODY(BS, CS, C8, C864, ALD, XDJ, XPRF) \
  "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
  "mova z18.d, p0/m, za5h.d[w12, 0]\n\t" \
@@ -3191,7 +3201,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z17.d, z17.d, z16.d\n\t" \
  "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
  "st1d z24.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], #64\n\t" \
@@ -3222,7 +3232,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z19.d, z19.d, z18.d\n\t" \
  "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
  "st1d z25.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], %[xj]\n\t" \
@@ -3232,7 +3242,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
  "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
  "add %[pc], %[pc], #" #CS "\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
  "st1d z24.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], #64\n\t" \
@@ -3259,7 +3269,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
  "st1d z25.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], %[xj]\n\t" \
@@ -3298,14 +3308,41 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_x(const doub
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #768\n\t"
- "mov w12, #0\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #1\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #2\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #3\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #4\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #5\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #6\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
- "mov w12, #7\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
+ "mov w12, #0\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
+
+// 末瓦片专用：无旁流 prfm（xs+128 落入下一面板 = 白发，Fable-TC1 2a）
+static inline __attribute__((always_inline)) void kloop_owner_bank0_xn(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc,
+                                      const char* xs, char* xd, long xj)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #768\n\t"
+ "mov w12, #0\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
 
 // XONE-TC2：kloop_duplex_bank0 的旁流版（NC128 几何：16 行×16 列/bank，xd 行跳 960）
@@ -3325,14 +3362,14 @@ static inline __attribute__((always_inline)) void kloop_duplex_bank0_x(const dou
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #1\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #2\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #3\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #4\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #5\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #6\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
- "mov w12, #7\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960) DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
+ "mov w12, #0\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #1\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #2\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #3\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #4\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #5\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #6\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_NEXT(128, "ld1d ") DUPLEX0_U_TAIL(1024)
+ "mov w12, #7\n\t" DUPLEX0_X_BODY(128, 1024, 8192, 8256, "ld1d ", 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX0_U_LAST DUPLEX0_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
@@ -3545,7 +3582,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #endif
-#define DUPLEX4_X_BODY(BS, CS, C8, C864, ALD, XDJ) \
+#define DUPLEX4_X_BODY(BS, CS, C8, C864, ALD, XDJ, XPRF) \
  "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
  "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
  "mova z18.d, p0/m, za1h.d[w12, 0]\n\t" \
@@ -3576,7 +3613,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z17.d, z17.d, z16.d\n\t" \
  "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
  "st1d z24.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], #64\n\t" \
@@ -3607,7 +3644,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z19.d, z19.d, z18.d\n\t" \
  "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
  "st1d z25.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], %[xj]\n\t" \
@@ -3617,7 +3654,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
  "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
  "add %[pc], %[pc], #" #CS "\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
  "st1d z24.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], #64\n\t" \
@@ -3644,7 +3681,7 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
-  "prfm pldl2keep, [%[xs], #128]\n\t" \
+  XPRF \
  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
  "st1d z25.d, p0, [%[xd]]\n\t" \
  "add %[xs], %[xs], %[xj]\n\t" \
@@ -3683,14 +3720,41 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_x(const doub
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #768\n\t"
- "mov w12, #0\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #1\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #2\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #3\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #4\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #5\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #6\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
- "mov w12, #7\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704) DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+ "mov w12, #0\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
+
+// 末瓦片专用：无旁流 prfm（xs+128 落入下一面板 = 白发，Fable-TC1 2a）
+static inline __attribute__((always_inline)) void kloop_owner_bank4_xn(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc,
+                                      const char* xs, char* xd, long xj)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #768\n\t"
+ "mov w12, #0\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ", 704, "") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
 
 // XONE-TC2：kloop_duplex_bank4 的旁流版（NC128 几何：16 行×16 列/bank，xd 行跳 960）
@@ -3710,14 +3774,14 @@ static inline __attribute__((always_inline)) void kloop_duplex_bank4_x(const dou
  "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
  "add %[a], %[a], #128\n\t"
  "add %[b], %[b], #128\n\t"
- "mov w12, #0\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #1\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #2\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #3\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #4\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #5\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #6\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
- "mov w12, #7\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960) DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
+ "mov w12, #0\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #1\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #2\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #3\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #4\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #5\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #6\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_NEXT(128, DUP4_ALD) DUPLEX4_U_TAIL(1024)
+ "mov w12, #7\n\t" DUPLEX4_X_BODY(128, 1024, 8192, 8256, DUP4_ALD, 960, "prfm pldl2keep, [%[xs], #128]\n\t") DUPLEX4_U_LAST DUPLEX4_U_TAIL(1024)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
@@ -7072,6 +7136,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             tb->t_dkloop = tb->t_depi = tb->t_store = tb->t_task = 0;
             tb->n_task = tb->n_kstep = tb->n_dkstep = 0;
             tb->t_dump = tb->t_ddump = 0;
+            tb->t_kloop0 = 0;
             tb->n_swflush = tb->n_swq = 0;
             tb->t_khead = 0;
         }
@@ -7295,13 +7360,13 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                 for (int t = 0; t < nth; t++) { uint64_t d = g_wake_cyc[t] > t1 ? g_wake_cyc[t] - t1 : 0; if (d > wmax) wmax = d; wsum += d; wn++; }
                 fprintf(stderr, "[trsm prof]  并行区唤醒：最慢线程 %.1f µs，平均 %.1f µs\n", wmax / hz * 1e6, (double)wsum / wn / hz * 1e6);
             }
-            double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
+            double sload = 0, spack = 0, spf = 0, swait = 0, skl = 0, skl0 = 0, sepi = 0, sdkl = 0, sdepi = 0, sst = 0, stask = 0, sprep = 0;
             long nks = 0, ndks = 0, ntk = 0, nswf = 0, nswq = 0;
             double sdump = 0, sddump = 0;
             uint64_t tail_min = ~0ull, tail_max = 0;
             for (int t = 0; t < nth; t++) {
                 tbuf_t* tb = &g_tb[t];
-                sload += tb->t_load; spack += tb->t_pack; spf += tb->t_pf; swait += tb->t_wait; skl += tb->t_kloop;
+                sload += tb->t_load; spack += tb->t_pack; spf += tb->t_pf; swait += tb->t_wait; skl += tb->t_kloop; skl0 += tb->t_kloop0;
                 sdump += tb->t_dump; sddump += tb->t_ddump; ndks += tb->n_dkstep;
                 sepi += tb->t_epi; sdkl += tb->t_dkloop; sdepi += tb->t_depi; sst += tb->t_store; stask += tb->t_task;
                 nswf += tb->n_swflush; nswq += tb->n_swq;
@@ -7313,9 +7378,9 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
             for (int t = 0; t < nth; t++) tail_idle += tail_max - g_tail_cyc[t];
             double f = 1e3 / hz / nth;   // 每线程平均 ms
             double ideal_ms = (double)nks * 8.0 / 1.55e9 * 1e3 / nth;   // 每 k 步 8 周期 @1.55 GHz
-            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f xcopy %.3f wait %.3f kloop %.3f dump %.3f epi %.3f dkloop %.3f ddump %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms（平均空闲 %.3f ms）| k 步 %ld（对角 %ld）（理想 %.3f ms，kloop 效率 %.1f%%）\n",
-                    sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, sdump * f, sepi * f, sdkl * f, sddump * f, sdepi * f, sst * f, stask * f,
-                    (tail_max - tail_min) / hz * 1e3, tail_idle * f, nks, ndks, ideal_ms, ideal_ms / ((skl + sdkl) * f) * 100.0);
+            fprintf(stderr, "[trsm prof]  每线程平均 ms：prep %.3f | load %.3f pack %.3f xcopy %.3f wait %.3f kloop %.3f kloop0 %.3f dump %.3f epi %.3f dkloop %.3f ddump %.3f depi %.3f store %.3f | task 合计 %.3f | 尾部不均衡 %.3f ms（平均空闲 %.3f ms）| k 步 %ld（对角 %ld）（理想 %.3f ms，kloop 效率 %.1f%%）\n",
+                    sprep * f, sload * f, spack * f, spf * f, swait * f, skl * f, skl0 * f, sdump * f, sepi * f, sdkl * f, sddump * f, sdepi * f, sst * f, stask * f,
+                    (tail_max - tail_min) / hz * 1e3, tail_idle * f, nks, ndks, ideal_ms, ideal_ms / ((skl + skl0 + sdkl) * f) * 100.0);
             fprintf(stderr, "[trsm prof]  托管回写：排队 %ld 行，同步收尾 %ld 行（%.1f%%）\n", nswq, nswf, nswq ? 100.0 * nswf / nswq : 0.0);
             if (c.prof >= 4) {
                 // 每线程一行：定位慢线程的时间去向。span = 进并行区到任务收尾；resid = span 内未入桶的部分
