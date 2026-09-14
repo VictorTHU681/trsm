@@ -3110,10 +3110,10 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
  "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
  "add %[pc], %[pc], #" #CS "\n\t" \
-  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
- "st1d z25.d, p0, [%[xd]]\n\t" \
- "add %[xs], %[xs], %[xj]\n\t" \
- "add %[xd], %[xd], #704\n\t" \
+  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
+ "st1d z24.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], #64\n\t" \
+ "add %[xd], %[xd], #64\n\t" \
  ALD "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -3136,10 +3136,10 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
-  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
- "st1d z24.d, p0, [%[xd]]\n\t" \
- "add %[xs], %[xs], #64\n\t" \
- "add %[xd], %[xd], #64\n\t" \
+  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
+ "st1d z25.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], %[xj]\n\t" \
+ "add %[xd], %[xd], #704\n\t" \
  "prfm pldl2keep, [%[ap]]\n\t" \
  "prfm pldl2keep, [%[bp]]\n\t" \
  "add %[ap], %[ap], #64\n\t" \
@@ -3465,10 +3465,10 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
  "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
  "add %[pc], %[pc], #" #CS "\n\t" \
-  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
- "st1d z25.d, p0, [%[xd]]\n\t" \
- "add %[xs], %[xs], %[xj]\n\t" \
- "add %[xd], %[xd], #704\n\t" \
+  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
+ "st1d z24.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], #64\n\t" \
+ "add %[xd], %[xd], #64\n\t" \
  ALD "z8.d, p0/z, [%[a]]\n\t" \
  "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
  ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
@@ -3491,10 +3491,10 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "add %[b], %[b], #" #BS "\n\t" \
  "fsub z21.d, z21.d, z20.d\n\t" \
  "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
-  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
- "st1d z24.d, p0, [%[xd]]\n\t" \
- "add %[xs], %[xs], #64\n\t" \
- "add %[xd], %[xd], #64\n\t" \
+  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
+ "st1d z25.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], %[xj]\n\t" \
+ "add %[xd], %[xd], #704\n\t" \
  "prfm pldl2keep, [%[ap]]\n\t" \
  "prfm pldl2keep, [%[bp]]\n\t" \
  "add %[ap], %[ap], #64\n\t" \
