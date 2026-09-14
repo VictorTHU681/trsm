@@ -1,0 +1,46 @@
+=== HOST cn20486 16:13:27 6ec585eb W-GEMM v2：尾块先行 za_owner_dstore 直写(diag 存 +W_ii,免清零免 scratch 往返)；W 链乘积 SVE 化(流式区)；工人线程限定 TRSM_WGEMM_NW=10 与任务流水重叠
+[env] host=cn20486 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+e6592dd7fc49bd423a0199c94f7b9c7d73f1062ad405489cf6736ad09985eb76  trsm.c
+=== W 形状正确性（自然准入：m%64=0 n%96=0 npan≥2nth）
+[w_512x19968]                         512 x 19968         3.42    1530.5718     3.33e-16     PASS
+[w_1024x9984]                        1024 x  9984        11.69     895.8170     4.44e-16     PASS
+[w_960x14592]                         960 x 14592        11.69    1150.0090     5.00e-16     PASS
+[w_64x7296]                            64 x  7296        10.38       2.8796     1.67e-16     PASS
+[w_128x7392]                          128 x  7392         9.21      13.1472     1.67e-16     PASS
+[w_448x7296]                          448 x  7296         6.13     238.8482     2.78e-16     PASS
+=== 强制 owner 小形状（TRSM_OWNER=1 MB=64 NC=96）
+[wf_64x96]                             64 x    96         0.12       3.2262     1.11e-16     PASS
+[wf_128x192]                          128 x   192         0.20      15.6377     1.11e-16     PASS
+[wf_256x480]                          256 x   480         0.73      43.1068     2.22e-16     PASS
+[wf_512x960]                          512 x   960        14.07      17.8897     2.78e-16     PASS
+=== margin 强制回退（阈值拉满 → 走旧前向路径）
+[fb_512x19968]                        512 x 19968         1.96    2668.8288     3.33e-16     PASS
+[fb_1024x9984]                       1024 x  9984         4.83    2165.7770     3.89e-16     PASS
+=== WGEMM=0 对照（旧路径完整性）
+[off_512x19968]                       512 x 19968         1.93    2717.1526     3.33e-16     PASS
+=== 三用例 on/off 交错 ×3（判题口径）
+[tc1_off_1]                           512 x 19968         1.93    2712.7244     3.33e-16     PASS
+[tc1_on_1]                            512 x 19968         3.38    1549.5577     3.33e-16     PASS
+[tc2_on_1]                           2432 x 17024        23.59    4267.7103     7.77e-16     PASS
+[tc3_on_1]                          17024 x   512        35.08    4230.4822     1.50e-15     PASS
+[tc1_off_2]                           512 x 19968         1.90    2750.9756     3.33e-16     PASS
+[tc1_on_2]                            512 x 19968         3.36    1560.0176     3.33e-16     PASS
+[tc2_on_2]                           2432 x 17024        23.58    4269.7590     7.77e-16     PASS
+[tc3_on_2]                          17024 x   512        35.00    4239.1031     1.50e-15     PASS
+[tc1_off_3]                           512 x 19968         1.91    2734.8371     3.33e-16     PASS
+[tc1_on_3]                            512 x 19968         3.41    1533.9195     3.33e-16     PASS
+[tc2_on_3]                           2432 x 17024        23.57    4271.4753     7.77e-16     PASS
+[tc3_on_3]                          17024 x   512        35.03    4235.7058     1.50e-15     PASS
+=== 分相（PROFILE=2）off/on
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3323MB | setup 0.010 ms, parallel 1.900 ms
+[trsm prof]  每线程平均 ms：prep 0.021 | load 0.293 pack 0.000 xcopy 0.000 wait 0.002 kloop 1.010 dump 0.000 epi 0.004 dkloop 0.162 ddump 0.055 depi 0.000 store 0.122 | task 合计 1.700 | 尾部不均衡 0.127 ms（平均空闲 0.077 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 61.1%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3232MB | setup 0.010 ms, parallel 3.329 ms
+[trsm prof]  每线程平均 ms：prep 0.369 | load 0.321 pack 0.000 xcopy 0.000 wait 0.584 kloop 1.043 dump 0.000 epi 0.004 dkloop 0.327 ddump 0.105 depi 0.000 store 0.133 | task 合计 2.558 | 尾部不均衡 0.552 ms（平均空闲 0.340 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 52.3%）
+=== 泛化回归（随机形状,多数不走 W 路径）
+[gen 默认 30]
+ALL PASS: 0 failures
+[gen WGEMM=0 20]
+ALL PASS: 0 failures
+[gen 强制owner 20]
+ALL PASS: 0 failures
+=== DONE 16:14:30

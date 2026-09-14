@@ -1799,6 +1799,9 @@ typedef struct {
     int nexta;              // fast_owner：回写循环里预取下一任务首段 A（TRSM_NEXTA）
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
+    long tprime;            // 装载阶段 TLB 遍历引导：提前 tprime 行发 1 字节真实载入（prfm 在 TLB miss 被丢弃，
+                            // 藏不住每行一次的页表遍历；行距 >64KB 时每行新页）。0 关（TRSM_TPRIME）
+    long tprime_s;          // 回写阶段同款：NT 存储前提前 tprime_s 行触碰目标行首（TRSM_TPRIME_S，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2078,8 +2081,20 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        const long tkp = c->tprime;   // TLB 遍历引导：每行 1 字节真实载入提前 tkp 行（prfm 在 TLB miss 被丢弃，
+                                      // 代付不了行首页表遍历；X 行距 >64KB 时每行一个新 4K 页）
+        if (tkp > 0) {                // 冷启动段：前 tkp 行先行引导（独立字节载入背靠背发射，遍历器并发消化）
+            unsigned char tv = 0;
+            const long tpre = tkp < mbi ? tkp : mbi;
+            for (long r = 0; r < tpre; r++) tv ^= *(const unsigned char*)(Bblk + r * ldb);
+            asm volatile("" :: "r"(tv));
+        }
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (tkp > 0 && r + tkp < mbi) {
+                unsigned char tv = *(const unsigned char*)(Bblk + (r + tkp) * ldb);
+                asm volatile("" :: "r"(tv));
+            }
             if (lpf > 0 && r + lpf < mbi) {
                 const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
                 for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
@@ -2289,8 +2304,20 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        const long tkp = c->tprime;   // TLB 遍历引导：每行 1 字节真实载入提前 tkp 行（prfm 在 TLB miss 被丢弃，
+                                      // 代付不了行首页表遍历；X 行距 >64KB 时每行一个新 4K 页）
+        if (tkp > 0) {                // 冷启动段：前 tkp 行先行引导（独立字节载入背靠背发射，遍历器并发消化）
+            unsigned char tv = 0;
+            const long tpre = tkp < mbi ? tkp : mbi;
+            for (long r = 0; r < tpre; r++) tv ^= *(const unsigned char*)(Bblk + r * ldb);
+            asm volatile("" :: "r"(tv));
+        }
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (tkp > 0 && r + tkp < mbi) {
+                unsigned char tv = *(const unsigned char*)(Bblk + (r + tkp) * ldb);
+                asm volatile("" :: "r"(tv));
+            }
             if (lpf > 0 && r + lpf < mbi) {
                 const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
                 for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
@@ -2430,9 +2457,20 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             }
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
+            const long tks = c->tprime_s;   // 回写 TLB 遍历引导：NT 存储的行首页同样每行一遍历（读 1 字节先行代付）
+            if (tks > 0) {
+                unsigned char tv = 0;
+                const long tpre = tks < mbi ? tks : mbi;
+                for (long r = 0; r < tpre; r++) tv ^= *(const unsigned char*)(Bout + r * ldb);
+                asm volatile("" :: "r"(tv));
+            }
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
                 double* d = Bout + r * ldb;
+                if (tks > 0 && r + tks < mbi) {
+                    unsigned char tv = *(const unsigned char*)(Bout + (r + tks) * ldb);
+                    asm volatile("" :: "r"(tv));
+                }
                 if (na) {
                     const char* q = na + r * nal;
                     for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
@@ -3448,8 +3486,20 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        const long tkp = c->tprime;   // TLB 遍历引导：每行 1 字节真实载入提前 tkp 行（prfm 在 TLB miss 被丢弃，
+                                      // 代付不了行首页表遍历；X 行距 >64KB 时每行一个新 4K 页）
+        if (tkp > 0) {                // 冷启动段：前 tkp 行先行引导（独立字节载入背靠背发射，遍历器并发消化）
+            unsigned char tv = 0;
+            const long tpre = tkp < mbi ? tkp : mbi;
+            for (long r = 0; r < tpre; r++) tv ^= *(const unsigned char*)(Bblk + r * ldb);
+            asm volatile("" :: "r"(tv));
+        }
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (tkp > 0 && r + tkp < mbi) {
+                unsigned char tv = *(const unsigned char*)(Bblk + (r + tkp) * ldb);
+                asm volatile("" :: "r"(tv));
+            }
             if (lpf > 0 && r + lpf < mbi) {
                 const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
                 for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
@@ -3657,8 +3707,20 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
         const long lpf = c->loadpf;   // 装载阶段软件预取：提前 lpf 行把 B 子块行拉进 L1（每行 nci*8/64 个 cache 行）
+        const long tkp = c->tprime;   // TLB 遍历引导：每行 1 字节真实载入提前 tkp 行（prfm 在 TLB miss 被丢弃，
+                                      // 代付不了行首页表遍历；X 行距 >64KB 时每行一个新 4K 页）
+        if (tkp > 0) {                // 冷启动段：前 tkp 行先行引导（独立字节载入背靠背发射，遍历器并发消化）
+            unsigned char tv = 0;
+            const long tpre = tkp < mbi ? tkp : mbi;
+            for (long r = 0; r < tpre; r++) tv ^= *(const unsigned char*)(Bblk + r * ldb);
+            asm volatile("" :: "r"(tv));
+        }
         for (long r = 0; r < 16L * S; r++) {
             double* d = cb + r * ncp;
+            if (tkp > 0 && r + tkp < mbi) {
+                unsigned char tv = *(const unsigned char*)(Bblk + (r + tkp) * ldb);
+                asm volatile("" :: "r"(tv));
+            }
             if (lpf > 0 && r + lpf < mbi) {
                 const char* pr = (const char*)(Bblk + (r + lpf) * ldb);
                 for (long b = 0; b < nci * 8; b += 64) __builtin_prefetch(pr + b, 0, 3);
@@ -5909,6 +5971,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.xptm = env_int("TRSM_XPTM", 0);
+        c.tprime = env_int("TRSM_TPRIME", 0);     // TLB 遍历引导（默认关，A/B 认证后再定默认值）
+        c.tprime_s = env_int("TRSM_TPRIME_S", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
@@ -6196,9 +6260,20 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     for (long i = 0; i < ia; i++) wait_flag(&c, i * c.npan + pa);
                     double* buf = g_tb[tid].cbuf;
                     const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
+                    const long tkh = c.tprime;           // TLB 遍历引导：khead 行同样每行一个新页（等 flag 后冷读 X）
+                    if (tkh > 0) {
+                        unsigned char tv = 0;
+                        const long tot = ia * mb, tpre = tkh < tot ? tkh : tot;
+                        for (long gr = 0; gr < tpre; gr++) tv ^= *(const unsigned char*)(B + (size_t)gr * ldb + pc0);
+                        asm volatile("" :: "r"(tv));
+                    }
                     for (long gr = 0; gr < ia * mb; gr++) {
                         double* d = buf + (size_t)gr * c.ncp;
                         const double* sp = B + (size_t)gr * ldb + pc0;
+                        if (tkh > 0 && gr + tkh < ia * mb) {
+                            unsigned char tv = *(const unsigned char*)(B + (size_t)(gr + tkh) * ldb + pc0);
+                            asm volatile("" :: "r"(tv));
+                        }
                         long j = 0;
                         for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
                         if (j < pnci) { svbool_t pj = svwhilelt_b64(j, pnci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }

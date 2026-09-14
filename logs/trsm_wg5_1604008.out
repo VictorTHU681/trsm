@@ -1,0 +1,47 @@
+=== HOST cn20483 16:37:18 3cec1fa3 W-GEMM v3 修正：fin 项0 补写 +W_KK 到对角槽（sc 的 J=K 项依赖），多块形状 FAIL 根因
+[env] host=cn20483 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+158a9d2f7b9672ec61f343b697b5f4adfd5d669a33758d736e169f31cd5b9693  trsm.c
+=== W 形状正确性（TRSM_WGEMM=1，自然准入）
+[w_512x19968]                         512 x 19968            /            /     2.21e-01     FAIL
+[w_1024x9984]                        1024 x  9984            /            /     2.31e-01     FAIL
+[w_960x14592]                         960 x 14592            /            /     2.34e-01     FAIL
+[w_64x7296]                            64 x  7296         7.02       4.2553     1.67e-16     PASS
+[w_128x7392]                          128 x  7392            /            /     2.32e-01     FAIL
+[w_448x7296]                          448 x  7296            /            /     2.59e-01     FAIL
+=== 强制 owner 小形状（W on）
+[wf_64x96]                             64 x    96         0.13       3.1381     1.11e-16     PASS
+[wf_128x192]                          128 x   192            /            /     1.63e-01     FAIL
+[wf_256x480]                          256 x   480            /            /     2.04e-01     FAIL
+[wf_512x960]                          512 x   960            /            /     1.86e-01     FAIL
+=== margin 强制回退（W on + 阈值拉满 → 旧前向路径）
+[fb_512x19968]                        512 x 19968         1.98    2645.1092     3.33e-16     PASS
+=== 三用例 on/off 交错 ×3（判题口径）+ NW 档
+[tc1_off_1]                           512 x 19968         1.89    2775.9274     3.33e-16     PASS
+[tc1_on_1]                            512 x 19968            /            /     2.21e-01     FAIL
+[tc1_nw20_1]                          512 x 19968            /            /     2.21e-01     FAIL
+[tc1_nw38_1]                          512 x 19968            /            /     2.21e-01     FAIL
+[tc1_off_2]                           512 x 19968         1.89    2767.7493     3.33e-16     PASS
+[tc1_on_2]                            512 x 19968            /            /     2.21e-01     FAIL
+[tc1_nw20_2]                          512 x 19968            /            /     2.21e-01     FAIL
+[tc1_nw38_2]                          512 x 19968            /            /     2.21e-01     FAIL
+[tc1_off_3]                           512 x 19968         1.88    2786.9741     3.33e-16     PASS
+[tc1_on_3]                            512 x 19968            /            /     2.21e-01     FAIL
+[tc1_nw20_3]                          512 x 19968            /            /     2.21e-01     FAIL
+[tc1_nw38_3]                          512 x 19968            /            /     2.21e-01     FAIL
+[tc2_on]                             2432 x 17024        24.01    4193.1349     7.77e-16     PASS
+[tc3_on]                            17024 x   512        35.59    4169.7181     1.50e-15     PASS
+=== 分相（PROFILE=2）off/on/nw38
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3326MB | setup 0.009 ms, parallel 1.861 ms
+[trsm prof]  每线程平均 ms：prep 0.018 | load 0.301 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.025 dump 0.000 epi 0.004 dkloop 0.169 ddump 0.056 depi 0.000 store 0.124 | task 合计 1.731 | 尾部不均衡 0.110 ms（平均空闲 0.029 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 60.0%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3217MB | setup 1.962 ms, parallel 16.527 ms
+[trsm prof]  每线程平均 ms：prep 2.881 | load 0.750 pack 0.000 xcopy 0.000 wait 0.989 kloop 1.050 dump 0.000 epi 0.004 dkloop 0.292 ddump 0.499 depi 0.000 store 0.133 | task 合计 3.757 | 尾部不均衡 1.967 ms（平均空闲 1.426 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 53.4%）
+[trsm prof] m=512 n=19968 mb=64 nc=96 kc=64 jit=0 pp=0 tasks=1664(items 1664) nth=38 hbm=17 Xnode=17 Lnode=17 Xp=-1 pp0=17 pp1=-1 hbmfree=3187MB | setup 1.869 ms, parallel 16.168 ms
+[trsm prof]  每线程平均 ms：prep 5.134 | load 0.937 pack 0.000 xcopy 0.000 wait 0.001 kloop 1.049 dump 0.000 epi 0.004 dkloop 0.284 ddump 0.687 depi 0.000 store 0.133 | task 合计 3.137 | 尾部不均衡 2.214 ms（平均空闲 0.699 ms）| k 步 5271552（对角 798720）（理想 0.716 ms，kloop 效率 53.7%）
+=== 泛化回归
+[gen W on 30]
+ALL PASS: 0 failures
+[gen 默认(off) 20]
+ALL PASS: 0 failures
+[gen W on 强制owner 20]
+ALL PASS: 0 failures
+=== DONE 16:38:23
