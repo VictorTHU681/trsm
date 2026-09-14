@@ -1985,43 +1985,27 @@ static void w_inv16(const double Lss[16][16], double inv[16][16])
         }
     }
 }
-// C(16×16, row-major) (+)= A(16×16 row-major) · B(16×16 row-major)——流式 SVE（w_prep 级循环在 sme_start 区内调用）
-static inline void w_mm16(const double* restrict A, const double* restrict B, double* restrict C, int accum)
+// C(16×16) (+)= A(16×16) · B(16×16)，各操作数行步长以 double 计——流式 SVE（w_prep 在 sme_start 区内调用）
+static inline void w_mm16(const double* restrict A, long sa, const double* restrict B, long sb,
+                          double* restrict C, long scs, int accum)
 {
     const svbool_t pg = svptrue_b64();
     for (int r = 0; r < 16; r++) {
         svfloat64_t c0, c1;
-        if (accum) { c0 = svld1_f64(pg, C + r * 16); c1 = svld1_f64(pg, C + r * 16 + 8); }
+        if (accum) { c0 = svld1_f64(pg, C + r * scs); c1 = svld1_f64(pg, C + r * scs + 8); }
         else       { c0 = svdup_f64(0.0); c1 = svdup_f64(0.0); }
         for (int t = 0; t < 16; t++) {
-            svfloat64_t b0 = svld1_f64(pg, B + t * 16), b1 = svld1_f64(pg, B + t * 16 + 8);
-            double a = A[r * 16 + t];
+            svfloat64_t b0 = svld1_f64(pg, B + t * sb), b1 = svld1_f64(pg, B + t * sb + 8);
+            double a = A[r * sa + t];
             c0 = svmla_n_f64_x(pg, c0, b0, a);
             c1 = svmla_n_f64_x(pg, c1, b1, a);
         }
-        svst1_f64(pg, C + r * 16, c0);
-        svst1_f64(pg, C + r * 16 + 8, c1);
+        svst1_f64(pg, C + r * scs, c0);
+        svst1_f64(pg, C + r * scs + 8, c1);
     }
 }
-static inline double* w_slot(long g, long h) { return g_w_acc + ((size_t)g * (g + 1) / 2 + h) * 256; }
-// 发布 S[g,h]（row-major 16×16，S = −W）到消费布局：h<4i → pp（k-major 1024 单元），h≥4i → diag（K=16(r+1) 条带）
-static void w_emit(const ctx_t* c, long g, long h, const double* S)
-{
-    long i = g / 4, r = g % 4;
-    if (h < 4 * i) {
-        long ch = h / 4, u = h % 4;
-        double* dst = c->pp[0] + c->pp_off[4 * i] + ((size_t)ch * 4 + r) * 1024 + (size_t)u * 16 * 16;
-        for (int q = 0; q < 16; q++)
-            for (int rr = 0; rr < 16; rr++) dst[q * 16 + rr] = S[rr * 16 + q];
-    } else {
-        // 块内三角进 diag：存 +W_ii（取反）——W 尾块先行、za_owner_dstore 直写 acc（覆盖语义），
-        // GEMM 块随后以 C -= (−W)·B 累加其上（求和顺序无关）
-        long hh = h - 4 * i;
-        double* dst = c->diag + c->diag_off[i] + diag_strip_off((int)r) + (size_t)hh * 256;
-        for (int q = 0; q < 16; q++)
-            for (int rr = 0; rr < 16; rr++) dst[q * 16 + rr] = -S[rr * 16 + q];
-    }
-}
+// 64×64 块槽（行主序，行步长 64）：Acc[I,J] 累加期 → fin 后就地存 +W[I,J]
+static inline double* w_slot64(long I, long J) { return g_w_acc + ((size_t)I * (I + 1) / 2 + J) * 4096; }
 static int g_w_nw;   // W 递推工人线程数（TRSM_WGEMM_NW，默认 10）：其余线程判定后直接进任务，靠 pflags/dcnt 逐条等（流水化）
 // 全体线程在并行区调用：占优扫描 → 判定 → 右视递推计算 −W 并发布（pflags/dcnt 语义与现行打包一致）
 static void w_prep_run(const ctx_t* c, int tid)
@@ -2029,12 +2013,17 @@ static void w_prep_run(const ctx_t* c, int tid)
     const long G = c->nstrip;
     const double* L = c->L;
     const long lda = c->lda;
-    // 阶段 0：占优余量扫描（顺带清零本条带的 Acc 行）
+    // 阶段 0：占优余量扫描（顺带按均份清零 Acc arena）
     double lmin = 1e300;
+    const size_t arena_d = (size_t)(G / 4) * (G / 4 + 1) / 2 * 4096 + 4096;
+    const size_t zshare = ((arena_d + G - 1) / G + 7) & ~(size_t)7;
     for (;;) {
         long g = __atomic_fetch_add(&g_w_mnext, 1, __ATOMIC_RELAXED);
         if (g >= G) break;
-        memset(w_slot(g, 0), 0, (size_t)(g + 1) * 256 * 8);
+        {
+            size_t z0 = (size_t)g * zshare, z1 = z0 + zshare;
+            if (z0 < arena_d) { if (z1 > arena_d) z1 = arena_d; memset(g_w_acc + z0, 0, (z1 - z0) * 8); }
+        }
         for (int rr = 0; rr < 16; rr++) {
             long row = 16 * g + rr;
             double s = 0.0;
@@ -2064,72 +2053,124 @@ static void w_prep_run(const ctx_t* c, int tid)
     while (__atomic_load_n(&g_w_decided, __ATOMIC_ACQUIRE) < 2) asm volatile("yield");
     if (!g_w_on) return;   // 回退：调用方走常规预处理
     if (tid >= g_w_nw) return;   // 非工人：直接进任务阶段，消费点按 pflags/dcnt 逐条等（W 链与任务流水重叠）
-    // 阶段 1：右视递推。层 k：fin(k)（S[k,h] = S_kk·Acc[k,h]，先求逆项）→ sc(k)（Acc[g,h] += L[g,k]·S[k,h]，g>k）。
-    // 乘积用流式 SVE（整段 sme_start；区内无 libc/NEON，标量与自旋合法）
-    sme_start();
-    int* fin_next = g_w_ctr;             // 每层领取游标
+    // 阶段 1：块粒度（64×64）右视递推，乘积走 SME 16×32 微内核（整段 sme_start；区内无 libc/NEON）。
+    // 层 K：fin(K) = { 项0：块内 W_KK 递推 + diag 发布(+W_KK) + 打包共享 −W_KK；项 J<K：W[K,J] = (−W_KK)·Acc[K,J] + pp 发布(−W) }
+    //       → 发布 pflags[4K..4K+3] + dcnt[K]+=4 → sc(K)：Acc[I,J] += L[I,K]·W[K,J]（I>K, J≤K，L 块每项自打包）
+    const long nB = G / 4;
+    double* wkk_pack = g_w_acc + (size_t)nB * (nB + 1) / 2 * 4096;   // 本层共享 −W_KK（k-major 4 条）
+    int* fin_next = g_w_ctr;
     int* fin_done = g_w_ctr + G;
     int* sc_next  = g_w_ctr + 2 * G;
     int* sc_done  = g_w_ctr + 3 * G;
     int* inv_flag = g_w_ctr + 4 * G;
-    const int HB = 4;                    // scatter 项的 h 块宽
-    for (long k = 0; k < G; k++) {
-        const long sc_items_prev = k > 0 ? (G - k) * ((k - 1) / HB + 1) : 0;
-        if (k > 0) while (__atomic_load_n(&sc_done[k - 1], __ATOMIC_ACQUIRE) < sc_items_prev) asm volatile("yield");
-        // fin(k)：项 0 = −inv(L_kk)；项 1..k = h−1
+    tbuf_t* tbw = &g_tb[tid];
+    double* scratch = tbw->scratch;
+    double* apack = tbw->astrip;                                     // sc 项 L[I,K] 的 k-major 包（4×1024）
+    const pf_t pfd = { (const char*)tbw->scratch2, 1, -64, (const char*)tbw->scratch2, (const char*)tbw->scratch2, 0, &tbw->sw };
+    const svbool_t pg = svptrue_b64();
+    sme_start();
+    for (long K = 0; K < nB; K++) {
+        const int sc_items_prev = K > 0 ? (int)((nB - K) * K) : 0;
+        if (K > 0) while (__atomic_load_n(&sc_done[K - 1], __ATOMIC_ACQUIRE) < sc_items_prev) asm volatile("yield");
         for (;;) {
-            int it = __atomic_fetch_add(&fin_next[k], 1, __ATOMIC_RELAXED);
-            if (it > k) break;
+            int it = __atomic_fetch_add(&fin_next[K], 1, __ATOMIC_RELAXED);
+            if (it > K) break;
             if (it == 0) {
-                double Lss[16][16], inv[16][16];
-                long r0 = 16 * k;
-                for (int r = 0; r < 16; r++)
-                    for (int cc = 0; cc < 16; cc++)
-                        Lss[r][cc] = (cc <= r) ? L[(r0 + r) * lda + r0 + cc] : (r == cc ? 1.0 : 0.0);
-                w_inv16(Lss, inv);
-                double* S = w_slot(k, k);
-                for (int r = 0; r < 16; r++) for (int cc = 0; cc < 16; cc++) S[r * 16 + cc] = -inv[r][cc];
-                w_emit(c, k, k, S);
-                __atomic_store_n(&inv_flag[k], 1, __ATOMIC_RELEASE);
-            } else {
-                long h = it - 1;
-                while (!__atomic_load_n(&inv_flag[k], __ATOMIC_ACQUIRE)) asm volatile("yield");
-                double* slot = w_slot(k, h);          // 进：Acc[k,h]；出：S[k,h]（就地）
-                double Sk[256];
-                w_mm16(w_slot(k, k), slot, Sk, 0);    // S_kk·Acc → 注意 S_kk 已含负号，Acc 含 +Σ L·S
-                {   // 流式区内不可用 memcpy（NEON）：SVE 拷回
-                    const svbool_t pg = svptrue_b64();
-                    for (int q = 0; q < 256; q += 8) svst1_f64(pg, slot + q, svld1_f64(pg, Sk + q));
+                // 块内 W_KK：4 个 16×16 三角逆 + 短递推（行主序 wkk，行步长 64）
+                double wkk[64 * 64];
+                for (int q = 0; q < 64 * 64; q += 8) svst1_f64(pg, wkk + q, svdup_f64(0.0));
+                const long r0 = 64 * K;
+                for (int s = 0; s < 4; s++) {
+                    double Lss[16][16], inv[16][16];
+                    for (int r = 0; r < 16; r++)
+                        for (int cc = 0; cc < 16; cc++)
+                            Lss[r][cc] = (cc <= r) ? L[(r0 + 16 * s + r) * lda + r0 + 16 * s + cc] : (r == cc ? 1.0 : 0.0);
+                    w_inv16(Lss, inv);
+                    for (int sp = 0; sp < s; sp++) {
+                        double accb[256], lb[256], prod[256];
+                        for (int q = 0; q < 256; q += 8) svst1_f64(pg, accb + q, svdup_f64(0.0));
+                        for (int t = sp; t < s; t++) {
+                            for (int r = 0; r < 16; r++)
+                                for (int q = 0; q < 16; q++) lb[r * 16 + q] = L[(r0 + 16 * s + r) * lda + r0 + 16 * t + q];
+                            w_mm16(lb, 16, wkk + (size_t)(16 * t) * 64 + 16 * sp, 64, accb, 16, 1);
+                        }
+                        w_mm16(&inv[0][0], 16, accb, 16, prod, 16, 0);
+                        for (int r = 0; r < 16; r++)
+                            for (int q = 0; q < 16; q++) wkk[(size_t)(16 * s + r) * 64 + 16 * sp + q] = -prod[r * 16 + q];
+                    }
+                    for (int r = 0; r < 16; r++)
+                        for (int q = 0; q < 16; q++) wkk[(size_t)(16 * s + r) * 64 + 16 * s + q] = inv[r][q];
                 }
-                w_emit(c, k, h, slot);
+                // diag 发布：strip s（K=16(s+1)），子块 k-major，存 +W_KK（尾块 dstore 覆盖语义）
+                for (int s = 0; s < 4; s++) {
+                    double* dstb = c->diag + c->diag_off[K] + diag_strip_off(s);
+                    for (int hp = 0; hp <= s; hp++)
+                        for (int q = 0; q < 16; q++)
+                            for (int rr = 0; rr < 16; rr++)
+                                dstb[(size_t)hp * 256 + q * 16 + rr] = wkk[(size_t)(16 * s + rr) * 64 + 16 * hp + q];
+                }
+                // 共享 −W_KK 包（本层 fin J 项的 A 操作数）
+                for (int s = 0; s < 4; s++)
+                    for (int kq = 0; kq < 64; kq++)
+                        for (int rr = 0; rr < 16; rr++)
+                            wkk_pack[(size_t)s * 1024 + kq * 16 + rr] = -wkk[(size_t)(16 * s + rr) * 64 + kq];
+                __atomic_store_n(&inv_flag[K], 1, __ATOMIC_RELEASE);
+            } else {
+                const long J = it - 1;
+                while (!__atomic_load_n(&inv_flag[K], __ATOMIC_ACQUIRE)) asm volatile("yield");
+                double* slot = w_slot64(K, J);        // 进 Acc[K,J] → 出 +W[K,J]（就地）
+                double out[64 * 64];
+                for (int r = 0; r < 4; r++)
+                    for (int t = 0; t < 2; t++) {
+                        sme_zero_za();
+                        kloop_plain(wkk_pack + (size_t)r * 1024, 128, 128, slot + 32 * t, 64 * 8, 64, 32, &pfd);
+                        za_dump(scratch);
+                        for (int rr = 0; rr < 16; rr++)
+                            for (int q = 0; q < 32; q += 8)
+                                svst1_f64(pg, out + (size_t)(16 * r + rr) * 64 + 32 * t + q, svld1_f64(pg, scratch + rr * 32 + q));
+                    }
+                for (int q = 0; q < 64 * 64; q += 8) svst1_f64(pg, slot + q, svld1_f64(pg, out + q));
+                for (int r = 0; r < 4; r++) {   // pp 发布：−W，k-major 1024 单元
+                    double* dst = c->pp[0] + c->pp_off[4 * K] + ((size_t)J * 4 + r) * 1024;
+                    for (int kq = 0; kq < 64; kq++)
+                        for (int rr = 0; rr < 16; rr++)
+                            dst[kq * 16 + rr] = -out[(size_t)(16 * r + rr) * 64 + kq];
+                }
             }
-            __atomic_fetch_add(&fin_done[k], 1, __ATOMIC_ACQ_REL);
+            __atomic_fetch_add(&fin_done[K], 1, __ATOMIC_ACQ_REL);
         }
-        while (__atomic_load_n(&fin_done[k], __ATOMIC_ACQUIRE) < k + 1) asm volatile("yield");
-        {   // 条带 k 全部发布：置消费标志（与现行打包/对角语义一致）；借 inv_flag 1→2 迁移保证只发布一次
+        while (__atomic_load_n(&fin_done[K], __ATOMIC_ACQUIRE) < K + 1) asm volatile("yield");
+        {   // 发布行块 K 的消费标志（借 inv_flag 1→2 迁移只发布一次）
             int e1 = 1;
-            if (__atomic_compare_exchange_n(&inv_flag[k], &e1, 2, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-                __atomic_store_n(&c->pflags[k], 1, __ATOMIC_RELEASE);
-                __atomic_fetch_add(&c->dcnt[k / 4], 1, __ATOMIC_RELEASE);
+            if (__atomic_compare_exchange_n(&inv_flag[K], &e1, 2, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+                for (int r = 0; r < 4; r++) __atomic_store_n(&c->pflags[4 * K + r], 1, __ATOMIC_RELEASE);
+                __atomic_fetch_add(&c->dcnt[K], 4, __ATOMIC_RELEASE);
             }
         }
-        // sc(k)：项 = (g−k−1)*nhb + hb，g ∈ (k, G)，hb 为 h 的 HB 宽块
-        const long nhb = k / HB + 1;
-        const int sc_items = (int)((G - 1 - k) * nhb);
+        const int sc_items = (int)((nB - 1 - K) * (K + 1));
         for (;;) {
-            int it = __atomic_fetch_add(&sc_next[k], 1, __ATOMIC_RELAXED);
+            int it = __atomic_fetch_add(&sc_next[K], 1, __ATOMIC_RELAXED);
             if (it >= sc_items) break;
-            long g = k + 1 + it / nhb;
-            long h0 = (it % nhb) * HB;
-            long h1 = h0 + HB > k + 1 ? k + 1 : h0 + HB;
-            double LbT[256];
-            for (int r = 0; r < 16; r++)
-                for (int q = 0; q < 16; q++) LbT[r * 16 + q] = L[(16 * g + r) * lda + 16 * k + q];
-            for (long h = h0; h < h1; h++)
-                w_mm16(LbT, w_slot(k, h), w_slot(g, h), 1);
-            __atomic_fetch_add(&sc_done[k], 1, __ATOMIC_ACQ_REL);
+            const long I = K + 1 + it / (K + 1);
+            const long J = it % (K + 1);
+            for (int r = 0; r < 4; r++)
+                pack_strip(L, lda, c->m, 64 * I + 16 * r, 64 * K, 64, apack + (size_t)r * 1024);
+            const double* wkj = w_slot64(K, J);
+            double* dslot = w_slot64(I, J);
+            for (int r = 0; r < 4; r++)
+                for (int t = 0; t < 2; t++) {
+                    sme_zero_za();
+                    kloop_plain(apack + (size_t)r * 1024, 128, 128, wkj + 32 * t, 64 * 8, 64, 32, &pfd);
+                    za_dump(scratch);
+                    for (int rr = 0; rr < 16; rr++)
+                        for (int q = 0; q < 32; q += 8) {
+                            double* dd = dslot + (size_t)(16 * r + rr) * 64 + 32 * t + q;
+                            svst1_f64(pg, dd, svadd_f64_x(pg, svld1_f64(pg, dd), svld1_f64(pg, scratch + rr * 32 + q)));
+                        }
+                }
+            __atomic_fetch_add(&sc_done[K], 1, __ATOMIC_ACQ_REL);
         }
-        while (__atomic_load_n(&sc_done[k], __ATOMIC_ACQUIRE) < sc_items) asm volatile("yield");
+        while (__atomic_load_n(&sc_done[K], __ATOMIC_ACQUIRE) < sc_items) asm volatile("yield");
     }
     sme_stop();
 }
@@ -6315,7 +6356,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     g_w_admit = env_int("TRSM_WGEMM", 0) && g_implicit_owner   /* 开发期默认关：净收益认证前 opt-in */ && c.nobar && !g_fused_diag && c.nstrip <= 64;
     if (g_w_admit) {
         long G = c.nstrip;
-        size_t acc_d = (size_t)G * (G + 1) / 2 * 256;
+        long nB = G / 4;
+        size_t acc_d = (size_t)nB * (nB + 1) / 2 * 4096 + 4096;   // 64×64 块槽 + 本层共享 −W_KK 包
         if (g_w_acc_cap < acc_d) { trsm_free_buffer(g_w_acc, g_w_acc_cap * 8); g_w_acc = alloc_on(acc_d * 8, -1); g_w_acc_cap = acc_d; }
         if (g_w_ctr_cap < (size_t)(5 * G)) { free(g_w_ctr); g_w_ctr = calloc(5 * G, sizeof(int)); g_w_ctr_cap = 5 * G; }
         size_t stage_d = (size_t)nth * m * 96;
