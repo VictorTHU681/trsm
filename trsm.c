@@ -2805,7 +2805,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
-            if (osw_on && (!tkn || (tkn->kind == 0 && tkn->i != i))) {
+            // OSW+ v4 守卫：同面板下任务查行号；跨面板仅放行 i''==0（i''>0 触发 khead 拷贝，写 cbuf 行 [0,64*ia) 会
+            // 覆写未排干的队列区——os96 官方 FAIL 根因）；tkn==NULL 由区域尾 flush+发布兜底
+            const int osw_q = !tkn || (tkn->kind == 0 && (tkn->p == p ? tkn->i != i : (tkn->i == 0 && i != 0)));
+            if (osw_on && osw_q) {
                 // OSW+：排队守卫 = 下任务行号 != 本块行号（同行号时下任务 XONE 旁流会在排水前覆写同批 cbuf 行——
                 // v1 官方 FAIL 的根因，含 khead ia==i 与 thief 撞行两类）；tkn==NULL（线程末任务）由区域尾 flush+发布兜底。
                 sw_t w;
