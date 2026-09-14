@@ -1808,6 +1808,7 @@ typedef struct {
     int pf2;                // 面板驻留模式：游标 2 也预取 A（更深的 A 流预取）
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int dwpf;               // 对角窗内下一任务 B 子块预取（游标 1）开关（TRSM_DWPF，默认 1=现状；审计 #3 消融用）
+    int slx;                // 回写‖装载相位交错（TRSM_SLX，默认 0）：owner 回写相逐行后接下一任务同面板 B 行装载
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -1873,6 +1874,7 @@ typedef struct {
     uint64_t t_dump, t_ddump;
     long n_dkstep;
     uint64_t t_khead;        // owner 头部残段：等上一线程 flag + 从 X 拷入面板缓冲（诊断慢线程用）
+    long pre_i, pre_p;       // SLX 相位交错：上一任务回写相已预装 (pre_i, pre_p) 的 C 块（-1=无），其 load 相跳过
     // Keep counters from sharing a line with the next worker's pointers.
 } __attribute__((aligned(128))) tbuf_t;
 
@@ -2083,6 +2085,9 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         const svbool_t pg = svptrue_b64();
         for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
         if (c->prof >= 2) tb->t_load += cyc() - t0;
+    } else if (fast_owner && tb->pre_i == i && tb->pre_p == p) {
+        // SLX：本任务 C 块已由上一任务回写相预装（store‖load 相位交错），装载相跳过（一次性消费）
+        tb->pre_i = tb->pre_p = -1;
     } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
@@ -2437,6 +2442,16 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
+            // SLX 回写‖装载相位交错（审计 #1）：NT 回写每行后顺手把下一任务（同面板下一行块）的 B 行 demand load
+            // 进面板缓冲。回写走 WC/写通路、装载走 L1 MSHR×延迟，资源不同（§1 混合读写 445 GB/s > 单向 305），
+            // 并置后 store 相近乎免费；cbuf 冷目标行无 RFO 惩罚（rfoprobe 实测 B_cold≈A_hot）。
+            const double* sB = NULL; double* sD = NULL; int slx_pre = 0;
+            if (fast_owner && c->slx && !split && tkn && tkn->kind == 0 && tkn->nseg == 1
+                && tkn->p == p && tkn->i == i + 1 && mbi == mb && nci == nc && i0 + 2 * mb <= c->m) {
+                sB = c->B + (i0 + mb) * ldb + c0;
+                sD = tb->cbuf + (size_t)(i0 + mb) * ncp;
+                slx_pre = 1;
+            }
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
             for (long r = 0; r < mbi; r++) {
@@ -2459,7 +2474,13 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
                     svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
                 }
+                if (slx_pre) {   // 下一任务第 r 行：B → 面板缓冲（demand load 与上面的 NT 写并置）
+                    const double* s2 = sB + r * ldb;
+                    double* d2 = sD + r * ncp;
+                    for (long j2 = 0; j2 + 8 <= nc; j2 += 8) svst1_f64(pg, d2 + j2, svld1_f64(pg, s2 + j2));
+                }
             }
+            if (slx_pre) { tb->pre_i = tkn->i; tb->pre_p = tkn->p; }
         } else {
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
@@ -5918,6 +5939,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     {
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.dwpf = env_int("TRSM_DWPF", 1);        // 对角窗游标 1（下一任务 B 预取）消融开关，默认开=现状
+        c.slx = env_int("TRSM_SLX", 0);          // 回写‖装载相位交错（审计 #1）：store(i) 逐行后接 load(i+1)，默认关待筛查
         c.xptm = env_int("TRSM_XPTM", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
@@ -6147,6 +6169,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         if (c.prof >= 2) g_wake_cyc[tid] = cyc();
         pin_self(tid);
         ensure_tbuf(tid, (size_t)(c.owner ? c.nrb * mb : mb) * c.ncp, (size_t)128 * kc, (size_t)kc * c.ncp);
+        g_tb[tid].pre_i = g_tb[tid].pre_p = -1;   // SLX：跨调用遗留的预装标记失效（B 指针/内容可能已变）
         if (c.prof >= 2) {
             tbuf_t* tb = &g_tb[tid];
             tb->t_load = tb->t_pack = tb->t_pf = tb->t_wait = tb->t_kloop = tb->t_epi = 0;
