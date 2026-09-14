@@ -1277,3 +1277,14 @@ pkg61 端到端 6 PASS。**TRSM_XONE 默认开 + 内核默认切 bank+旁流**�
 （demand 直融串行化、between-kernel 突发阻塞均证伪）。0.6ms 频不敏时间中 0.28 已转化为频敏周期；
 线上预期 TC1 ≈ 3000-3100。剩余裸相位：store 0.12ms（同形态 stnt1d 旁流候选）。
 **包**：trsm_submit_v61_3c491b0.zip（md5 5c6ad6a3cbd1771ae23f42e169b26e20）= v60 全栈 + XONE。
+
+
+### v62：test_runs=10 + XONE-TC2 归档（2026-09-14，fresh35）
+
+**test_runs 1→10（用户指示，官方允许自配）**：官方 bench 报 test_runs 平均（avg_time→GFLOPS），
+10 轮平均把 TC1 单次 ±4% 抽签噪声压到 ~±1.3%，且后期轮吃 THP/暖态红利——稳定性直接工程化。
+**XONE-TC2 归档**：机制移植正确（X 宏参数化 XDJ 704/960；duplex_bank0_x/4_x；xk2test 实锤两条虫：
+bank4 实例 DUP4_ALD 宏参致字面替换扑空、几何劈列映射确认 bank0=cols0-15/bank4=cols16-31），
+官方 TC2 全 PASS；但**经济性负**：load 0.848→0.177（−0.67）被 kloop 17.11→18.31（+1.20）反超——
+TC2 GEMM 窗口已在带宽地板 80%，无 TC1 chunk-0 的 MLP 余量，且 C 初值必须单 chunk 填完（每 chunk 都排水），
+密度无法摊薄。代码留惰性（xone2_on 含 !hoist，生产 hoist 不受影响）。TC2 剩余靶：Xr 统一缓冲（审计 #1）。
