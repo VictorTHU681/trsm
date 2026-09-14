@@ -70,6 +70,6 @@ if [[ -n "$hbm" ]] && numactl -N $cpunode --preferred=$hbm true >/dev/null 2>&1;
 fi
 echo "[run.sh] numactl -N $cpunode $MEMOPT" >&2
 
-numactl -N $cpunode $MEMOPT ./trsm_test 512 19968 1
-numactl -N $cpunode $MEMOPT ./trsm_test 2432 17024 1
-numactl -N $cpunode $MEMOPT ./trsm_test 17024 512 1
+numactl -N $cpunode $MEMOPT ./trsm_test 512 19968 10
+numactl -N $cpunode $MEMOPT ./trsm_test 2432 17024 10
+numactl -N $cpunode $MEMOPT ./trsm_test 17024 512 10
