@@ -859,6 +859,42 @@ int main(void)
 
     pf_dummy.p = g_dum; pf_dummy.pfn = 1; pf_dummy.pfj = -64;
     pf_dummy.p2 = g_dum; pf_dummy.pc = g_dum; pf_dummy.pcs = 0; pf_dummy.sw = &g_swd;
+    { const char* e = getenv("DD_UNIT"); if (e && atoi(e)) {
+        // rem 内核隔离单测：za 清零 → dd_b0_rem(strip4 块1, B 行 64-79) → flush → C 参考对照
+        static double tmp[16 * 16];
+        double* out = tmp;
+        seed(gCB1);
+        const double* Ar = gA + diag_strip_off(4) + 1024;
+        const double* Br = gCB1 + 64 * NCP;
+        sme_start();
+        sme_zero_za();
+        dd_b0_rem(Ar, Br, 16);
+        dd_flush_b0_set(out, 128);   // cs=128B（16 double 紧密行）
+        sme_stop();
+        long bad = 0;
+        for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+            double ref = 0;
+            for (long k = 0; k < 16; k++) ref += Ar[k * 16 + r] * Br[k * NCP + cc];
+            double got = out[r * 16 + cc];
+            if (ref != got) { if (!bad) printf("UNIT rem first diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, got); bad++; }
+        }
+        printf("UNIT rem: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        const double* Af = gA + diag_strip_off(4);
+        const double* Bf = gCB1;
+        sme_start();
+        sme_zero_za();
+        dd_b0_first(Af, Bf, gxpan, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        dd_flush_b0_set(out, 128);
+        sme_stop();
+        bad = 0;
+        for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+            double ref = 0;
+            for (long k = 0; k < 64; k++) ref += Af[k * 16 + r] * Bf[k * NCP + cc];
+            if (ref != out[r * 16 + cc]) { if (!bad) printf("UNIT first diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, out[r * 16 + cc]); bad++; }
+        }
+        printf("UNIT first: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        return 0;
+    } }
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
     seed(gCB1); seed(gCB2);
     {
