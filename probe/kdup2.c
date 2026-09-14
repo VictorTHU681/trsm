@@ -61,6 +61,7 @@ int main(void)
     for (size_t i = 0; i < big / 8; i += 7) Abig[i] = 1.0 / (i + 1), Bbig[i] = 1.0 / (i + 3);
     double* Ap = al(224 * 1024);          // owner 场景：7 块 × 32KB（HBM，同一面板集重复读）
     double* CB = al(512 * 96 * 8);        // owner 场景：cbuf 393KB
+    double* Apool = al(1 << 20);          // o9 场景：896KB 任务区 + 越界预取余量（必须在流式区外分配，al 含 memset）
     for (long i = 0; i < 224 * 1024 / 8; i += 5) Ap[i] = 1.0 / (i + 2);
     for (long i = 0; i < 512 * 96; i += 3) CB[i] = 1.0 / (i + 7);
     sme_start();
@@ -152,7 +153,6 @@ int main(void)
         {
             static const char* nm9[4] = { "o9a 真流 ldnt+软预取（=修正版 o2）", "o9b 真流 ldnt 无预取",
                                           "o9c 真流 ld1d+软预取", "o9d 真流 ld1d 无预取（HW 预取器裸测）" };
-            double* Apool = al(1 << 20);   // 896 KB 任务区 + 尾部越界预取余量
             for (int v9 = 0; v9 < 4; v9++) {
                 const int LD9 = v9 >= 2, PF9 = !(v9 & 1);
                 uint64_t t0 = 0; long steps = 0;
