@@ -5914,9 +5914,10 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         long npan0 = (n + nc - 1) / nc;
         if (cs_mode && (((size_t)ldb * 8) & 63) == 0 && (cs_mode >= 2 || (npan0 >= 64 && !owner_auto)))
             c.cshift = (long)(((uintptr_t)B >> 3) & 7);
-        // 折叠面板（审计 #2）：owner 且 n%nc==0 且 B 错位 → 面板 0 收编尾部 cshift 列，1..npan-1 全对齐整宽。
+        // 折叠面板（审计 #2，v58 默认开）：owner 且 n%nc==0 且 B 错位 → 面板 0 收编尾部 cshift 列，1..npan-1 全对齐整宽。
         // 与 v51 证伪的 owner-cshift（奇面板走通用路径 ≈ 慢 10% + 幻影份额）不同：无奇面板、SHAPEP/内核零改动。
-        if (env_int("TRSM_CFOLD", 0) && owner_auto && n % nc == 0 && npan0 >= 8
+        // 双节点认证（cf63，cn20487/cn20491 各 8v8 ABBA）：TC1 −1.70%/−2.33%，load −5.6% store −12.6%（cf62 分相）。
+        if (env_int("TRSM_CFOLD", 1) && owner_auto && n % nc == 0 && npan0 >= 8
             && (((size_t)ldb * 8) & 63) == 0) {
             long mis = (long)(((uintptr_t)B >> 3) & 7);
             if (mis) { c.cshift = mis; c.cfold = 1; }
