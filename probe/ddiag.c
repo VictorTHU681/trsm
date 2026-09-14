@@ -777,7 +777,7 @@ static int g_tic = 0;   // W 计时轮裸跑（避免 cyc() 开销偏置新路�
 // 新路径一条 strip（s>=3）；d4c 跨瓦片链
 static void new_strip(int s, double* cb, double** d4c)
 {
-    long K = 16L * (s + 1), nch = K / 64, rem = K % 64;
+    long K = 16L * (s + 1), nch = (K + 63) / 64, rem = K % 64;   // nch = 总块数（含余块，蓝图语义）
     const double* As = gA + diag_strip_off(s);
     const char* dum = (const char*)gxpan;
     for (long t = 0; t < 4; t++) {
