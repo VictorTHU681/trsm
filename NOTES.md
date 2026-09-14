@@ -759,6 +759,20 @@ ia=0 线程 44.8→45.6，重分配按设计兑现。
 **同轮记录（勿误读）**：TC2 每线程 resid ≈0.85 ms 是 PROF_T 插桩自身（每桶两次 cntvct），非真实可采空间；
 TC3 wait 1.0–1.2 / idle 0.65 复确认为依赖链/尾部结构（TAILW/WAVE/LASTLATE 已证伪或已收）。
 
+### v56rehuge 测试包（2026-09-14，fresh31，官方报备中）
+
+**`trsm_submit_v56rehuge_1818403.zip`** sha256 `a99b220f…`：trsm.c = v56(SHAPEP) + REHUGE 移植（fresh27 原实现原样，
+sha `abb84d81…`，代码默认关）+ run.sh 在 v56n7 基础上加 `export TRSM_REHUGE=1`。**REHUGE 代码只在 fresh31，master 不含**
+（隔离纪律：批复前不进主线、不上 GitHub）。
+验证（cn20484，[rehuge31 日志](logs/trsm_rehuge31_1602655.out)）：一次性触发确认（重铺仅发生在首次不计时校验调用，SMAPS 打印 1 次）；
+gen_test 5 配置（REHUGE=1 ×60/30/20/20 + 默认 ×30）全 0 failures；三用例 on/off 交错 ×3 本机持平、误差逐位一致
+（本机 THP=never 下重铺为无害空操作，收益只在判题机 THP=madvise 显现）。自包含验收（cn20488）：解压→bash run.sh 两轮 6 PASS，
+`numactl -N 7 --preferred=23 (REHUGE=1)` 生效。
+**线上预测**（基于 diag3 判题机单轮实测 +6.5~7% TC1 + SHAPEP +1% + 抽签带）：TC1 2900–3100（中位 ~3000）、TC2 4950–5010、
+TC3 4770–4820，合计 **~12700–12850**（v55 线上 12382、榜首 12624）；坏抽签下限 ~12500、好抽签上限 ~12950。
+待用户提交后回填实测，重点读数：TC1 是否 ≥2900（REHUGE 兑现幅度）、TC2 相对 4941 方向（node7 第二数据点——
+v55n7 那轮 TC2 4941 比 v53r@node1 的 5008 低 67 分，一轮分不清抽签还是 node7）。
+
 ### v56 提交包（2026-09-14）
 
 `trsm_submit_v56_474dea8.zip` sha256 `701b2bbb…`：trsm.c = v56 生产码（master 474dea8，sha `b68e192c…`，含 SHAPEP=100 默认开）
@@ -775,7 +789,7 @@ bench malloc 的 X fault 期拿不到大页、khugepaged 后台追赶，覆盖�
 
 | 手段 | 状态 |
 |---|---|
-| REHUGE（算子内重铺 X 大页） | 判题机实测 −6.5%/−6.8%（真收益），**用户裁定合规性得不到保证，默认不做**（两次裁定，关闭） |
+| REHUGE（算子内重铺 X 大页） | 判题机实测 −6.5%/−6.8%（真收益）。此前两次裁定不做；**2026-09-14 状态更新：用户已向官方报备**（报备材料=机制四步/不改数据/不减计时工作/与 --preferred 同类的页放置），并要求打测试包实测。fresh31 = v56+REHUGE（代码默认关、包内 run.sh 开 `TRSM_REHUGE=1`），验证与包见下节 |
 | 压实助手（run.sh 级伙伴系统整理） | 判题机 buddyinfo 实测无碎片可压（953×order-10 空闲），前提不成立，**证伪关闭** |
 | `GLIBC_TUNABLES=glibc.malloc.hugetlb=1`（run.sh） | 已导出；判题机 glibc 2.34 不支持（2.35+），静默无效，无副作用保留 |
 | MADV_COLLAPSE / khugepaged 调参 | 内核 5.10 无该 madvise（6.1+）；khugepaged 参数 root 只读，不可行 |
