@@ -2808,15 +2808,25 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
-            if (osw_on && tkn && tkn->kind == 0 && tkn->p == p && tkn->i == i + 1) {
-                // OSW：仅同面板下一块时排队（队列区 [i0..] 与后续任务写区 [i0+64..) 永不相交；
-                // 面板末块回退同步写——khead/换面板时 cbuf 行会被 XONE/khead 覆写，走线器源必须已排干）
+            if (osw_on && (!tkn || (tkn->kind == 0 && tkn->i != i))) {
+                // OSW+：排队守卫 = 下任务行号 != 本块行号（同行号时下任务 XONE 旁流会在排水前覆写同批 cbuf 行——
+                // v1 官方 FAIL 的根因，含 khead ia==i 与 thief 撞行两类）；tkn==NULL（线程末任务）由区域尾 flush+发布兜底。
                 sw_t w;
                 w.src = (const char*)cb; w.dst = (char*)Bout;
                 w.lpr = nc * 8 / 64; w.cnt = w.lpr;
                 w.dstj = ldb * 8 - nc * 8; w.rows = mbi;
                 tb->swq[tb->swn++] = w; tb->n_swq += mbi * w.lpr;
                 tb->osw_pi = i; tb->osw_pp = p;   // flag 顺延（在下一任务 store 的 sw_flush 后发布）
+                // NEXTA 不能丢（Fable-TC1 审计：v2 静默丢失 → 下任务 chunk-0 冷 A ≈ −1.7% 吃光收益）：
+                // 排队后 store 相无其他工作，突发 prfm 由 MSHR 自然配速
+                if (na) for (long r = 0; r < mbi; r++) {
+                    const char* q = na + r * nal;
+                    for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
+                    if (na2) {
+                        const char* q2 = na2 + r * 512;
+                        for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
+                    }
+                }
             } else if (dxw_on) {
                 // DXW：X 已在对角相双写完成，store 相整体跳过。NEXTA prfm 也不能留：紧跟 48KB 在途 NT 写
                 // 发 768 条 prfm 会逐条阻塞（§10t，dx70 实测 store 桶 1.05ms 全是它）；NEXTA 兜底后续按需回补。
