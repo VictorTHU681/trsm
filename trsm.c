@@ -6022,8 +6022,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // Tune B prefetch separately for the paired-row owner loop.
     if (c.special == 5) c.loadpf = env_int("TRSM_LOADPF", 0);
 
-    // Full NC128, MB256 specialization already requires swhost=0.
-    g_diag_compact=env_int("TRSM_DIAG_COMPACT",1) && c.special==2 && !c.swhost;
+    // Full NC128 specializations use fixed strides and no hosted X copy.
+    g_diag_compact=env_int("TRSM_DIAG_COMPACT",1) && (c.special==2 || c.special==4) && !c.swhost;
     g_implicit_owner = env_int("TRSM_IMPLICIT_OWNER",1) && c.special==5 && c.m<=1024
         && c.cshift==0 && c.ppmode==0 && c.mb==64 && c.nc==96 && c.kc==64
         && c.m%64==0 && c.n%96==0 && env_int("TRSM_KHEADW",0)==0
