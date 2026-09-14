@@ -41,6 +41,7 @@ export OMP_DYNAMIC=FALSE
 export OMP_MAX_ACTIVE_LEVELS=1
 export OMP_WAIT_POLICY=active
 export GOMP_SPINCOUNT=infinite
+export BLAS_NUM_THREADS=38   # kblas 池防收缩：TC3 每调用 505µs 线程重建税（Fable-TC3 候选 A）
 unset GOMP_CPU_AFFINITY OMP_THREAD_LIMIT 2>/dev/null || true
 
 # CPU 节点：默认绑 node 9（判题机为共享机器，避开常见默认 node 1 的争用；node 7 的两个线上 TC1 样本
