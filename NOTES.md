@@ -1337,3 +1337,14 @@ os98 消融锁死相克项：**STEAL**（osw_nosteal/osw_min 唯二 PASS，其�
 数据点（osw_nosteal 2.07 vs base 1.94，n=1）显示收益为负。**OSW 全线停车**：TRSM_OSW 默认 0、代码休眠；
 对角窗写侧 OSW/DXW/SLX/XPW 四连证伪收官。2a xpd 寄存器偏移 prfm 亦证伪（−5.5%，寄存器形式伤常态槽），
 白发问题留给"t=5 专用无 prfm 实例"形态（未试）。BLAS_NUM_THREADS=38 无效（kblas 按形状自限，池照缩）。
+
+### val65 全形状验证闸 + BLAS 池税终局（2026-09-14 夜）
+
+**全形状全绿**：gen 140 形状×5 环境（默认60/owner+steal30/cfold20/5thr20/1thr10）0 failures；
+20 个官方/扰动/边角形状（含 65×97、511×19968、2433×17023、96×17024 等）全 PASS；线程 1/5/37 × 官方三形状全 PASS。
+
+**BLAS_NUM_THREADS 终局：两个方向都否**。=38 无效（kblas 按形状自限，池照缩）；=1 治好 TC3
+（wake 500→13µs，35.3→34.9ms，+1.2%）但反噬 TC1 −16%（1.94→2.25ms）：kblas 对 TC1/TC2 形状本就用满 38
+（池不缩），=1 反把池缩到 1、TC1 每调用重建 37 线程。分数净 −360 量级。池税的正解需要"池保 38 且 kblas 随意"
+的机制，libgomp 无此旋钮（WAIT_POLICY=active 也拦不住 kblas 小 team 后的收缩）——**候选 A 关闭**。
+TC3 wake 税 ~0.5ms/调用 确认存在但暂无合规解。
