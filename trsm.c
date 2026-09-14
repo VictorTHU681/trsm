@@ -6296,7 +6296,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xpre = env_int("TRSM_XPRE", 0);        // XPRE：下一任务 X 块借白发游标槽铺 L2（审计 §10w 候选 1），筛查中
         c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
         c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
-        c.steal = env_int("TRSM_STEAL", 0);      // STEAL：面板粒度尾部窃取（争用税对策），筛查中
+        c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
+                                                 // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
