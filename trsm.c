@@ -2179,6 +2179,27 @@ static void w_prep_run(const ctx_t* c, int tid)
     sme_stop();
     // 调试自检（TRSM_WGEMM_CHECK=1，仅线程 0）：标量前向替换求 W 参考，与 slot/pp/diag 逐元素比对，打印首个错块
     if (tid == 0 && env_int("TRSM_WGEMM_CHECK", 0)) {
+        {   // 乘积原语隔离：za = A(k-major)·B(行主序) 与标量对比（验证 kloop/za_dump/scratch 几何假设）
+            static double ap[1024], bm[64 * 32], ref[16 * 32];
+            for (int k = 0; k < 64; k++) for (int r = 0; r < 16; r++) ap[k * 16 + r] = 0.001 * k + 0.01 * r + 1.0;
+            for (int k = 0; k < 64; k++) for (int q = 0; q < 32; q++) bm[k * 32 + q] = 0.002 * k - 0.03 * q + 0.5;
+            for (int r = 0; r < 16; r++) for (int q = 0; q < 32; q++) {
+                double s = 0; for (int k = 0; k < 64; k++) s += ap[k * 16 + r] * bm[k * 32 + q];
+                ref[r * 32 + q] = s;
+            }
+            sme_start();
+            sme_zero_za();
+            kloop_plain(ap, 128, 128, bm, 32 * 8, 64, 32, &pfd);
+            za_dump(scratch);
+            sme_stop();
+            double em = 0; int br = -1, bq = -1;
+            for (int r = 0; r < 16; r++) for (int q = 0; q < 32; q++) {
+                double e = fabs(scratch[r * 32 + q] - ref[r * 32 + q]);
+                if (e > em) { em = e; br = r; bq = q; }
+            }
+            fprintf(stderr, "[wchk] 原语 emax %.3e @(r%d,c%d) got %.6f want %.6f\n", em, br, bq,
+                    br >= 0 ? scratch[br * 32 + bq] : 0.0, br >= 0 ? ref[br * 32 + bq] : 0.0);
+        }
         long m = c->m;
         double* Wr = malloc((size_t)m * m * 8);
         if (Wr) {
