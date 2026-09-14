@@ -2177,6 +2177,42 @@ static void w_prep_run(const ctx_t* c, int tid)
         while (__atomic_load_n(&sc_done[K], __ATOMIC_ACQUIRE) < sc_items) asm volatile("yield");
     }
     sme_stop();
+    // 调试自检（TRSM_WGEMM_CHECK=1，仅线程 0）：标量前向替换求 W 参考，与 slot/pp/diag 逐元素比对，打印首个错块
+    if (tid == 0 && env_int("TRSM_WGEMM_CHECK", 0)) {
+        long m = c->m;
+        double* Wr = malloc((size_t)m * m * 8);
+        if (Wr) {
+            for (long j = 0; j < m; j++) {          // 逐列解 L·w = e_j
+                for (long r = 0; r < m; r++) {
+                    double s = (r == j) ? 1.0 : 0.0;
+                    for (long q = j; q < r; q++) s -= L[r * lda + q] * Wr[q * m + j];
+                    Wr[r * m + j] = (r >= j) ? s / L[r * lda + r] : 0.0;
+                }
+            }
+            double emax_slot = 0, emax_pp = 0, emax_dg = 0; long bad[6] = {-1,-1,-1,-1,-1,-1};
+            for (long I = 0; I < nB; I++) for (long J = 0; J <= I; J++) {
+                const double* sl = w_slot64(I, J);
+                for (int r = 0; r < 64; r++) for (int q = 0; q < 64; q++) {
+                    double w = ((64*J + q) <= (64*I + r)) ? Wr[(64*I + r) * m + 64*J + q] : 0.0;
+                    double e = fabs(sl[r * 64 + q] - w);
+                    if (e > emax_slot) { emax_slot = e; bad[0] = I; bad[1] = J; }
+                }
+                if (J < I) for (int r = 0; r < 4; r++) for (int kq = 0; kq < 64; kq++) for (int rr = 0; rr < 16; rr++) {
+                    double w = -Wr[(64*I + 16*r + rr) * m + 64*J + kq];
+                    double e = fabs(c->pp[0][c->pp_off[4*I] + ((size_t)J*4 + r)*1024 + kq*16 + rr] - w);
+                    if (e > emax_pp) { emax_pp = e; bad[2] = I; bad[3] = J; }
+                }
+                if (J == I) for (int s = 0; s < 4; s++) for (int hp = 0; hp <= s; hp++) for (int q = 0; q < 16; q++) for (int rr = 0; rr < 16; rr++) {
+                    double w = Wr[(64*I + 16*s + rr) * m + 64*I + 16*hp + q];
+                    double e = fabs(c->diag[c->diag_off[I] + diag_strip_off(s) + (size_t)hp*256 + q*16 + rr] - w);
+                    if (e > emax_dg) { emax_dg = e; bad[4] = I; bad[5] = s; }
+                }
+            }
+            fprintf(stderr, "[wchk] slot emax %.3e @(I%ld,J%ld) | pp emax %.3e @(I%ld,J%ld) | diag emax %.3e @(I%ld,s%ld)\n",
+                    emax_slot, bad[0], bad[1], emax_pp, bad[2], bad[3], emax_dg, bad[4], bad[5]);
+            free(Wr);
+        }
+    }
 }
 
 // ---------------------------------------------------------------- 任务执行
