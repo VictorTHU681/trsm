@@ -893,6 +893,37 @@ int main(void)
             if (ref != out[r * 16 + cc]) { if (!bad) printf("UNIT first diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, out[r * 16 + cc]); bad++; }
         }
         printf("UNIT first: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        // UNIT2：F; R0 真实对子（K=80 的 bank0 全累加）
+        sme_start();
+        sme_zero_za();
+        dd_b0_first(Af, Bf, gxpan, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        dd_b0_rem(Ar, Br, 16);
+        dd_flush_b0_set(out, 128);
+        sme_stop();
+        bad = 0;
+        for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+            double ref = 0;
+            for (long k = 0; k < 64; k++) ref += Af[k * 16 + r] * Bf[k * NCP + cc];
+            for (long k = 0; k < 16; k++) ref += Ar[k * 16 + r] * Br[k * NCP + cc];
+            if (ref != out[r * 16 + cc]) { if (!bad) printf("UNIT2 diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, out[r * 16 + cc]); bad++; }
+        }
+        printf("UNIT2 F+R0: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        // UNIT3：F; R0; ZL(B4) —— 完整 tile 序列，检查 za0-3 是否被 ZL 影响（对照 UNIT2 的 ref）
+        static double tmp3[16 * 16];
+        sme_start();
+        sme_zero_za();
+        dd_b0_first(Af, Bf, gxpan, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        dd_b0_rem(Ar, Br, 16);
+        dd_b4_zlast(Af, Bf + 16, tmp3, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        sme_stop();
+        bad = 0;
+        for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+            double ref = 0;
+            for (long k = 0; k < 64; k++) ref += Af[k * 16 + r] * Bf[k * NCP + cc];
+            for (long k = 0; k < 16; k++) ref += Ar[k * 16 + r] * Br[k * NCP + cc];
+            if (ref != tmp3[r * 16 + cc]) { if (!bad) printf("UNIT3 diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, tmp3[r * 16 + cc]); bad++; }
+        }
+        printf("UNIT3 F+R0+ZL 排水: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
         return 0;
     } }
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
