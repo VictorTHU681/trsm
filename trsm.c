@@ -1985,19 +1985,22 @@ static void w_inv16(const double Lss[16][16], double inv[16][16])
         }
     }
 }
-// C(16×16, row-major) (+)= A(16×16 row-major) · B(16×16 row-major)
+// C(16×16, row-major) (+)= A(16×16 row-major) · B(16×16 row-major)——流式 SVE（w_prep 级循环在 sme_start 区内调用）
 static inline void w_mm16(const double* restrict A, const double* restrict B, double* restrict C, int accum)
 {
+    const svbool_t pg = svptrue_b64();
     for (int r = 0; r < 16; r++) {
-        double row[16];
-        if (accum) for (int q = 0; q < 16; q++) row[q] = C[r * 16 + q];
-        else       for (int q = 0; q < 16; q++) row[q] = 0.0;
+        svfloat64_t c0, c1;
+        if (accum) { c0 = svld1_f64(pg, C + r * 16); c1 = svld1_f64(pg, C + r * 16 + 8); }
+        else       { c0 = svdup_f64(0.0); c1 = svdup_f64(0.0); }
         for (int t = 0; t < 16; t++) {
+            svfloat64_t b0 = svld1_f64(pg, B + t * 16), b1 = svld1_f64(pg, B + t * 16 + 8);
             double a = A[r * 16 + t];
-            const double* b = B + t * 16;
-            for (int q = 0; q < 16; q++) row[q] += a * b[q];
+            c0 = svmla_n_f64_x(pg, c0, b0, a);
+            c1 = svmla_n_f64_x(pg, c1, b1, a);
         }
-        for (int q = 0; q < 16; q++) C[r * 16 + q] = row[q];
+        svst1_f64(pg, C + r * 16, c0);
+        svst1_f64(pg, C + r * 16 + 8, c1);
     }
 }
 static inline double* w_slot(long g, long h) { return g_w_acc + ((size_t)g * (g + 1) / 2 + h) * 256; }
@@ -2011,14 +2014,17 @@ static void w_emit(const ctx_t* c, long g, long h, const double* S)
         for (int q = 0; q < 16; q++)
             for (int rr = 0; rr < 16; rr++) dst[q * 16 + rr] = S[rr * 16 + q];
     } else {
+        // 块内三角进 diag：存 +W_ii（取反）——W 尾块先行、za_owner_dstore 直写 acc（覆盖语义），
+        // GEMM 块随后以 C -= (−W)·B 累加其上（求和顺序无关）
         long hh = h - 4 * i;
         double* dst = c->diag + c->diag_off[i] + diag_strip_off((int)r) + (size_t)hh * 256;
         for (int q = 0; q < 16; q++)
-            for (int rr = 0; rr < 16; rr++) dst[q * 16 + rr] = S[rr * 16 + q];
+            for (int rr = 0; rr < 16; rr++) dst[q * 16 + rr] = -S[rr * 16 + q];
     }
 }
+static int g_w_nw;   // W 递推工人线程数（TRSM_WGEMM_NW，默认 10）：其余线程判定后直接进任务，靠 pflags/dcnt 逐条等（流水化）
 // 全体线程在并行区调用：占优扫描 → 判定 → 右视递推计算 −W 并发布（pflags/dcnt 语义与现行打包一致）
-static void w_prep_run(const ctx_t* c)
+static void w_prep_run(const ctx_t* c, int tid)
 {
     const long G = c->nstrip;
     const double* L = c->L;
@@ -2057,7 +2063,10 @@ static void w_prep_run(const ctx_t* c)
     }
     while (__atomic_load_n(&g_w_decided, __ATOMIC_ACQUIRE) < 2) asm volatile("yield");
     if (!g_w_on) return;   // 回退：调用方走常规预处理
-    // 阶段 1：右视递推。层 k：fin(k)（S[k,h] = S_kk·Acc[k,h]，先求逆项）→ sc(k)（Acc[g,h] += L[g,k]·S[k,h]，g>k）
+    if (tid >= g_w_nw) return;   // 非工人：直接进任务阶段，消费点按 pflags/dcnt 逐条等（W 链与任务流水重叠）
+    // 阶段 1：右视递推。层 k：fin(k)（S[k,h] = S_kk·Acc[k,h]，先求逆项）→ sc(k)（Acc[g,h] += L[g,k]·S[k,h]，g>k）。
+    // 乘积用流式 SVE（整段 sme_start；区内无 libc/NEON，标量与自旋合法）
+    sme_start();
     int* fin_next = g_w_ctr;             // 每层领取游标
     int* fin_done = g_w_ctr + G;
     int* sc_next  = g_w_ctr + 2 * G;
@@ -2088,7 +2097,10 @@ static void w_prep_run(const ctx_t* c)
                 double* slot = w_slot(k, h);          // 进：Acc[k,h]；出：S[k,h]（就地）
                 double Sk[256];
                 w_mm16(w_slot(k, k), slot, Sk, 0);    // S_kk·Acc → 注意 S_kk 已含负号，Acc 含 +Σ L·S
-                memcpy(slot, Sk, sizeof(Sk));
+                {   // 流式区内不可用 memcpy（NEON）：SVE 拷回
+                    const svbool_t pg = svptrue_b64();
+                    for (int q = 0; q < 256; q += 8) svst1_f64(pg, slot + q, svld1_f64(pg, Sk + q));
+                }
                 w_emit(c, k, h, slot);
             }
             __atomic_fetch_add(&fin_done[k], 1, __ATOMIC_ACQ_REL);
@@ -2119,6 +2131,7 @@ static void w_prep_run(const ctx_t* c)
         }
         while (__atomic_load_n(&sc_done[k], __ATOMIC_ACQUIRE) < sc_items) asm volatile("yield");
     }
+    sme_stop();
 }
 
 // ---------------------------------------------------------------- 任务执行
@@ -2278,9 +2291,49 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 for (long j = 0; j < nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
             }
         }
-        if (wmode)   // W-GEMM：C 累加缓冲清零（X = Σ W·B 从 0 起累加，RHS 只作 B 操作数）
-            for (long q = 0; q < 16L * S * ncp; q += 8) svst1_f64(pg, acc + q, svdup_f64(0.0));
         if (c->prof >= 2) tb->t_load += cyc() - t0;
+    }
+
+    // 1'. W 尾块先行（W-GEMM）：acc = W_ii·B_i 直写（za_owner_dstore 覆盖语义，免 acc 清零、免 scratch 往返），
+    //     GEMM 块随后以 C -= (−W)·B 在其上累加（求和顺序无关）。B = cbuf 本块 RHS 行（只读），条带间无依赖。
+    if (wmode) {
+        if (c->nobar) {
+            uint64_t t0 = c->prof >= 2 ? cyc() : 0;
+            while (__atomic_load_n(&c->dcnt[i], __ATOMIC_ACQUIRE) < S) asm volatile("yield");
+            if (c->prof >= 2) tb->t_wait += cyc() - t0;
+        }
+        const double* D = c->diag + c->diag_off[i];
+        long nb_rows = 0, nb_done = 0, nb_lines = 0;
+        const double* nb_base = NULL;
+        long nb_ldb8 = ldb * 8;
+        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+            long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
+            nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
+            long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
+            nb_lines = (nnci * 8 + 63) / 64;
+            nb_base = c->B + ni0 * ldb + nc0;
+        }
+        for (int s = 0; s < S; s++) {
+            const double* A = D + diag_strip_off(s);
+            long K = 16L * (s + 1);
+            for (long t = 0; t < ntile; t++) {
+                pf_t pf = pf_dummy;
+                if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
+                if (nb_base && nb_done < nb_rows) {
+                    long rows_this = (K / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
+                    pf.p = (const char*)(nb_base + nb_done * ldb);
+                    pf.pfn = nb_lines;
+                    pf.pfj = nb_ldb8 - nb_lines * 64;
+                    nb_done += rows_this;
+                }
+                long cols = nci - 32 * t; if (cols > 32) cols = 32;
+                if (pf_on) { pf.pc = (const char*)(acc + 16L * s * ncp + 32 * t); pf.pcs = cs; }
+                sme_zero_za();
+                PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                PROF_T(c, za_owner_dstore(acc + 16L * s * ncp + 32 * t), t_ddump);
+                if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
+            }
+        }
     }
 
     // 2. GEMM 段：C 块 -= L[i0.., k0..k0+kk) · X[k0..k0+kk, c0..]
@@ -2509,49 +2562,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
     }
-    if (wmode) {
-        // 3'. W 尾块：acc += W_ii·B_i（diag 缓冲存 −W_ii 条带，epi_sub 语义 acc := acc − za）。
-        // B 操作数 = cbuf 中本块 RHS 行（只读）——条带间无依赖，drain 自由链入下一 K 循环，无"条末落地"。
-        const double* D = c->diag + c->diag_off[i];
-        long nb_rows = 0, nb_done = 0, nb_lines = 0;
-        const double* nb_base = NULL;
-        long nb_ldb8 = ldb * 8;
-        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
-            long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
-            nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
-            long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
-            nb_lines = (nnci * 8 + 63) / 64;
-            nb_base = c->B + ni0 * ldb + nc0;
-        }
-        for (int s = 0; s < S; s++) {
-            const double* A = D + diag_strip_off(s);
-            long K = 16L * (s + 1);
-            for (long t = 0; t < ntile; t++) {
-                pf_t pf = pf_dummy;
-                if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
-                if (nb_base && nb_done < nb_rows) {
-                    long rows_this = (K / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
-                    pf.p = (const char*)(nb_base + nb_done * ldb);
-                    pf.pfn = nb_lines;
-                    pf.pfj = nb_ldb8 - nb_lines * 64;
-                    nb_done += rows_this;
-                }
-                long cols = nci - 32 * t; if (cols > 32) cols = 32;
-                if (pf_on) { pf.pc = (const char*)(acc + 16L * s * ncp + 32 * t); pf.pcs = cs; }
-                sme_zero_za();
-                if (pend && K == 64) {
-                    PROF_T(c, kloop_epi64_sub(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
-                } else {
-                    if (pend) PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
-                }
-                PROF_T(c, za_dump(scratch), t_ddump);
-                pend = 1; pend_c = acc + 16L * s * ncp + 32 * t; pend_cols = cols;
-                if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
-            }
-        }
-        if (pend) { PROF_T(c, epi_sub_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
-    } else {
+    if (!wmode) {
         const double* D = c->diag + c->diag_off[i];
         // 下一任务的 B 子块（行距 ldb 的 1 KB 行段）在对角阶段用游标 1 预取；对角条带（连续）用游标 2
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
@@ -6319,6 +6330,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         g_w_on = 0; g_w_decided = 0; g_w_mnext = 0; g_w_mdone = 0;
         g_w_minmargin = 1e300;
         g_w_margin_thr = env_int("TRSM_WGEMM_MARGIN_MILLI", 250) / 1000.0;
+        g_w_nw = env_int("TRSM_WGEMM_NW", 10); if (g_w_nw < 1) g_w_nw = 1;
     } else g_w_on = 0;
 
     // 任务表构建：默认（TRSM_TBUILD=1）推迟到并行区由线程 0 完成，与其余线程的对角预处理重叠
@@ -6374,7 +6386,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         // 数值准入失败时 g_w_on=0，全体线程落回下面的常规预处理（决策先于任何预处理写入，pflags/dcnt 干净）。
         if (g_w_admit) {
             ensure_wacc(tid, (size_t)64 * 96);
-            w_prep_run(&c);
+            w_prep_run(&c, tid);
         }
         // 阶段 1：对角预处理（+ nobar 时的预打包条，同一张表、按行块顺序动态领取）
         if (!(g_w_admit && g_w_on)) {
