@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 echo "=== HOST $(hostname) $(date +%H:%M:%S) $(git log --oneline -1)"
 . probe/env.sh
 FLAGS="-O3 -march=armv9-a+sme+sme-f64f64+sve2 -fopenmp"
-git show HEAD~1:trsm.c > /tmp/trsm_old_$$.c
+git show HEAD~2:trsm.c > /tmp/trsm_old_$$.c
 rm -f trsm_new trsm_oldg
 gcc $FLAGS bench_trsm.c trsm.c -o trsm_new -lm -lkblas 2>&1 | grep -E "rror" | head -3
 gcc $FLAGS bench_trsm.c /tmp/trsm_old_$$.c -o trsm_oldg -lm -lkblas 2>&1 | grep -E "rror" | head -3
