@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <math.h>
 #include <omp.h>
+#include <stdint.h>
+#include <sys/mman.h>
 
 void l_trsm(int m, int n, const double* L, int lda, double* B, int ldb);
 
@@ -77,6 +79,20 @@ static double sampled_residual(int m, int n, const double* L, int lda, const dou
     return worst;
 }
 
+// FB_NOHUGE：首触前对指定缓冲打 MADV_NOHUGEPAGE 强制 4K 页（本机 THP enabled=always 缺页即得大页，
+// 这是本地复现判题机低覆盖态的唯一手段）。取值含 'x'=解矩阵 X、'l'=三角阵 L。
+// 用途：x + TRSM_REHUGE=0/1 交错 → 本地量化 X 页税与 REHUGE 回收上界（REHUGE 的 MADV_HUGEPAGE 会清掉
+// NOHUGEPAGE 标志并重缺页为大页，重铺照常生效）；l → REHUGE-L 假想收益的绝对上界（无人再碰 L 的页结构）。
+static void nohuge_if(const char* name, char tag, void* p, size_t bytes)
+{
+    const char* e = getenv("FB_NOHUGE");
+    if (!e || !p || !strchr(e, tag)) return;
+    uintptr_t lo = (uintptr_t)p & ~(uintptr_t)4095;
+    uintptr_t hi = ((uintptr_t)p + bytes + 4095) & ~(uintptr_t)4095;
+    int rc = madvise((void*)lo, hi - lo, MADV_NOHUGEPAGE);
+    fprintf(stderr, "[fb nohuge] %s %zu MB rc=%d\n", name, bytes >> 20, rc);
+}
+
 // FB_XOFF：控制解矩阵 X 的 64B 对齐偏移（字节，0..63）。未设置 = 原样 malloc（大块 mmap → 恒定 +16B）。
 // 用途：定价 X 回写 partial-line NT 写的端到端代价（FB_XOFF=0 为全对齐上界，16 ≈ malloc 现状）。
 static void* g_xbase = NULL;
@@ -98,6 +114,8 @@ static int run_case(int m, int n, int reps, int ns)
     double* B = malloc((size_t)ldb * m * sizeof(double));
     double* X = alloc_x((size_t)ldb * m * sizeof(double));
     if (!L || !B || !X) { printf("malloc failed\n"); return 1; }
+    nohuge_if("L", 'l', L, (size_t)lda * m * sizeof(double));
+    nohuge_if("X", 'x', g_xbase, (size_t)ldb * m * sizeof(double) + 64);
     double tg0 = omp_get_wtime();
     generate_matrix(m, m, L, lda, true, 12345);
     generate_matrix(m, n, B, ldb, false, 67890);   // 直接把随机矩阵当 B（官方是 B = L·X_true；解的统计性质相同，数值尺度不同）
