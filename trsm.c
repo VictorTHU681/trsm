@@ -2497,7 +2497,9 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     (const char*)(cur + 16 * ncp)), t_kloop);
                 }else if (xone_on && ch == 0) {
                 const char* xs0 = (const char*)(Bblk + 16L * r * ldb + 16 * t);
-                PROF_T(c, kloop_owner_bank0_x(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur,
+                // pend==0 时排水目标指向 xpan 哑区：首对的零 ZA 空排水若指向 cur，其体首读+锚点写会
+                // 夹住同组旁流填充（行 8-15 先读哨兵后覆写，xktest 实锤），哑区化后排水/填充永不相交
+                PROF_T(c, kloop_owner_bank0_x(A, Xk + 16 * t, pend ? pend_c : tb->xpan, pf.p, pf.p2, (const char*)cur,
                     xs0, (char*)cur, ldb * 8 - 64), t_kloop);
                 PROF_T(c, kloop_owner_bank4_x(A + 1024, Xk + 16 * t, cur, ap4v, bp4v, (const char*)(cur + 16 * ncp),
                     xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop);

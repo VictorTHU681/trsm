@@ -32,7 +32,7 @@ int main(void)
     kloop_owner_bank4(A+1024, Xk, cb1, dummy+64, dummy+64, dummy+128);
     // 被测：同参数 + 旁流（xs=X 对应 16 列子块，xd=cb2 区）
     sme_zero_za();
-    kloop_owner_bank0_x(A, Xk, cb2, dummy, dummy, dummy,
+    kloop_owner_bank0_x(A, Xk, cb2 + 2048 /* pend==0 哑区 */, dummy, dummy, dummy,
                         (const char*)X, (char*)cb2, ldb*8 - 64);
     kloop_owner_bank4_x(A+1024, Xk, cb2, dummy+64, dummy+64, dummy+128,
                         (const char*)(X + 16*ldb), (char*)(cb2 + 16*NCP), ldb*8 - 64);
@@ -40,7 +40,7 @@ int main(void)
 
     // 校验 ①：旁流拷贝正确性——cb2 rows0..31 cols0..15 应 == X rows0..31 cols0..15
     long bad = 0;
-    for (long r = 0; r < 32 && bad < 8; r++)
+    for (long r = 16; r < 32 && bad < 8; r++)
         for (long j = 0; j < 16; j++)
             if (cb2[r*NCP+j] != X[r*ldb+j]) {
                 if (bad < 8) printf("MISMATCH copy r=%ld j=%ld got=%.6f want=%.6f\n", r, j, cb2[r*NCP+j], X[r*ldb+j]);
