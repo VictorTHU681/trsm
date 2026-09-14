@@ -2679,6 +2679,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         const svbool_t pg = svptrue_b64();
         // 上一任务遗留的托管回写先同步收尾（通常已在 K 循环里完成）
         sw_flush(tb);
+        if (c->osw && tb->osw_pi >= 0) {   // OSW：上一排队任务的回写已收尾，发布其 flag
+            __atomic_store_n(&c->flags[tb->osw_pi * c->npan + tb->osw_pp], 1, __ATOMIC_RELEASE);
+            tb->osw_pi = tb->osw_pp = -1;
+        }
         // 面板主序副本：行 i0+r → 面板 ((i0+r)/kc, p) 的第 (i0+r)%kc 行（整行 nc 列，含零填充）；最后一个行块没有消费者，不写
         double* Bout=Bblk;
 
@@ -2716,16 +2720,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
-            if (osw_on) {
-                // OSW：发布上一任务 flag（其回写已由本任务对角窗排水 + 刚才的 sw_flush 收尾），排队本任务回写
-                if (tb->osw_pi >= 0)
-                    __atomic_store_n(&c->flags[tb->osw_pi * c->npan + tb->osw_pp], 1, __ATOMIC_RELEASE);
+            if (osw_on && tkn && tkn->kind == 0 && tkn->p == p && tkn->i == i + 1) {
+                // OSW：仅同面板下一块时排队（队列区 [i0..] 与后续任务写区 [i0+64..) 永不相交；
+                // 面板末块回退同步写——khead/换面板时 cbuf 行会被 XONE/khead 覆写，走线器源必须已排干）
                 sw_t w;
                 w.src = (const char*)cb; w.dst = (char*)Bout;
                 w.lpr = nc * 8 / 64; w.cnt = w.lpr;
                 w.dstj = ldb * 8 - nc * 8; w.rows = mbi;
                 tb->swq[tb->swn++] = w; tb->n_swq += mbi * w.lpr;
-                tb->osw_pi = i; tb->osw_pp = p;
+                tb->osw_pi = i; tb->osw_pp = p;   // flag 顺延（在下一任务 store 的 sw_flush 后发布）
             } else if (dxw_on) {
                 // DXW：X 已在对角相双写完成，store 相整体跳过。NEXTA prfm 也不能留：紧跟 48KB 在途 NT 写
                 // 发 768 条 prfm 会逐条阻塞（§10t，dx70 实测 store 桶 1.05ms 全是它）；NEXTA 兜底后续按需回补。
@@ -2799,7 +2802,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         }
         if (c->prof >= 2) tb->t_store += cyc() - t0;
     }
-    if (!osw_on) __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);   // OSW：flag 已顺延到下一任务 store
+    if (!(c->osw && tb->osw_pi == i && tb->osw_pp == p))   // OSW：仅本任务已排队时顺延 flag，否则即时发布
+        __atomic_store_n(&c->flags[i * c->npan + p], 1, __ATOMIC_RELEASE);
     if (c->prof >= 2) { tb->t_task += cyc() - tt0; tb->n_task++; }
     (void)tid;
     return tnext;
