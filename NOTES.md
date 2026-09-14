@@ -1158,7 +1158,16 @@ vruntime → 共租户线程一醒来就抢占我们**（线上方差物理源�
   stnt1d），写在 dkloop 计算期间后台排空，消掉 store 相整遍重读。非挪读非加事务，减事务族（同 CFOLD）。
   风险：store queue 深度（K=16 瓦片盖不住 4KB 排空）；与 DWPF 分池交叉测。
 - **P3 env_int 缓存（0.6-0.8%，零风险）**：每计时调用 ~50 次 getenv 扫 environ，判题机 env 60-120 项
-  ≈12-15µs/调用。首调用快照 TRSM_* 进静态表。
+  ≈12-15µs/调用。首调用快照 TRSM_* 进静态表。**已实施并冒烟全绿**（p3smoke：解析正常/三用例 PASS/gen×2 全过，
+  本地 setup 0.006ms；收益在判题机大 env 侧）。
+- **P2 DXW 证伪（dx70/dx71，cn20481/cn20488，gen 全绿）**：v1 留 NEXTA prfm → 在途 48KB NT 写后 768 条 prfm
+  逐条阻塞（store 桶 1.05ms 假象）；v2 去 prfm 后**完美零和**：store 0.116→0.002 全消，但 ddump +0.130、
+  dkloop +0.027 原额吃回，连 base 里 store 渗进下任务 kloop 的 0.033 都守恒（task 1.774 vs 1.778）。
+  **§10t 定律扩展为终态：读（SLX）/预取（XPRE/LDPIPE）/写（DXW）三族窗口间挪动全部守恒——单核内存引擎
+  是严格预算**。DXW 代码保留（TRSM_DXW 默认 0）。附带发现：base 的 store NT 写本就渗入下任务 kloop（0.033），
+  相位边界是多孔的，引擎自平衡，无可收割。
+- **node 9 换绑（用户裁定 2026-09-14）**：node 7 仅有的两个线上 TC1 样本（2668/2656）均为带下沿，判题机诊断
+  不做（省提交），直接 run.sh 默认 node 7→9 抽签（v59 生效）；P4 nice 方案用户否决。
 - **P4 run.sh 探测式 nice -20**（若判题以 root 跑：权重 87×，抢占免疫到手；探测失败零成本回退；压制共租户
   需用户拍板）；P5 条件项（cgroup 节流实锤才换有限自旋）；P7 mtune neoverse 变体（±0.5%）。
 - 已盖确认无遗漏：LOADPF/NEXTA/C0/SHAPEP 拨盘、setup 缓存、khead 对齐、bench 热度、glibc tunables、
