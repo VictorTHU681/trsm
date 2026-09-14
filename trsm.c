@@ -2123,15 +2123,13 @@ static void w_prep_run(const ctx_t* c, int tid)
                 const long J = it - 1;
                 while (!__atomic_load_n(&inv_flag[K], __ATOMIC_ACQUIRE)) asm volatile("yield");
                 double* slot = w_slot64(K, J);        // 进 Acc[K,J] → 出 +W[K,J]（就地）
-                double out[64 * 64];
+                double out[64 * 64];                  // 暂存：B 操作数（slot）在 8 个微块间共用，不能边算边覆写
                 for (int r = 0; r < 4; r++)
                     for (int t = 0; t < 2; t++) {
                         sme_zero_za();
                         kloop_plain(wkk_pack + (size_t)r * 1024, 128, 128, slot + 32 * t, 64 * 8, 64, 32, &pfd);
                         za_dump(scratch);
-                        for (int rr = 0; rr < 16; rr++)
-                            for (int q = 0; q < 32; q += 8)
-                                svst1_f64(pg, out + (size_t)(16 * r + rr) * 64 + 32 * t + q, svld1_f64(pg, scratch + rr * 32 + q));
+                        epi_set_std(scratch, out + (size_t)16 * r * 64 + 32 * t, 64 * 8, 32);   // za_dump 布局的生产级读者
                     }
                 for (int q = 0; q < 64 * 64; q += 8) svst1_f64(pg, slot + q, svld1_f64(pg, out + q));
                 for (int r = 0; r < 4; r++) {   // pp 发布：−W，k-major 1024 单元
@@ -2159,6 +2157,8 @@ static void w_prep_run(const ctx_t* c, int tid)
             const long J = it % (K + 1);
             for (int r = 0; r < 4; r++)
                 pack_strip(L, lda, c->m, 64 * I + 16 * r, 64 * K, 64, apack + (size_t)r * 1024);
+            for (int q = 0; q < 4096; q += 8)   // A 取负：za = (−L)·W，epi_sub 语义 Acc -= za = Acc + L·W
+                svst1_f64(pg, apack + q, svneg_f64_x(pg, svld1_f64(pg, apack + q)));
             const double* wkj = w_slot64(K, J);
             double* dslot = w_slot64(I, J);
             for (int r = 0; r < 4; r++)
@@ -2166,11 +2166,7 @@ static void w_prep_run(const ctx_t* c, int tid)
                     sme_zero_za();
                     kloop_plain(apack + (size_t)r * 1024, 128, 128, wkj + 32 * t, 64 * 8, 64, 32, &pfd);
                     za_dump(scratch);
-                    for (int rr = 0; rr < 16; rr++)
-                        for (int q = 0; q < 32; q += 8) {
-                            double* dd = dslot + (size_t)(16 * r + rr) * 64 + 32 * t + q;
-                            svst1_f64(pg, dd, svadd_f64_x(pg, svld1_f64(pg, dd), svld1_f64(pg, scratch + rr * 32 + q)));
-                        }
+                    epi_sub_std(scratch, dslot + (size_t)16 * r * 64 + 32 * t, 64 * 8, 32);
                 }
             __atomic_fetch_add(&sc_done[K], 1, __ATOMIC_ACQ_REL);
         }
