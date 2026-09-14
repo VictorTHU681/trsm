@@ -1,0 +1,54 @@
+=== HOST cn20484 11:59:21 23f0b81 fresh31: REHUGE 移植到 v56（默认关，官方报备待批）——首调用 X 大页重铺，diag3 判题机实测 TC1 −6.5%
+[env] host=cn20484 hbm=17 MEMOPT=--preferred=17 nodes=available: 32 nodes (0-31)
+abb84d8180f6b063fb1d9f1d109c54a35a203072b53099f08261c353fda8992c  trsm.c
+=== 一次性触发确认（SMAPS 打印应只出现 1 次/用例）
+1
+=== 官方三用例 REHUGE=1/0 交错 ×3
+--- RUN off_512_1
+   512 x 19968         1.89    2775.2611     3.33e-16     PASS
+--- RUN on_512_1
+   512 x 19968         1.89    2775.4879     3.33e-16     PASS
+--- RUN off_2432_1
+  2432 x 17024        23.64    4259.6034     7.77e-16     PASS
+--- RUN on_2432_1
+  2432 x 17024        23.57    4271.3101     7.77e-16     PASS
+--- RUN off_17024_1
+ 17024 x   512        35.15    4222.0386     1.50e-15     PASS
+--- RUN on_17024_1
+ 17024 x   512        35.19    4216.9044     1.50e-15     PASS
+--- RUN off_512_2
+   512 x 19968         1.89    2772.9470     3.33e-16     PASS
+--- RUN on_512_2
+   512 x 19968         1.89    2774.0939     3.33e-16     PASS
+--- RUN off_2432_2
+  2432 x 17024        23.54    4277.5238     7.77e-16     PASS
+--- RUN on_2432_2
+  2432 x 17024        23.49    4287.1036     7.77e-16     PASS
+--- RUN off_17024_2
+ 17024 x   512        35.03    4236.4837     1.50e-15     PASS
+--- RUN on_17024_2
+ 17024 x   512        35.20    4215.3207     1.50e-15     PASS
+--- RUN off_512_3
+   512 x 19968         1.88    2791.0720     3.33e-16     PASS
+--- RUN on_512_3
+   512 x 19968         1.89    2776.8428     3.33e-16     PASS
+--- RUN off_2432_3
+  2432 x 17024        23.45    4294.7503     7.77e-16     PASS
+--- RUN on_2432_3
+  2432 x 17024        23.44    4296.4033     7.77e-16     PASS
+--- RUN off_17024_3
+ 17024 x   512        34.94    4247.4419     1.50e-15     PASS
+--- RUN on_17024_3
+ 17024 x   512        35.02    4237.1156     1.50e-15     PASS
+=== 泛化正确性（REHUGE=1 全程开，含小形状 skip 路径）
+[gen REHUGE=1 60]
+ALL PASS: 0 failures
+[gen REHUGE=1 强制owner 30]
+ALL PASS: 0 failures
+[gen REHUGE=1 owner关 20]
+ALL PASS: 0 failures
+[gen REHUGE=1 5线程 20]
+ALL PASS: 0 failures
+[gen 默认(REHUGE=0) 30]
+ALL PASS: 0 failures
+=== DONE 12:00:17
