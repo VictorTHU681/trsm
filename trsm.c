@@ -6312,7 +6312,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
 
     // W-GEMM 模式（TRSM_WGEMM，默认开）：形状准入 = implicit-owner 全套门 + nobar；数值准入（对角占优余量）在并行区扫描后判定。
     // 通过后本次调用把 −W=−L⁻¹ 写进 pp/diag（布局兼容），任务走 run_task_owner*_w；否则回退现行前向求解（全部旧路径保留）。
-    g_w_admit = env_int("TRSM_WGEMM", 1) && g_implicit_owner && c.nobar && !g_fused_diag && c.nstrip <= 64;
+    g_w_admit = env_int("TRSM_WGEMM", 0) && g_implicit_owner   /* 开发期默认关：净收益认证前 opt-in */ && c.nobar && !g_fused_diag && c.nstrip <= 64;
     if (g_w_admit) {
         long G = c.nstrip;
         size_t acc_d = (size_t)G * (G + 1) / 2 * 256;
