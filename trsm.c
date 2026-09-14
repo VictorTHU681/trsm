@@ -2489,7 +2489,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
-        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        if (pf_on && c->dwpf && tkn && tkn->kind == 0 && tkn->nseg == 1) {   // TRSM_DWPF：0 关
             long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
@@ -2502,7 +2502,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             for (long t = 0; t < ntile; t++) {
                 pf_t pf = pf_dummy;
                 if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
-                if (nb_base && nb_done < nb_rows) {
+                if (c->dwpf == 1 && nb_base && nb_done < nb_rows) {   // 游标版（消融=死预取）
                     long rows_this = (K / 2) / nb_lines; if (rows_this < 1) rows_this = 1;
                     pf.p = (const char*)(nb_base + nb_done * ldb);
                     pf.pfn = nb_lines;
@@ -2533,6 +2533,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     else PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
+                if (c->dwpf >= 2 && nb_base && nb_done < nb_rows) {   // L2 突发版：瓦片间发 pldl2keep（对角窗内存管道空闲，
+                    // 不占 ROB/不可丢弃性无要求；≤13 线/突发不会洪泛 MSHR）。dwpf=2 同游标配速（~216 行），=3 加密一倍
+                    long rows_this = ((c->dwpf >= 3 ? K : K / 2) / nb_lines); if (rows_this < 1) rows_this = 1;
+                    if (nb_done + rows_this > nb_rows) rows_this = nb_rows - nb_done;
+                    const char* q = (const char*)(nb_base + nb_done * ldb);
+                    for (long rr = 0; rr < rows_this; rr++, q += nb_ldb8)
+                        for (long b = 0; b < nb_lines * 64; b += 64) __builtin_prefetch((const void*)(q + b), 0, 2);
+                    nb_done += rows_this;
+                }
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
                 if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
@@ -3888,7 +3897,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
-        if (pf_on && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        if (pf_on && c->dwpf && tkn && tkn->kind == 0 && tkn->nseg == 1) {
             long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
