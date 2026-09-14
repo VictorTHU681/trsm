@@ -2687,15 +2687,9 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
             if (dxw_on) {
-                // DXW：X 已在对角相双写完成，store 相仅保留 NEXTA 预取（退化态保险）
-                if (na) for (long r = 0; r < mbi; r++) {
-                    const char* q = na + r * nal;
-                    for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
-                    if (na2) {
-                        const char* q2 = na2 + r * 512;
-                        for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
-                    }
-                }
+                // DXW：X 已在对角相双写完成，store 相整体跳过。NEXTA prfm 也不能留：紧跟 48KB 在途 NT 写
+                // 发 768 条 prfm 会逐条阻塞（§10t，dx70 实测 store 桶 1.05ms 全是它）；NEXTA 兜底后续按需回补。
+                ;
             } else {
             // SLX 回写‖装载相位交错（审计 #1）：NT 回写每行后顺手把下一任务（同面板下一行块）的 B 行 demand load
             // 进面板缓冲。回写走 WC/写通路、装载走 L1 MSHR×延迟，资源不同（§1 混合读写 445 GB/s > 单向 305），
