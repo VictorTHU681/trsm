@@ -915,6 +915,24 @@ in-app − o2 = 2.5 cyc/步 ≈ A 投递成本 ~3 cyc/行。**GEMM 被每核 A �
 **候选队列剩余**：#2 CSHIFT-owner 折叠面板是唯一站立的大项（它减少事务总量而非挪动——load 13→12 线/行 +
 store 消 2 次部分行写/行，攻的是墙本身；上界 FB_XOFF +2.8%，期望 +1.5~2.5%）；#3 加密版转低置信长尾。
 
+### v58：CFOLD 折叠面板（2026-09-14，fresh34）
+
+**机制**：bench 的 B（=X）malloc 基址 +16 → 面板起点全部错位：每 768 B 行跨 13 条 cache 行、每 svld1 拆 2 次
+L1 访问、每行 2 次部分行 NT 写（内存控制器 RMW）。既有 TRSM_CSHIFT 对 owner 关闭（v51 证伪：首/末奇面板
+路由通用路径慢 ~10% + 幻影份额）。**CFOLD**（`TRSM_CFOLD`，默认开）：owner 且 n%nc==0 且 B 错位时，
+面板 0 = 头 nc−cshift 列 ∪ 尾 cshift 列（TRSM 各列独立，cbuf 列身份对 GEMM/对角无意义），面板 1..npan−1
+全对齐整宽——**无奇面板，208 面板全走 fast owner，SHAPEP/内核/npan 零改动**；仅 load/store/khead 三处
+拷贝对面板 0 走两段（尾段 B 列 [n−cshift, n) ↔ cbuf 列 [headc, nc)）。准入是结构谓词（n%nc、错位、行距 64B 倍数），
+无用例特判；不触碰调用方内存放置。SLX 与折叠面板 0 互斥（守卫）。
+**筛查（cf62，cn20491 吵节点，[日志](logs/trsm_c62_1605645.out)）**：load 0.384→0.3625（−5.6%）、
+store 0.159→0.139（−12.6%）、task −1.8%；正确性：官方 TC1 折叠 PASS（残差与基线逐位同 3.33e-16）、
+fastbench 折叠形状 512×9600/448×7680/960×19200 PASS、gen 默认 20 + 折叠强制 owner 25 全绿。
+**认证（cf63，两节点各 8v8 ABBA，官方 bench 无 PROFILE，[a](logs/trsm_c63a_1605656.out)/[b](logs/trsm_c63b_1605658.out)）**：
+TC1 cn20487 2.055→2.020（**−1.70%**）、cn20491 2.360→2.305（**−2.33%**）；TC2/TC3 守卫不触发、±0.5% 噪声带。
+判题机 B 同为 glibc mmap+16 错位、REHUGE 重铺不改 VA → 收益可迁移，折线上 TC1 +50~70 分。
+**v58 = v57 + CFOLD 默认开**（另含本轮实验残留：TRSM_DWPF/TRSM_SLX/TRSM_SLXB/AC1_HINT 全部默认=现状，
+不影响生产路径）。门禁 final58 = run.sh×2 + 题面原样×2 + gen 80/40/20/LTO40 + CFOLD 专项 gen 30。
+
 ### TC1 线上不稳定：合规手段终局盘点（2026-09-13 深夜复核）
 
 线上 TC1 不稳定的两个来源（diag/diag3 判题机实锤，§10g-online 起）：**页税 ~6.5%**（openEuler 5.10 THP=madvise 下
