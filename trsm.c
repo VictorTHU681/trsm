@@ -1942,6 +1942,8 @@ typedef struct {
     int dwpf;               // 对角窗内下一任务 B 子块预取（游标 1）开关（TRSM_DWPF，默认 1=现状；审计 #3 消融用）
     int slx;                // 回写‖装载相位交错（TRSM_SLX，默认 0）：owner 回写相逐行后接下一任务同面板 B 行装载
     long slxb;              // SLX 块交错粒度（TRSM_SLXB，默认 8 行）：store 突发/load 突发轮替的段长
+    int xpre;               // XPRE（TRSM_XPRE，默认 0）：1=末对 ap 白发槽铺下一任务 X 行进 L2；2=+末 xpre_pairs 对 bp 冗余槽
+    long xpre_pairs;        // XPRE 档 2 的尾部条带对窗口（TRSM_XPRE_PAIRS，默认 6）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2261,6 +2263,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     //    条带序列 q = (段序号 - 首段) * S + r；JIT 时"下一条"的转置交错在本条的 4 个 K 循环里（两块 A 缓冲交替）。
     int cpy = 0;   // 预打包副本选择（按任务交替）
     if (!(fast_owner ? 0 : c->jit) && c->pp[1]) cpy = (int)((i + p) & 1);
+    // XPRE（审计 §10w 候选 1）：下一任务 X 块（≤64 行 × 768 B）借 GEMM 末段白发游标槽铺进 L2，
+    // 使其 load 相从 DRAM 拷贝变 L2 拷贝（load 是每核 MLP 墙、频率不敏感——判题机换算比主敌）。
+    long xp_rows = 0, xp_done = 0;
+    const double* xp_base = NULL;
+    if (fast_owner && c->xpre && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        long ni0 = (long)tkn->i * mb;
+        xp_rows = c->m - ni0; if (xp_rows > mb) xp_rows = mb;
+        xp_base = c->B + ni0 * ldb + pan_c0(c, tkn->p);
+    }
     if (!(fast_owner ? 0 : c->jit) && ((fast_owner ? 0 : c->ppmode) == 1 || c->nobar) && i0 > 0) {   // 等本行块各条打包完成（nobar 时预打包也按条设 flag）
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         for (int r = 0; r < S; r++)
@@ -2332,6 +2343,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
         long pfq = q + (host_now ? 2 : 1);
         for (long t = 0; t < (fast_owner ? 6 : ntile); t++) {
             pf_t pf = pf_dummy;
+            const char* xp_ap4 = NULL; const char* xp_bp4 = NULL;   // XPRE：cursor4 的独立基址（X 行距远大于 +1024 硬编码）
             // 游标 1：条 pfq 的 A（每微块 K/2 行；JIT：4 个微块各 4 行 L；预打包：连续 4 段）
             if (pf_on && pfq < nstrips) {
                 long pr0 = i0 + (fast_owner ? 32 * (pfq % (S / 2)) : 16 * (pfq % S));
@@ -2352,13 +2364,27 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                     pf.pfn = PF_CONTIG_LINES;
                     pf.pfj = 0;
                 }
+            } else if (fast_owner && c->xpre && xp_base && xp_done + 2 <= xp_rows) {
+                // XPRE（审计 §10w 候选 1）：末对 ap 槽本指向 dummy（192 条白发 prfm）——改铺下一任务 X 块两行进 L2。
+                // 每 kernel 16 条 prfm 盖 1 KB：768 B 行 + 4 条越界（无害）；cursor0/4 各一行（xp_ap4 独立基址）。
+                pf.p = (const char*)(xp_base + xp_done * ldb);
+                xp_ap4 = (const char*)(xp_base + (xp_done + 1) * ldb) - 1024;
+                pf.pfn = PF_CONTIG_LINES; pf.pfj = 0;
+                xp_done += 2;
             }
             // 游标 2：下一段 X 面板（连续），只在本段后半的条里发，每微块 K/2 行；空闲槽在最后两段里用于对角条
             int p2_used = 0;
             // 面板驻留模式（TRSM_OWNER_PF2，默认开）：X 面板在本线程 L2 里不用预取，游标 2 改为把 A 流预取得更深——
             // 预打包 A 按段主序连续，游标 1 的 ntile 个微块只盖住下一条的 ntile×K/2 行，游标 2 从其后接着盖（下一条余下部分 + 下下条）。
             // 官方 bench 交错三轮：2.48/2.49/2.47 → 2.35/2.37/2.44 ms。游标 3 也改预取 A（再深 8 KB/微块）反而慢到 2.6–2.7：突发 prfm 过多
-            if (pf_on && (fast_owner ? 1 : c->owner) && c->pf2 && !(fast_owner ? 0 : c->jit) && pfq < nstrips) {
+            if (fast_owner && c->xpre >= 2 && xp_base && xp_done + 2 <= xp_rows && t >= 2
+                && pfq < nstrips && nstrips - pfq <= c->xpre_pairs) {
+                // XPRE 档 2：末 xpre_pairs 对里 bp 的 t≥2 槽（与下对 ap 覆盖重复的 33% 白发）改铺 X 行
+                pf.p2 = (const char*)(xp_base + xp_done * ldb);
+                xp_bp4 = (const char*)(xp_base + (xp_done + 1) * ldb) - 1024;
+                xp_done += 2;
+                p2_used = 1;
+            } else if (pf_on && (fast_owner ? 1 : c->owner) && c->pf2 && !(fast_owner ? 0 : c->jit) && pfq < nstrips) {
                 long pr0 = i0 + (fast_owner ? 32 * (pfq % (S / 2)) : 16 * (pfq % S));
                 long pk0 = (chfirst + pfq / (fast_owner ? S / 2 : S)) * kc;
                 const double* An = c->pp[cpy] + (fast_owner ? c->pp_off[i0 / 16] + (size_t)pfq * 2048 : packed_l_offset(c, pr0 / 16, pk0));
@@ -2384,13 +2410,15 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             if (fast_owner) {
                 // Adjacent row strips share one 16-column X tile in L1.
                 double* cur = acc + 16L * r * ncp + 16 * t;
+                const char* ap4v = (xp_ap4 ? xp_ap4 : pf.p) + 1024;    // XPRE 槽：cursor4 的 ap/bp 用独立行基址
+                const char* bp4v = (xp_bp4 ? xp_bp4 : pf.p2) + 1024;
                 if(fast_owner==2){
                 PROF_T(c, kloop_owner_cursor0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
-                PROF_T(c, kloop_owner_cursor4(A + 1024, Xk + 16 * t, cur, pf.p + 1024, pf.p2 + 1024,
+                PROF_T(c, kloop_owner_cursor4(A + 1024, Xk + 16 * t, cur, ap4v, bp4v,
                     (const char*)(cur + 16 * ncp)), t_kloop);
                 }else{
                 PROF_T(c, kloop_owner_bank0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
-                PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, pf.p + 1024, pf.p2 + 1024,
+                PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, ap4v, bp4v,
                     (const char*)(cur + 16 * ncp)), t_kloop);
                 }
                 pend = 1; pend_c = cur + 16 * ncp; pend_cols = 16;
@@ -6117,6 +6145,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dwpf = env_int("TRSM_DWPF", 1);        // 对角窗游标 1（下一任务 B 预取）消融开关，默认开=现状
         c.slx = env_int("TRSM_SLX", 0);          // 回写‖装载相位交错（审计 #1）：store(i) 逐行后接 load(i+1)，默认关待筛查
         c.slxb = env_int("TRSM_SLXB", 8);        // SLX 块交错粒度（行）；逐行版（=1）已证伪：ROB 稀释 MLP 塌方净负 3.6%
+        c.xpre = env_int("TRSM_XPRE", 0);        // XPRE：下一任务 X 块借白发游标槽铺 L2（审计 §10w 候选 1），筛查中
+        c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
         c.xptm = env_int("TRSM_XPTM", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
