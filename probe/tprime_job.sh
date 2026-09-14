@@ -17,6 +17,8 @@ TRSM_TPRIME=16 TRSM_TPRIME_S=16 timeout 900 numactl -N 1 ./probe/gen_test 40 2>&
 for tc in "512 19968 1" "2432 17024 1" "17024 512 1"; do
   TRSM_TPRIME=16 TRSM_TPRIME_S=16 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $tc 2>&1 | grep -E "PASS|FAIL"
 done
+echo "=== 本轮节点 X 页面状态（覆盖率高则 TPRIME 本机效果衰减，需按此解读）"
+TRSM_SMAPS=1 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test 512 19968 1 2>&1 | grep -E "smaps|thp|PASS" | head -8
 echo "=== TC1 A/B 交错 ×6"
 run1() { local lbl="$1"; shift; echo "--- $lbl"; env "$@" OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test 512 19968 7 2>&1 | grep -E "PASS|FAIL"; }
 for r in 1 2 3 4 5 6; do
@@ -32,11 +34,13 @@ for r in 1 2 3 4 5 6; do
   run1 "nt_$r"       TRSM_LDNTX=1                    # X 行非临时载入（一次性读不占缓存）
   run1 "ntx1lp16_$r" TRSM_LDNTX=1 TRSM_TPRIME_X=1 TRSM_LOADPF=16
 done
-echo "=== TC2/TC3 抽查（t16s16 vs off 各 2）"
+echo "=== TC2/TC3 抽查（off / t16s16 / x1lp16 / nt+x1，TC2 行距 136KB 同为逐行新页）"
 for r in 1 2; do
   for tc in "2432 17024 1" "17024 512 1"; do
     OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $tc 2>&1 | grep -E "PASS|FAIL"
     TRSM_TPRIME=16 TRSM_TPRIME_S=16 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $tc 2>&1 | grep -E "PASS|FAIL"
+    TRSM_TPRIME_X=1 TRSM_LOADPF=16 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $tc 2>&1 | grep -E "PASS|FAIL"
+    TRSM_LDNTX=1 TRSM_TPRIME_X=1 OMP_NUM_THREADS=38 numactl -N 1 $MEMOPT ./trsm_test $tc 2>&1 | grep -E "PASS|FAIL"
   done
 done
 echo "=== 分相 off / t16s16 / x1lp16"
