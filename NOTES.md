@@ -1256,3 +1256,24 @@ store 0.123→0.173 ms，大于主更新节约的 0.026 ms。两项均未合入�
 
 trsm.c 自动合并无冲突（owner/TC1 区域 vs special2/4 对角内核区域不相交）。合计相对 v57 预期：
 TC1 −1.7~−2.3%（CFOLD）+ TC2 +0.76~0.92% + TC3 +0.38~0.53%（Codex，`TRSM_DIAG_COMPACT=0` 可关）。
+
+
+### v61：XONE——装载相消灭（2026-09-14，fresh35 worktree，对手结构假说实证）
+
+**假说**（TC2 审计推出的对手画像）：X 侧单写、无独立装载相——把 X 读嵌进 GEMM K 循环内部，裸内存相位
+消失 → 频率红利恢复。**实现**：chunk-0 内核旁流（DUPLEX0/4_X_BODY + kloop_owner_bank0_x/4_x）：每 8 步组
+4 个旁流槽（A 槽 +64 / B 槽跳行），C 初值 16 行×16 列（32 线/64 步）从 X 逐线拉进 cbuf；装载相跳过
+（xone_on：fast_owner==1 && i>0 && 整块整宽 && 非折叠面板 0）。
+**三次迭代实录**：v0 槽文本序 A,B,B,A（pcadv 锚点错序）→ 行走崩坏，官方 FAIL；内核单元测试
+（probe/xktest.c）实锤第二病灶：**pend==0 首对的零 ZA 空排水体首读+锚点写夹住同组填充（行 8-15）**
+→ 排水目标哑区化（tb->xpan）修复，单测 COPY/DRAIN 全绿；v1（纯 demand ld→st 旁流）净负 4.8%：
+kloop +0.38 > load −0.28——in-kernel paced demand 依赖对串行化，≠ prfm 发射即忘；v2 **解耦流水**：
+槽内 prfm [xs,#128]（恰为下一 t 瓦片同位线，领先量=一个内核调用 ≈730cyc）+ 本槽 ld1d 变 L2 命中 → 成立。
+**认证**：双节点 8v8 ABBA（cn20484/85）：TC1 prod 2.000/2.005 → xone **1.905/1.910（−4.7% 两节点一致）**
+= 2747 GFLOPS 本地历史最好；gen 四组合（STEAL/CFOLD/5线程交叉）双节点全绿；TC2/TC3 守护持平；
+final61 门禁 20 PASS/8 档 gen 全绿（run.sh 路径 TC1 1.92ms、题面原样 2.76 vs 旧 2.95 = 回退路径 −6.4% 附赠）；
+pkg61 端到端 6 PASS。**TRSM_XONE 默认开 + 内核默认切 bank+旁流**（TRSM_OWNER_CURSOR=1 可回 cursor）。
+**定律更新**：§10t 补正例——裸内存相位可以消灭，形态必须是"内核内配速 prfm + 滞后一拍消费"
+（demand 直融串行化、between-kernel 突发阻塞均证伪）。0.6ms 频不敏时间中 0.28 已转化为频敏周期；
+线上预期 TC1 ≈ 3000-3100。剩余裸相位：store 0.12ms（同形态 stnt1d 旁流候选）。
+**包**：trsm_submit_v61_3c491b0.zip（md5 5c6ad6a3cbd1771ae23f42e169b26e20）= v60 全栈 + XONE。
