@@ -18,6 +18,7 @@ echo "=== TC2 ABBA x6"
 for r in 1 2 3 4 5 6; do
   run2 "base_$r"
   run2 "ddx_$r"  TRSM_DDX=1
+  run2 "ddxd_$r" TRSM_DDX=1 TRSM_DDXPF=0
   run2 "ddx_b$r" TRSM_DDX=1
   run2 "base_b$r"
 done

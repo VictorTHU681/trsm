@@ -486,6 +486,7 @@ typedef struct { const char* src; char* dst; long cnt; long dstj; long rows; lon
 #endif
 #define TRSM_NCPAD_BYTES (TRSM_NCPAD * 8)
 static sw_t g_sw_none;   // rows=0：无事可做
+static int g_ddxpf = 1;  // DDX prfm 接线：1=真游标 0=哑元（TRSM_DDXPF，定位 prfm 角色代价）
 #define SW_LOAD  "ldp x12, x13, [%[sw]]\n\t ldp x14, x15, [%[sw], #16]\n\t ldp x16, x17, [%[sw], #32]\n\t"
 #define SW_SAVE  "stp x12, x13, [%[sw]]\n\t str x14, [%[sw], #16]\n\t str x16, [%[sw], #32]\n\t"
 #ifndef TRSM_SW_NT
@@ -5366,13 +5367,13 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     double* cur = cb + 16L * s * ncp + 32 * t;
                     const double* B0x = cb + 32 * t;
                     const double* B4x = B0x + 16;
-                    const char* apx = (s + 1 < S) ? (const char*)(D + diag_strip_off(s + 1)) + t * K * 32
+                    const char* apx = (g_ddxpf && s + 1 < S) ? (const char*)(D + diag_strip_off(s + 1)) + t * K * 32
                                                   : (const char*)tb->scratch2;
-                    const char* pcx = (const char*)cur;
+                    const char* pcx = g_ddxpf ? (const char*)cur : (const char*)tb->scratch2;
 #define DDA(ck) (A + (ck) * 1024)
 #define DDB0(ck) (B0x + (ck) * 64 * ncp)
 #define DDB4(ck) (B4x + (ck) * 64 * ncp)
-#define DDBP(ck) ((const char*)DDA((ck) + 1))
+#define DDBP(ck) (g_ddxpf ? (const char*)DDA((ck) + 1) : (const char*)tb->scratch2)
                     if (nch == 1) {
                         PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
                         PROF_T(c, dd_b4_zlast(DDA(0), DDB4(0), cur, apx, DDBP(0), pcx), t_dkloop);
@@ -7698,6 +7699,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.dpf = env_int("TRSM_DPF", 1);
         c.packnt = env_int("TRSM_PACKNT", 0);   // P0：筛查中
         c.ddx = env_int("TRSM_DDX", 0);          // DDX：筛查中
+        g_ddxpf = env_int("TRSM_DDXPF", 1);
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
