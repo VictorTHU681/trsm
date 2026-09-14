@@ -4411,7 +4411,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                     if (slot < slots_needed) { pf.p2 = (const char*)Xkn + slot * (kk / 2) * 64; p2_used = 1; }
                 }
             }
-            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend && c->dpf) {
+            if (pf_on && !p2_used && !split && k0n + kc >= kend && dpf < dend && c->dpf && !(mode == 2 || mode == 4)) {
                 pf.p2 = dpf;
                 dpf += (kk / 2) * 64;
             }
@@ -4535,7 +4535,7 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         long nb_rows = 0, nb_done = 0, nb_lines = 0;
         const double* nb_base = NULL;
         long nb_ldb8 = ldb * 8;
-        if (pf_on && c->dwpf && tkn && tkn->kind == 0 && tkn->nseg == 1) {
+        if (pf_on && c->dwpf && !(mode == 2 || mode == 4) && tkn && tkn->kind == 0 && tkn->nseg == 1) {
             long ni0 = (long)tkn->i * mb, nc0 = pan_c0(c, tkn->p);
             nb_rows = c->m - ni0; if (nb_rows > mb) nb_rows = mb;
             long nnci = pan_nci(c, tkn->p); if (nnci > nc) nnci = nc;
@@ -6807,7 +6807,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xone = env_int("TRSM_XONE", 1);        // XONE v61 默认开：装载相融入 chunk-0 旁流（双节点认证 −4.7%）
         c.osw = env_int("TRSM_OSW", 0);          // OSW：owner 回写走线器化（筛查中）
         c.xpw = env_int("TRSM_XPW", 0);          // XPW：对角 EV 双写 Xp（筛查中）
-        c.pchain = env_int("TRSM_PCHAIN", 0) || c.xpw;   // XPW 依赖跨条链（store 跳过规则一致）
+        c.pchain = env_int("TRSM_PCHAIN", 1) || c.xpw;   // 跨条 pend 链默认开（xw93 双节点认证 −1.5%~−1.8% 三件套之一）
         c.dpf = env_int("TRSM_DPF", 1);
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
