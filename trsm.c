@@ -1967,6 +1967,7 @@ typedef struct {
     long xpre_pairs;        // XPRE 档 2 的尾部条带对窗口（TRSM_XPRE_PAIRS，默认 6）
     int dxw;                // DXW（TRSM_DXW，扫雷 P2）：owner 对角直写模式下双写 cbuf+X，消掉 store 相（筛查中）
     int steal;              // STEAL（TRSM_STEAL）：owner 完整面板段的面板粒度双端窃取（尾部救援，抢占免疫；筛查中）
+    int xone;               // XONE（TRSM_XONE，fresh35 实验）：chunk-0 内核旁流装载 C 初值，消灭独立装载相（对手结构假说）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2289,6 +2290,9 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     //（CFOLD 后 p≥1 恒真）+ 行距 64B 倍数；panel 0（cfp0）与分裂段回退普通路径。
     const int dxw_on = fast_owner && c->dxw && c->ddirect && !split && nci == nc
         && (((uintptr_t)Bblk & 63) == 0) && ((((size_t)ldb * 8) & 63) == 0);
+    // XONE：C 初值由 chunk-0 内核旁流从 X 拉入 cbuf（每 2 步 1 线），独立装载相消失。
+    // 仅 bank 内核（fast_owner==1）实现旁流；i>0 保证有 chunk-0；折叠面板 0 / 非整块回退普通装载。
+    const int xone_on = fast_owner == 1 && c->xone && !split && !cfp0 && nci == nc && mbi == mb && i > 0;
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
     if (split) {
@@ -2299,6 +2303,8 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     } else if (fast_owner && tb->pre_i == i && tb->pre_p == p) {
         // SLX：本任务 C 块已由上一任务回写相预装（store‖load 相位交错），装载相跳过（一次性消费）
         tb->pre_i = tb->pre_p = -1;
+    } else if (xone_on) {
+        // XONE：装载相取消——C 初值由 chunk-0 的旁流内核逐步拉入（pend 链保证先填后排水）
     } else {
         uint64_t t0 = c->prof >= 2 ? cyc() : 0;
         const svbool_t pg = svptrue_b64();
@@ -2487,6 +2493,12 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 PROF_T(c, kloop_owner_cursor0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
                 PROF_T(c, kloop_owner_cursor4(A + 1024, Xk + 16 * t, cur, ap4v, bp4v,
                     (const char*)(cur + 16 * ncp)), t_kloop);
+                }else if (xone_on && ch == 0) {
+                const char* xs0 = (const char*)(Bblk + 16L * r * ldb + 16 * t);
+                PROF_T(c, kloop_owner_bank0_x(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur,
+                    xs0, (char*)cur, ldb * 8 - 64), t_kloop);
+                PROF_T(c, kloop_owner_bank4_x(A + 1024, Xk + 16 * t, cur, ap4v, bp4v, (const char*)(cur + 16 * ncp),
+                    xs0 + 16L * ldb * 8, (char*)(cur + 16 * ncp), ldb * 8 - 64), t_kloop);
                 }else{
                 PROF_T(c, kloop_owner_bank0(A, Xk + 16 * t, pend ? pend_c : cur, pf.p, pf.p2, (const char*)cur), t_kloop);
                 PROF_T(c, kloop_owner_bank4(A + 1024, Xk + 16 * t, cur, ap4v, bp4v,
@@ -3026,6 +3038,150 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const dou
  "mov w12, #7\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #endif
+#define DUPLEX0_X_BODY(BS, CS, C8, C864, ALD) \
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za5h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za6h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za7h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
+ "st1d z24.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], #64\n\t" \
+ "add %[xd], %[xd], #64\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
+ "st1d z25.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], %[xj]\n\t" \
+ "add %[xd], %[xd], #704\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
+ "st1d z25.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], %[xj]\n\t" \
+ "add %[xd], %[xd], #704\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
+ "st1d z24.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], #64\n\t" \
+ "add %[xd], %[xd], #64\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+
+// XONE（对手结构假说实验，fresh35）：chunk-0 内核带 C 初值旁流——每 2 步 1 线把 X 行（原 B 值）
+// ld1d→st1d 进 cbuf C 块（16 行 × 16 列 = 32 线 / 64 步），替代独立装载相；消费由 pend 链天然晚一拍。
+static inline __attribute__((always_inline)) void kloop_owner_bank0_x(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc,
+                                      const char* xs, char* xd, long xj)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #768\n\t"
+ "mov w12, #0\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX0_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
+
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
 #undef DUPLEX0_U_LAST
@@ -3237,6 +3393,150 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const dou
  "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
 #endif
+#define DUPLEX4_X_BODY(BS, CS, C8, C864, ALD) \
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
+ "ld1d z17.d, p0/z, [%[ct], #0, mul vl]\n\t" \
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t" \
+ "ld1d z19.d, p0/z, [%[ct], #1, mul vl]\n\t" \
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t" \
+ "ld1d z21.d, p0/z, [%[cb], #0, mul vl]\n\t" \
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t" \
+ "ld1d z23.d, p0/z, [%[cb], #1, mul vl]\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z17.d, z17.d, z16.d\n\t" \
+ "st1d z17.d, p0, [%[ct], #0, mul vl]\n\t" \
+  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
+ "st1d z24.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], #64\n\t" \
+ "add %[xd], %[xd], #64\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z19.d, z19.d, z18.d\n\t" \
+ "st1d z19.d, p0, [%[ct], #1, mul vl]\n\t" \
+  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
+ "st1d z25.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], %[xj]\n\t" \
+ "add %[xd], %[xd], #704\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+  "ld1d z25.d, p0/z, [%[xs]]\n\t" \
+ "st1d z25.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], %[xj]\n\t" \
+ "add %[xd], %[xd], #704\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "fsub z21.d, z21.d, z20.d\n\t" \
+ "st1d z21.d, p0, [%[cb], #0, mul vl]\n\t" \
+  "ld1d z24.d, p0/z, [%[xs]]\n\t" \
+ "st1d z24.d, p0, [%[xd]]\n\t" \
+ "add %[xs], %[xs], #64\n\t" \
+ "add %[xd], %[xd], #64\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+
+// XONE（对手结构假说实验，fresh35）：chunk-0 内核带 C 初值旁流——每 2 步 1 线把 X 行（原 B 值）
+// ld1d→st1d 进 cbuf C 块（16 行 × 16 列 = 32 线 / 64 步），替代独立装载相；消费由 pend 链天然晚一拍。
+static inline __attribute__((always_inline)) void kloop_owner_bank4_x(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc,
+                                      const char* xs, char* xd, long xj)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ldnt1d z0.d, p0/z, [%[a]]\n\t"
+ "ldnt1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #768\n\t"
+ "mov w12, #0\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX4_X_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc),[xs] "+&r"(xs),[xd] "+&r"(xd): [xj] "r"(xj): "memory","cc","x12",VCLOB,PCLOB);}
+
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
 #undef DUPLEX4_U_LAST
@@ -6296,6 +6596,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xpre = env_int("TRSM_XPRE", 0);        // XPRE：下一任务 X 块借白发游标槽铺 L2（审计 §10w 候选 1），筛查中
         c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
         c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
+        c.xone = env_int("TRSM_XONE", 0);        // XONE：仅 bank 内核路径（TRSM_OWNER_CURSOR=0）生效
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
