@@ -1361,3 +1361,6 @@ kloop0 分桶（新诊断，保留在树上）证实 chunk-0 引擎超订：chun
 （线程私有，不读 X）；③ gen 盲区 = m≡0(64)∧n≡0(96) 的 special5 测度零集（复现形状：128×768@3thr、
 192×960@3thr、512×2496@8thr，OWNER=1 OSW=1 其余默认；STEAL=0 应 PASS）。守卫已修为 v5（未知后继不排队），
 但 OSW 性能仍判负、维持停车（默认 0）。
+**oswrep3 实机验证（cn20483）**：侦探全部预测命中——坏码（95f4b5b，v4 守卫）在 128×768@3thr / 192×960@3thr /
+512×2496@8thr / 官方 TC1 全 FAIL；同形状 STEAL=0 PASS（认领循环差分 ✓）；v5 守卫全 PASS；生产默认全 PASS。
+复现配方固化在 probe/oswrep_job.sh，今后 owner 路径实验的门禁必须带上这组 special5 测度零形状。
