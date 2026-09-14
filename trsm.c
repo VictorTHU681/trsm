@@ -1804,6 +1804,8 @@ typedef struct {
     long tprime_s;          // 回写阶段同款：NT 存储前提前 tprime_s 行触碰目标行首（TRSM_TPRIME_S，0 关）
     int tprime_x;           // 跨任务引导：回写循环按行配速触碰下一任务 B 块行首（纯写窗遍历器空闲，下个 load 开场全暖；
                             // TRSM_TPRIME_X，0 关）
+    int ldntx;              // 装载阶段 X 行用非临时载入（svldnt1）：X 行拷入 cbuf 后不再被读（Xk 走 cbuf），
+                            // 常规载入白占 L1/L2、逐出 A 包与 cbuf（TRSM_LDNTX，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2104,7 +2106,11 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (c->ldntx) {   // 非临时载入：X 行只读一次，不占 L1/L2（A 包与 cbuf 少被逐出）
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svldnt1_f64(pg, s + j));
+                } else {
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                }
                 if (j < nci) {
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
@@ -2327,7 +2333,11 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (c->ldntx) {   // 非临时载入：X 行只读一次，不占 L1/L2（A 包与 cbuf 少被逐出）
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svldnt1_f64(pg, s + j));
+                } else {
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                }
                 if (j < nci) {
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
@@ -3521,7 +3531,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (c->ldntx) {   // 非临时载入：X 行只读一次，不占 L1/L2（A 包与 cbuf 少被逐出）
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svldnt1_f64(pg, s + j));
+                } else {
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                }
                 if (j < nci) {
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
@@ -3742,7 +3756,11 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
             if (r < mbi) {
                 const double* s = Bblk + r * ldb;
                 long j = 0;
-                for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                if (c->ldntx) {   // 非临时载入：X 行只读一次，不占 L1/L2（A 包与 cbuf 少被逐出）
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svldnt1_f64(pg, s + j));
+                } else {
+                    for (; j + 8 <= nci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, s + j));
+                }
                 if (j < nci) {
                     svbool_t pj = svwhilelt_b64((long)j, (long)nci);
                     svst1_f64(pj, d + j, svld1_f64(pj, s + j));
@@ -5988,6 +6006,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.tprime = env_int("TRSM_TPRIME", 0);     // TLB 遍历引导（默认关，A/B 认证后再定默认值）
         c.tprime_s = env_int("TRSM_TPRIME_S", 0);
         c.tprime_x = env_int("TRSM_TPRIME_X", 0);
+        c.ldntx = env_int("TRSM_LDNTX", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
@@ -6290,7 +6309,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                             asm volatile("" :: "r"(tv));
                         }
                         long j = 0;
-                        for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
+                        if (c.ldntx) for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svldnt1_f64(pg, sp + j));
+                        else         for (; j + 8 <= pnci; j += 8) svst1_f64(pg, d + j, svld1_f64(pg, sp + j));
                         if (j < pnci) { svbool_t pj = svwhilelt_b64(j, pnci); svst1_f64(pj, d + j, svld1_f64(pj, sp + j)); j += 8; }
                         for (; j < c.nc; j += 8) svst1_f64(pg, d + j, svdup_f64(0.0));
                     }

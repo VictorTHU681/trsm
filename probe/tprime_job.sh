@@ -29,6 +29,8 @@ for r in 1 2 3 4 5 6; do
   run1 "x1_$r"       TRSM_TPRIME_X=1                 # 跨任务：回写窗按行配速引导下一任务 B 页（纯写窗遍历器空闲）
   run1 "x1lp16_$r"   TRSM_TPRIME_X=1 TRSM_LOADPF=16
   run1 "x1t16lp16_$r" TRSM_TPRIME_X=1 TRSM_TPRIME=16 TRSM_LOADPF=16   # 全栈（首任务由 t16 兜底）
+  run1 "nt_$r"       TRSM_LDNTX=1                    # X 行非临时载入（一次性读不占缓存）
+  run1 "ntx1lp16_$r" TRSM_LDNTX=1 TRSM_TPRIME_X=1 TRSM_LOADPF=16
 done
 echo "=== TC2/TC3 抽查（t16s16 vs off 各 2）"
 for r in 1 2; do
