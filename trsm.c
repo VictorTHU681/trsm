@@ -1966,6 +1966,7 @@ typedef struct {
     int xpre;               // XPRE（TRSM_XPRE，默认 0）：1=末对 ap 白发槽铺下一任务 X 行进 L2；2=+末 xpre_pairs 对 bp 冗余槽
     long xpre_pairs;        // XPRE 档 2 的尾部条带对窗口（TRSM_XPRE_PAIRS，默认 6）
     int dxw;                // DXW（TRSM_DXW，扫雷 P2）：owner 对角直写模式下双写 cbuf+X，消掉 store 相（筛查中）
+    int steal;              // STEAL（TRSM_STEAL）：owner 完整面板段的面板粒度双端窃取（尾部救援，抢占免疫；筛查中）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2069,6 +2070,12 @@ static inline void sw_advance(tbuf_t* tb)
     } while (0)
 
 static tbuf_t g_tb[1024];
+
+// STEAL（尾部救援，TRSM_STEAL）：owner 完整面板段的面板粒度双端认领。
+// fb 字 = (front<<32)|back（相对完整面板段的面板计数），物主 CAS front++、贼 CAS back--；
+// pf0 = 该线程完整面板段的首面板号。部分面板/khead 段不可窃取。串行 setup 里初始化。
+static unsigned long g_steal_fb[1024] __attribute__((aligned(128)));
+static long g_steal_pf0[1024];
 static uint64_t g_prep_cyc[1024], g_tail_cyc[1024], g_wake_cyc[1024];
 static double* g_diag = NULL;
 static size_t g_diag_cap = 0;
@@ -6007,7 +6014,21 @@ static void build_owner_bounds(ctx_t* c, int nth)
 }
 static void build_tasks(ctx_t* c, int nth)
 {
-    if(g_implicit_owner){build_owner_bounds(c,nth);return;}
+    if(g_implicit_owner){build_owner_bounds(c,nth);
+        if (c->steal) for (int t = 0; t < nth; t++) {   // STEAL 认领字：与区域内 sched 构建同公式，发布于 g_tables_ready 之前
+            long a2 = c->owner_bound[t], b2 = c->owner_bound[t + 1];
+            long nfull = 0, pf0 = 0;
+            if (b2 > a2) {
+                long pa2 = a2 / c->nrb, ia2 = a2 % c->nrb, pb2 = (b2 - 1) / c->nrb, ib2 = (b2 - 1) % c->nrb;
+                if (pa2 != pb2) {
+                    long pfl0 = ia2 == 0 ? pa2 : pa2 + 1, pfl1 = ib2 == c->nrb - 1 ? pb2 : pb2 - 1;
+                    if (pfl1 >= pfl0) { pf0 = pfl0; nfull = pfl1 - pfl0 + 1; }
+                }
+            }
+            g_steal_pf0[t] = pf0;
+            __atomic_store_n(&g_steal_fb[t], (unsigned long)nfull, __ATOMIC_RELEASE);
+        }
+        return;}
     const int mb = c->mb, nc = c->nc, kc = c->kc;
     const long n = c->n;
 
@@ -6273,6 +6294,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xpre = env_int("TRSM_XPRE", 0);        // XPRE：下一任务 X 块借白发游标槽铺 L2（审计 §10w 候选 1），筛查中
         c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
         c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
+        c.steal = env_int("TRSM_STEAL", 0);      // STEAL：面板粒度尾部窃取（争用税对策），筛查中
         c.xptm = env_int("TRSM_XPTM", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
@@ -6569,6 +6591,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         long* sched = NULL;
         long k = 0, khead = -1;   // khead：头部不完整面板在 sched 中的起点（其前几个行块由上一线程算出）
         long pa = 0, ia = 0;
+        long full_lo = -1, nfull_loc = 0;   // STEAL：完整面板段在 sched 中的起点与面板数
         if (c.owner) {
             long a = c.owner_bound[tid], b = c.owner_bound[tid + 1];
             long nrb = c.nrb;
@@ -6584,6 +6607,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     long pfull0 = ia == 0 ? pa : pa + 1;          // 完整面板起点
                     long pfull1 = ib == nrb - 1 ? pb : pb - 1;    // 完整面板终点（含）
                     if (ib != nrb - 1) for (long i = 0; i <= ib; i++) sched[k++] = pb * nrb + i;
+                    if (pfull1 >= pfull0) { full_lo = k; nfull_loc = pfull1 - pfull0 + 1; }
                     for (long p = pfull0; p <= pfull1; p++) for (long i = 0; i < nrb; i++) sched[k++] = p * nrb + i;
                     if (ia != 0) { khead = k; for (long i = ia; i < nrb; i++) sched[k++] = pa * nrb + i; }
                 }
@@ -6592,7 +6616,27 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         sme_start();
         g_tb[tid].swn = g_tb[tid].swi = 0; g_tb[tid].sw.rows = 0;
         if (c.owner) {
+            const int steal_on = c.steal && g_implicit_owner && nfull_loc > 0;
             for (long s = 0; s < k; s++) {
+                if (steal_on && s == full_lo) {
+                    // STEAL 段 2：完整面板段按面板粒度认领（尾部可能已被贼偷走），认领完跳到 khead 段
+                    for (;;) {
+                        unsigned long w = __atomic_load_n(&g_steal_fb[tid], __ATOMIC_ACQUIRE);
+                        long f = (long)(w >> 32), bk2 = (long)(w & 0xffffffffUL);
+                        if (f >= bk2) break;
+                        unsigned long nw = ((unsigned long)(f + 1) << 32) | (unsigned long)bk2;
+                        if (!__atomic_compare_exchange_n(&g_steal_fb[tid], &w, nw, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) continue;
+                        long q0 = (g_steal_pf0[tid] + f) * c.nrb;
+                        for (long i2 = 0; i2 < c.nrb; i2++) {
+                            task_t ct = owner_task_at(&c, q0 + i2), nt2;
+                            const task_t* gs = NULL;
+                            if (i2 + 1 < c.nrb) { nt2 = owner_task_at(&c, q0 + i2 + 1); gs = &nt2; }
+                            (g_owner_cursor ? run_task_owner_cursor : run_task_owner)(&c, &g_tb[tid], &ct, gs, tid);
+                        }
+                    }
+                    s = full_lo + nfull_loc * c.nrb - 1;
+                    continue;
+                }
                 if (s == khead) {
                     // 头部不完整面板：行块 0..ia-1 的 X 由上一线程算出并已写回 X；等其 flag，把这些行拷进本线程面板缓冲作 B 操作数
                     uint64_t tk0 = c.prof >= 2 ? cyc() : 0;
@@ -6627,6 +6671,33 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     }
                     const int fullpan = c.cfold || !c.cshift || (tsk->p > 0 && tsk->p < c.npan - 1);
                     (c.special == 5 && fullpan ? (g_owner_cursor ? run_task_owner_cursor : run_task_owner) : run_task)(&c, &g_tb[tid], tsk, guess, tid);
+                }
+            }
+            if (c.steal && g_implicit_owner) {
+                // STEAL 段 3（贼）：本队列清空后扫描剩余量最大的受害者，从其尾部偷整面板（留 ≥1 面板余量）。
+                // 与已证伪 OWNER_HELP 的区别：面板级 CAS（全程 ≤npan 次）、只偷完整面板（自包含无部分和）、
+                // 偷尾部恰好提前满足下一线程 khead 依赖。干净节点下队列几乎同时清空 → 触发极少，≈零成本。
+                for (;;) {
+                    int best = -1; long bestrem = 1;
+                    for (int t2 = 0; t2 < nth; t2++) {
+                        if (t2 == tid) continue;
+                        unsigned long w2 = __atomic_load_n(&g_steal_fb[t2], __ATOMIC_RELAXED);
+                        long rem = (long)(w2 & 0xffffffffUL) - (long)(w2 >> 32);
+                        if (rem > bestrem) { bestrem = rem; best = t2; }
+                    }
+                    if (best < 0) break;
+                    unsigned long w2 = __atomic_load_n(&g_steal_fb[best], __ATOMIC_ACQUIRE);
+                    long f2 = (long)(w2 >> 32), bk2 = (long)(w2 & 0xffffffffUL);
+                    if (bk2 - f2 < 2) continue;
+                    unsigned long nw2 = ((unsigned long)f2 << 32) | (unsigned long)(bk2 - 1);
+                    if (!__atomic_compare_exchange_n(&g_steal_fb[best], &w2, nw2, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) continue;
+                    long q0 = (g_steal_pf0[best] + bk2 - 1) * c.nrb;
+                    for (long i2 = 0; i2 < c.nrb; i2++) {
+                        task_t ct = owner_task_at(&c, q0 + i2), nt2;
+                        const task_t* gs = NULL;
+                        if (i2 + 1 < c.nrb) { nt2 = owner_task_at(&c, q0 + i2 + 1); gs = &nt2; }
+                        (g_owner_cursor ? run_task_owner_cursor : run_task_owner)(&c, &g_tb[tid], &ct, gs, tid);
+                    }
                 }
             }
         } else {
