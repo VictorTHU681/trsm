@@ -1802,6 +1802,8 @@ typedef struct {
     long tprime;            // 装载阶段 TLB 遍历引导：提前 tprime 行发 1 字节真实载入（prfm 在 TLB miss 被丢弃，
                             // 藏不住每行一次的页表遍历；行距 >64KB 时每行新页）。0 关（TRSM_TPRIME）
     long tprime_s;          // 回写阶段同款：NT 存储前提前 tprime_s 行触碰目标行首（TRSM_TPRIME_S，0 关）
+    int tprime_x;           // 跨任务引导：回写循环按行配速触碰下一任务 B 块行首（纯写窗遍历器空闲，下个 load 开场全暖；
+                            // TRSM_TPRIME_X，0 关）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2464,11 +2466,23 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 for (long r = 0; r < tpre; r++) tv ^= *(const unsigned char*)(Bout + r * ldb);
                 asm volatile("" :: "r"(tv));
             }
+            // 跨任务引导：纯写窗里遍历器空闲，按行配速（64:64）触碰下一任务 B 块行首，
+            // 下个 load 相开场 TLB 全暖（loadpf 的 prfm 从第 0 行生效）。读的是调用方 X 内我们本就要读的行。
+            const int tkx = c->tprime_x && tkn && tkn->kind == 0;
+            const double* nbb = NULL; long nbrows = 0;
+            if (tkx) {
+                nbb = c->B + (size_t)tkn->i * mb * ldb + pan_c0(c, tkn->p);
+                nbrows = c->m - (long)tkn->i * mb; if (nbrows > mb) nbrows = mb;
+            }
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
                 double* d = Bout + r * ldb;
                 if (tks > 0 && r + tks < mbi) {
                     unsigned char tv = *(const unsigned char*)(Bout + (r + tks) * ldb);
+                    asm volatile("" :: "r"(tv));
+                }
+                if (tkx && r < nbrows) {
+                    unsigned char tv = *(const unsigned char*)(nbb + r * ldb);
                     asm volatile("" :: "r"(tv));
                 }
                 if (na) {
@@ -5973,6 +5987,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.xptm = env_int("TRSM_XPTM", 0);
         c.tprime = env_int("TRSM_TPRIME", 0);     // TLB 遍历引导（默认关，A/B 认证后再定默认值）
         c.tprime_s = env_int("TRSM_TPRIME_S", 0);
+        c.tprime_x = env_int("TRSM_TPRIME_X", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
     c.special=0;
