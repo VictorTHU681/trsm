@@ -1965,6 +1965,7 @@ typedef struct {
     long slxb;              // SLX 块交错粒度（TRSM_SLXB，默认 8 行）：store 突发/load 突发轮替的段长
     int xpre;               // XPRE（TRSM_XPRE，默认 0）：1=末对 ap 白发槽铺下一任务 X 行进 L2；2=+末 xpre_pairs 对 bp 冗余槽
     long xpre_pairs;        // XPRE 档 2 的尾部条带对窗口（TRSM_XPRE_PAIRS，默认 6）
+    int dxw;                // DXW（TRSM_DXW，扫雷 P2）：owner 对角直写模式下双写 cbuf+X，消掉 store 相（筛查中）
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2197,8 +2198,45 @@ static inline void za_owner_dstore(double* c)
         OWNER_DSTORE_ROWS(4, 5, 6, 7)
         : [c] "+&r"(c) :: "memory", "cc", "x12", VCLOB, PCLOB);
 }
+// DXW（扫雷 P2）：对角结果双写 cbuf + X（stnt1d，行距 xs）。对角窗是任务内唯一无 demand-miss 的窗口，
+// X 的 48 KB 写在 dkloop 计算期间后台排空——消掉 store 相对 cbuf 的整遍重读与循环本体（0.12 ms/线程）。
+#define OWNER_DSTORE_ROW_X(T0, T1, T2, T3, R) \
+    "mov w12, #" #R "\n\t" \
+    "mova z16.d, p0/m, za" #T0 "h.d[w12, 0]\n\t" \
+    "mova z17.d, p0/m, za" #T1 "h.d[w12, 0]\n\t" \
+    "mova z18.d, p0/m, za" #T2 "h.d[w12, 0]\n\t" \
+    "mova z19.d, p0/m, za" #T3 "h.d[w12, 0]\n\t" \
+    "st1d z16.d, p0, [%[c], #0, mul vl]\n\t" \
+    "st1d z17.d, p0, [%[c], #1, mul vl]\n\t" \
+    "st1d z18.d, p0, [%[c], #2, mul vl]\n\t" \
+    "st1d z19.d, p0, [%[c], #3, mul vl]\n\t" \
+    "stnt1d z16.d, p0, [%[x], #0, mul vl]\n\t" \
+    "stnt1d z17.d, p0, [%[x], #1, mul vl]\n\t" \
+    "stnt1d z18.d, p0, [%[x], #2, mul vl]\n\t" \
+    "stnt1d z19.d, p0, [%[x], #3, mul vl]\n\t" \
+    "add %[c], %[c], #768\n\t" \
+    "add %[x], %[x], %[xs]\n\t"
+#define OWNER_DSTORE_ROWS_X(T0, T1, T2, T3) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 0) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 1) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 2) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 3) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 4) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 5) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 6) \
+    OWNER_DSTORE_ROW_X(T0, T1, T2, T3, 7)
+static inline void za_owner_dstore_x(double* c, double* x, long xs)
+{
+    asm volatile(
+        "ptrue p0.d\n\t"
+        OWNER_DSTORE_ROWS_X(0, 1, 2, 3)
+        OWNER_DSTORE_ROWS_X(4, 5, 6, 7)
+        : [c] "+&r"(c), [x] "+&r"(x) : [xs] "r"(xs) : "memory", "cc", "x12", VCLOB, PCLOB);
+}
 #undef OWNER_DSTORE_ROW
 #undef OWNER_DSTORE_ROWS
+#undef OWNER_DSTORE_ROW_X
+#undef OWNER_DSTORE_ROWS_X
 
 // 面板列起点/宽度：cshift>0 时内部面板边界按 X 的 64 B cache 行对齐（面板 0 缩为 nc−cshift 列、末面板 cshift 列），
 // X 行段的装载与非临时回写全对齐（无跨行向量、无 partial-line RMW）。cshift=0 时退化为原始等宽划分。
@@ -2239,6 +2277,10 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
     // 分裂段：部分和写到专用缓冲（从 0 开始累加），普通任务直接用 C 块
     const int split = !fast_owner && tk->nseg > 1;
     double* acc = split ? c->part + tk->part_off + (size_t)tk->seg * mb * ncp : cb;
+    // DXW（扫雷 P2）：对角直写模式下双写 cbuf+X，store 相整体消除。结构谓词：整宽面板 + X 行 64B 对齐
+    //（CFOLD 后 p≥1 恒真）+ 行距 64B 倍数；panel 0（cfp0）与分裂段回退普通路径。
+    const int dxw_on = fast_owner && c->dxw && c->ddirect && !split && nci == nc
+        && (((uintptr_t)Bblk & 63) == 0) && ((((size_t)ldb * 8) & 63) == 0);
 
     // 1. C 块 ← B 子块（越界列/行补零）；分裂段只清零部分和缓冲
     if (split) {
@@ -2566,7 +2608,9 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 const int dnt = (fast_owner ? 1 : c->dnt) && K <= 256;
                 if (fast_owner && c->ddirect) {
                     PROF_T(c, kloop_plain_nt(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
-                    PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump);
+                    if (dxw_on) PROF_T(c, za_owner_dstore_x(cb + 16L * s * ncp + 32 * t,
+                                                            Bblk + 16L * s * ldb + 32 * t, ldb * 8), t_ddump);
+                    else PROF_T(c, za_owner_dstore(cb + 16L * s * ncp + 32 * t), t_ddump);
                     if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
                     continue;
                 }
@@ -2642,6 +2686,17 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 if (c->nexta >= 3 && tkn->i > 1)
                     na2 = na + (size_t)(tkn->i - 1) * 32768;          // chi = 首块 + (i'-1)*32KB
             }
+            if (dxw_on) {
+                // DXW：X 已在对角相双写完成，store 相仅保留 NEXTA 预取（退化态保险）
+                if (na) for (long r = 0; r < mbi; r++) {
+                    const char* q = na + r * nal;
+                    for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
+                    if (na2) {
+                        const char* q2 = na2 + r * 512;
+                        for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
+                    }
+                }
+            } else {
             // SLX 回写‖装载相位交错（审计 #1）：NT 回写每行后顺手把下一任务（同面板下一行块）的 B 行 demand load
             // 进面板缓冲。回写走 WC/写通路、装载走 L1 MSHR×延迟，资源不同（§1 混合读写 445 GB/s > 单向 305），
             // 并置后 store 相近乎免费；cbuf 冷目标行无 RFO 惩罚（rfoprobe 实测 B_cold≈A_hot）。
@@ -2691,6 +2746,7 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
                 }
             }
             if (slx_pre) { tb->pre_i = tkn->i; tb->pre_p = tkn->p; }
+            }   // !dxw_on
         } else {
             for (long r = 0; r < mbi; r++) {
                 const double* s = cb + r * ncp;
@@ -6222,6 +6278,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.slxb = env_int("TRSM_SLXB", 8);        // SLX 块交错粒度（行）；逐行版（=1）已证伪：ROB 稀释 MLP 塌方净负 3.6%
         c.xpre = env_int("TRSM_XPRE", 0);        // XPRE：下一任务 X 块借白发游标槽铺 L2（审计 §10w 候选 1），筛查中
         c.xpre_pairs = env_int("TRSM_XPRE_PAIRS", 6);
+        c.dxw = env_int("TRSM_DXW", 0);          // DXW：对角双写 cbuf+X 消 store 相（扫雷 P2），筛查中
         c.xptm = env_int("TRSM_XPTM", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
