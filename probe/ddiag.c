@@ -908,22 +908,47 @@ int main(void)
             if (ref != out[r * 16 + cc]) { if (!bad) printf("UNIT2 diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, out[r * 16 + cc]); bad++; }
         }
         printf("UNIT2 F+R0: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
-        // UNIT3：F; R0; ZL(B4) —— 完整 tile 序列，检查 za0-3 是否被 ZL 影响（对照 UNIT2 的 ref）
-        static double tmp3[16 * 16];
+        // UNIT3（修正布局：1024B 行距缓冲）：F; R0; ZL → ZL 排水 za0-3 到 cur1024
+        double* cur3 = gCB2;                       // 借 gCB2 头部 16KB 当 1024 行距目标
+        memset(gCB2, 0, 32 * 1024);
         sme_start();
         sme_zero_za();
         dd_b0_first(Af, Bf, gxpan, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
         dd_b0_rem(Ar, Br, 16);
-        dd_b4_zlast(Af, Bf + 16, tmp3, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        dd_b4_zlast(Af, Bf + 16, cur3, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
         sme_stop();
         bad = 0;
         for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
             double ref = 0;
             for (long k = 0; k < 64; k++) ref += Af[k * 16 + r] * Bf[k * NCP + cc];
             for (long k = 0; k < 16; k++) ref += Ar[k * 16 + r] * Br[k * NCP + cc];
-            if (ref != tmp3[r * 16 + cc]) { if (!bad) printf("UNIT3 diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, tmp3[r * 16 + cc]); bad++; }
+            double got = cur3[r * NCP + cc];
+            if (ref != got) { if (!bad) printf("UNIT3 diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, got); bad++; }
         }
         printf("UNIT3 F+R0+ZL 排水: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        // UNIT4：带真实 pending za4-7 的 F 链（zpure 造 pending → F 排水 + 自算 → 双验证）
+        double* drn = gCB2 + 4 * 1024;             // 1024 行距排水目标（16KB 区）
+        memset(drn, 0, 32 * 1024);
+        sme_start();
+        sme_zero_za();
+        dd_b4_zpure(Af, Bf + 16, gxpan, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        dd_b0_first(Af, Bf, drn, (const char*)g_dum, (const char*)g_dum, (const char*)g_dum);
+        dd_flush_b0_set(out, 128);
+        sme_stop();
+        bad = 0;
+        for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+            double ref = 0;
+            for (long k = 0; k < 64; k++) ref += Af[k * 16 + r] * Bf[k * NCP + 16 + cc];
+            if (ref != drn[r * NCP + cc]) { if (!bad) printf("UNIT4a diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, drn[r * NCP + cc]); bad++; }
+        }
+        printf("UNIT4a F 排水 pending za4-7: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
+        bad = 0;
+        for (long r = 0; r < 16; r++) for (long cc = 0; cc < 16; cc++) {
+            double ref = 0;
+            for (long k = 0; k < 64; k++) ref += Af[k * 16 + r] * Bf[k * NCP + cc];
+            if (ref != out[r * 16 + cc]) { if (!bad) printf("UNIT4b diff (r%ld,c%ld) ref=%.17g got=%.17g\n", r, cc, ref, out[r * 16 + cc]); bad++; }
+        }
+        printf("UNIT4b F 自算 za0-3: %s（bad=%ld/256）\n", bad ? "FAIL" : "PASS", bad);
         return 0;
     } }
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
