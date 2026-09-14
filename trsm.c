@@ -2114,6 +2114,10 @@ static void w_prep_run(const ctx_t* c, int tid)
                     for (int kq = 0; kq < 64; kq++)
                         for (int rr = 0; rr < 16; rr++)
                             wkk_pack[(size_t)s * 1024 + kq * 16 + rr] = -wkk[(size_t)(16 * s + rr) * 64 + kq];
+                {   // +W_KK 存对角槽：sc(K) 的 J=K 项（Acc[I,K] += L[I,K]·W[K,K]）要读它
+                    double* sd = w_slot64(K, K);
+                    for (int q = 0; q < 64 * 64; q += 8) svst1_f64(pg, sd + q, svld1_f64(pg, wkk + q));
+                }
                 __atomic_store_n(&inv_flag[K], 1, __ATOMIC_RELEASE);
             } else {
                 const long J = it - 1;
