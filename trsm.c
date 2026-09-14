@@ -2170,6 +2170,8 @@ static void run_pack_task(const ctx_t* c, const task_t* tk, tbuf_t* tb)
 static inline void za_flush_duplex_bank4(double*, long);
 static inline __attribute__((always_inline)) void kloop_owner_bank0(const double*, const double*, double*, const char*, const char*, const char*);
 static inline __attribute__((always_inline)) void kloop_owner_bank4(const double*, const double*, double*, const char*, const char*, const char*);
+static inline __attribute__((always_inline)) void kloop_owner_bank0_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
+static inline __attribute__((always_inline)) void kloop_owner_bank4_x(const double*, const double*, double*, const char*, const char*, const char*, const char*, char*, long);
 
 static inline __attribute__((always_inline)) void kloop_owner_cursor0(const double*,const double*,double*,const char*,const char*,const char*);
 static inline __attribute__((always_inline)) void kloop_owner_cursor4(const double*,const double*,double*,const char*,const char*,const char*);
