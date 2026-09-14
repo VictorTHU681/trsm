@@ -1364,3 +1364,13 @@ kloop0 分桶（新诊断，保留在树上）证实 chunk-0 引擎超订：chun
 **oswrep3 实机验证（cn20483）**：侦探全部预测命中——坏码（95f4b5b，v4 守卫）在 128×768@3thr / 192×960@3thr /
 512×2496@8thr / 官方 TC1 全 FAIL；同形状 STEAL=0 PASS（认领循环差分 ✓）；v5 守卫全 PASS；生产默认全 PASS。
 复现配方固化在 probe/oswrep_job.sh，今后 owner 路径实验的门禁必须带上这组 special5 测度零形状。
+
+### TC3 pack 方向终局（pk1 探针，Fable-TC3 蓝图执行，2026-09-14 夜）
+
+一次探针全判：**P0（str za→mova+stnt1d）零收益证伪**——E4−E5=10 cyc/16KB，写分配非墙（E1=1000≤1500），
+生产 A/B 印证（pack 桶 3.214→3.203，bitwise PASS）。**归因定案：pack 停顿 = 冷源读**（E3−E0≈770，E4−E0≈950
+cyc/16KB）。**候选 B 全托管净负**：K1 配速门 PASS（+0.55%），但 K2 插入相实测 4261 cyc/chunk≈2.41ms/线程
+（热转置引擎 2400 + flush/zero 1860，蓝图估 250-300 的 14 倍）> 可回收停顿 ~1.17ms。ZA 纪律成本（flush pend→
+转置→zero 每 chunk）是结构性下界，托管形态死。E6=2480 > E4=1935 顺带证伪一切"demand 触碰暖源"方案（pack
+ZA 引擎本身就是最优冷读者）。pack_strip_ld4_nt/TRSM_PACKNT 留树休眠。TC3 剩余已知杠杆仅 wake 税 0.5ms/调用
+（BLAS=1 因 TC1 反噬 −16% 全局死；按用例分别设 env = 用例特化，合规不可行）——TC3 判定接近地板。
