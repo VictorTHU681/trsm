@@ -723,6 +723,8 @@ static int old_strip(int s, double* cb, int pend, double** pend_c, long* pend_co
     pf_t pf = pf_dummy;
     for (long t = 0; t < 4; t++) {
         const double* A = gA + diag_strip_off(s);
+        if (s + 1 < SS) pf.p2 = (const char*)(gA + diag_strip_off(s + 1)) + t * K * 32;
+        pf.pc = (const char*)(cb + 16L * s * NCP + 32 * t); pf.pcs = CS;
         sme_zero_za();
         if (pend && K >= 65)
             kloop_diag_set_compact(A, 128, 128, cb + 32 * t, CS, K, 32, &pf, gscr, *pend_c, CS, *pend_cols);
@@ -810,8 +812,10 @@ static void new_strip(int s, double* cb, double** d4c)
     }
 }
 
+static int g_newmax = 15;
 int main(void)
 {
+    { const char* e = getenv("DD_NEWMAX"); if (e) g_newmax = atoi(e); }
     const double c2c = 1.55e9 / (double)cyc_hz();
     gA = al(300 * 1024);        // 对角包 272KB + 余量
     gCB1 = al(300 * 1024);      // 旧路径 cbuf（256KB + 越读余量）
@@ -820,8 +824,8 @@ int main(void)
     gxpan = al(32 * 1024);
     for (long i = 0; i < 35000; i++) gA[i] = (double)((i * 40503u) % 913) / 911.0 - 0.5;
 
-    pf_dummy.p = g_dum; pf_dummy.pfn = 1 << 20; pf_dummy.pfj = 0;
-    pf_dummy.p2 = g_dum + (1 << 20); pf_dummy.pc = g_dum; pf_dummy.pcs = 1024; pf_dummy.sw = &g_swd;
+    pf_dummy.p = g_dum; pf_dummy.pfn = 1; pf_dummy.pfj = -64;
+    pf_dummy.p2 = g_dum; pf_dummy.pc = g_dum; pf_dummy.pcs = 0; pf_dummy.sw = &g_swd;
     // ---- bitwise：全任务 s=0..15，旧 vs（旧 s<=2 + 新 s>=3）——流式区内零库调用，先算后比
     seed(gCB1); seed(gCB2);
     {
@@ -831,8 +835,10 @@ int main(void)
         double* pc2 = NULL; long pcols2 = 0; int pend2 = 0;
         for (int s = 0; s <= 2; s++) pend2 = old_strip(s, gCB2, pend2, &pc2, &pcols2, s == 2);
         double* d4c = gxpan;
-        for (int s = 3; s < SS; s++) new_strip(s, gCB2, &d4c);
+        int newmax = g_newmax;
+        for (int s = 3; s < SS && s <= newmax; s++) new_strip(s, gCB2, &d4c);
         dd_flush_b4_set(d4c, CS);
+        for (int s = (newmax < 3 ? 3 : newmax + 1); s < SS; s++) { int pd = 0; double* pcx = NULL; long pcc = 0; pd = old_strip(s, gCB2, pd, &pcx, &pcc, 1); }
         sme_stop();
     }
     int bitok = memcmp(gCB1, gCB2, 256 * NCP * 8) == 0;
@@ -842,27 +848,31 @@ int main(void)
             if (diffrow < 0) { diffrow = r; diffcol = cjj; dv1 = gCB1[r * NCP + cjj]; dv2 = gCB2[r * NCP + cjj]; }
             ndiff++;
         }
-    // ---- 计时：strips 3..15，R 轮（每轮两个独立流式段，库调用全部在区外）----
+    // ---- 计时：strips 3..15，单缓冲交替（消热度偏置）----
     const int R = 9;
     double olds[R], news[R];
     for (int r = 0; r < R; r++) {
-        seed(gCB1); seed(gCB2);
+        seed(gCB1);
         sme_start();
         double* pc1 = NULL; long pcols1 = 0; int pend1 = 0;
         for (int s = 0; s <= 2; s++) pend1 = old_strip(s, gCB1, pend1, &pc1, &pcols1, s == 2);
-        double* pc2 = NULL; long pcols2 = 0; int pend2 = 0;
-        for (int s = 0; s <= 2; s++) pend2 = old_strip(s, gCB2, pend2, &pc2, &pcols2, s == 2);
         uint64_t t0 = cyc();
         pend1 = 0;
         for (int s = 3; s < SS; s++) pend1 = old_strip(s, gCB1, pend1, &pc1, &pcols1, s == SS - 1);
         uint64_t t1 = cyc();
-        double* d4c = gxpan;
-        for (int s = 3; s < SS; s++) new_strip(s, gCB2, &d4c);
-        dd_flush_b4_set(d4c, CS);
-        uint64_t t2 = cyc();
         sme_stop();
         olds[r] = (double)(t1 - t0) * c2c;
-        news[r] = (double)(t2 - t1) * c2c;
+        seed(gCB1);
+        sme_start();
+        pc1 = NULL; pcols1 = 0; pend1 = 0;
+        for (int s = 0; s <= 2; s++) pend1 = old_strip(s, gCB1, pend1, &pc1, &pcols1, s == 2);
+        uint64_t t2 = cyc();
+        double* d4c = gxpan;
+        for (int s = 3; s < SS; s++) new_strip(s, gCB1, &d4c);
+        dd_flush_b4_set(d4c, CS);
+        uint64_t t3 = cyc();
+        sme_stop();
+        news[r] = (double)(t3 - t2) * c2c;
     }
     {   // 诊断轮：分桶计时（不进 W；memset 在区外）
         memset(t_b0, 0, sizeof t_b0); memset(t_b4, 0, sizeof t_b4);
