@@ -677,6 +677,32 @@ static inline __attribute__((always_inline)) void dd_b4_rem(const double* a, con
  :: "memory","cc",VCLOB,PCLOB);
 }
 
+static void dd_flush_b0_set(double* c, long cs)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8 * cs;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "mov w12, #0\n\t"
+ "1:\n\t"
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t"
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t"
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t"
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t"
+ "st1d z16.d, p0, [%[ct], #0, mul vl]\n\t"
+ "st1d z18.d, p0, [%[ct], #1, mul vl]\n\t"
+ "st1d z20.d, p0, [%[cb], #0, mul vl]\n\t"
+ "st1d z22.d, p0, [%[cb], #1, mul vl]\n\t"
+ "add %[ct], %[ct], %[cs]\n\t"
+ "add %[cb], %[cb], %[cs]\n\t"
+ "add w12, w12, #1\n\t"
+ "cmp w12, #8\n\t"
+ "b.ne 1b\n\t"
+ : [ct] "+&r"(ct),[cb] "+&r"(cb)
+ : [cs] "r"(cs)
+ : "memory","cc","x12",VCLOB,PCLOB);
+}
+
 static void dd_flush_b4_set(double* c, long cs)
 {
     char* ct = (char*)c;
@@ -765,7 +791,12 @@ static void new_strip(int s, double* cb, double** d4c)
         } else if (nch == 2 && rem) {
             TIC(t_b0, 0, dd_b0_first(AB(0), BB0(0), *d4c, dum, dum, dum));
             TIC(t_b0, 2, dd_b0_rem(AB(1), BB0(1), rem));
-            TIC(t_b4, 3, dd_b4_zlast(AB(0), BB4(0), cur, dum, dum, dum));
+            if (g_alt) {
+                dd_flush_b0_set(cur, CS);
+                TIC(t_b4, 3, dd_b4_zpure(AB(0), BB4(0), gxpan, dum, dum, dum));
+            } else {
+                TIC(t_b4, 3, dd_b4_zlast(AB(0), BB4(0), cur, dum, dum, dum));
+            }
             TIC(t_b4, 2, dd_b4_rem(AB(1), BB4(1), rem));
         } else if (nch == 2) {
             TIC(t_b0, 0, dd_b0_first(AB(0), BB0(0), *d4c, dum, dum, dum));
@@ -813,9 +844,11 @@ static void new_strip(int s, double* cb, double** d4c)
 }
 
 static int g_newmax = 15;
+static int g_alt = 0;
 int main(void)
 {
     { const char* e = getenv("DD_NEWMAX"); if (e) g_newmax = atoi(e); }
+    { const char* e = getenv("DD_ALT"); if (e) g_alt = atoi(e); }
     const double c2c = 1.55e9 / (double)cyc_hz();
     gA = al(300 * 1024);        // 对角包 272KB + 余量
     gCB1 = al(300 * 1024);      // 旧路径 cbuf（256KB + 越读余量）
@@ -893,8 +926,19 @@ int main(void)
     }
     double om = olds[R / 2], nm = news[R / 2];
     printf("bitwise: %s%s\n", bitok ? "PASS" : "FAIL", bitok ? "" : "（见 diffrow）");
-    if (!bitok) printf("  first diff (row %ld, col %ld) old=%.17g new=%.17g；共 %ld 元素异（块行=%ld 块列=%ld）\n",
-        diffrow, diffcol, dv1, dv2, ndiff, diffrow / 16, diffcol / 32);
+    if (!bitok) {
+        printf("  first diff (row %ld, col %ld) old=%.17g new=%.17g；共 %ld 元素异（块行=%ld 块列=%ld）\n",
+            diffrow, diffcol, dv1, dv2, ndiff, diffrow / 16, diffcol / 32);
+        long r0 = (diffrow / 16) * 16;
+        printf("  条 %ld 行 [%ld,%ld) 各 16 列块 diff 数：", diffrow / 16, r0, r0 + 16);
+        for (long cb16 = 0; cb16 < NCP; cb16 += 16) {
+            long nd = 0;
+            for (long r = r0; r < r0 + 16; r++) for (long j = cb16; j < cb16 + 16; j++)
+                if (gCB1[r * NCP + j] != gCB2[r * NCP + j]) nd++;
+            printf(" %ld", nd);
+        }
+        printf("\n");
+    }
     long ksteps = 0; for (int s = 3; s < SS; s++) ksteps += 4 * 16 * (s + 1);
     printf("== strips 3..15（%ld k 步 ×4 瓦片）==\n", ksteps);
     printf("old（compact+za_dump+chain）: %.0f cyc  %.2f cyc/步\n", om, om / ksteps);
