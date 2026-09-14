@@ -33,9 +33,9 @@ int main(void)
     // 被测：同参数 + 旁流（xs=X 对应 16 列子块，xd=cb2 区）
     sme_zero_za();
     kloop_owner_bank0_x(A, Xk, cb2 + 2048 /* pend==0 哑区 */, dummy, dummy, dummy,
-                        (const char*)X, (char*)cb2, ldb*8 - 64);
+                        (const char*)X, (char*)cb2, ldb*8);
     kloop_owner_bank4_x(A+1024, Xk, cb2, dummy+64, dummy+64, dummy+128,
-                        (const char*)(X + 16*ldb), (char*)(cb2 + 16*NCP), ldb*8 - 64);
+                        (const char*)(X + 16*ldb), (char*)(cb2 + 16*NCP), ldb*8);
     sme_stop();
 
     // 校验 ①：旁流拷贝正确性——cb2 rows0..31 cols0..15 应 == X rows0..31 cols0..15
