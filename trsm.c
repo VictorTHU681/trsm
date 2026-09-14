@@ -2151,6 +2151,7 @@ typedef struct {
     int pchain;             // PCHAIN（TRSM_PCHAIN）：pend 跨条链——条末块由下一条首内核托管落地（消 depi 突发）
     int dpf;                // TRSM_DPF=0 关 GEMM 尾段对角条扫铺（对角内核 PFX 已覆盖，候选 B 因子）
     int packnt;             // P0（TRSM_PACKNT）：pack 写回 str za → mova+stnt1d（无 RFO/不占 L2，Fable-TC3）
+    int ddx;                // DDX（TRSM_DDX）：TC2 对角双 bank + K64 分块（消 za_dump 转存；probe W 门 −19%）
 } ctx_t;
 
 typedef struct task_s {
@@ -4311,6 +4312,731 @@ static inline __attribute__((always_inline)) void kloop_hoist_bank4(const double
 // versions permits same-binary profiling without changing the owner path.
 static int g_abhoist;
 static int g_diag_compact;
+// ==== DDX：TC2 对角双 bank + K64 分块 ZA 驻留（Fable-TC2 蓝图；probe/ddiag bitwise 三连 PASS）====
+#define DDSET0_S_BODY(BS, CS, C8, C864, ALD) \
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t" \
+ "mova z18.d, p0/m, za5h.d[w12, 0]\n\t" \
+ "mova z20.d, p0/m, za6h.d[w12, 0]\n\t" \
+ "mova z22.d, p0/m, za7h.d[w12, 0]\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "st1d z16.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "st1d z18.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "st1d z20.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDPURE0_P_BODY(BS, CS, C8, C864, ALD) \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDSET0_S_NEXT(BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDPURE0_P_NEXT(BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDSET0_S_LAST \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+
+#define DDPURE0_P_LAST \
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+
+#define DDSET0_S_TAIL(CS) \
+ "st1d z22.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #" #CS "\n\t" \
+ "add %[cb], %[cb], #" #CS "\n\t"
+
+#define DDPURE0_P_TAIL(CS) \
+ "add %[ct], %[ct], #" #CS "\n\t" \
+ "add %[cb], %[cb], #" #CS "\n\t"
+
+#define DDSET4_S_BODY(BS, CS, C8, C864, ALD) \
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t" \
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t" \
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t" \
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "st1d z16.d, p0, [%[ct], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "st1d z18.d, p0, [%[ct], #1, mul vl]\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "st1d z20.d, p0, [%[cb], #0, mul vl]\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDPURE4_P_BODY(BS, CS, C8, C864, ALD) \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "prfm pldl2keep, [%[pc]]\n\t" \
+ "prfm pldl2keep, [%[pc], #64]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C8 "]\n\t" \
+ "prfm pldl2keep, [%[pc], #" #C864 "]\n\t" \
+ "add %[pc], %[pc], #" #CS "\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t" \
+ "prfm pldl2keep, [%[ap]]\n\t" \
+ "prfm pldl2keep, [%[bp]]\n\t" \
+ "add %[ap], %[ap], #64\n\t" \
+ "add %[bp], %[bp], #64\n\t" \
+ ALD "z8.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t" \
+ ALD "z9.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t" \
+ "ld1d z12.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t" \
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDSET4_S_NEXT(BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDPURE4_P_NEXT(BS, ALD) \
+ ALD "z0.d, p0/z, [%[a]]\n\t" \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ ALD "z1.d, p0/z, [%[a], #1, mul vl]\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "ld1d z4.d, p0/z, [%[b]]\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t" \
+ "add %[a], %[a], #128\n\t" \
+ "add %[b], %[b], #" #BS "\n\t"
+
+#define DDSET4_S_LAST \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+
+#define DDPURE4_P_LAST \
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t" \
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t" \
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t" \
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+
+#define DDSET4_S_TAIL(CS) \
+ "st1d z22.d, p0, [%[cb], #1, mul vl]\n\t" \
+ "add %[ct], %[ct], #" #CS "\n\t" \
+ "add %[cb], %[cb], #" #CS "\n\t"
+
+#define DDPURE4_P_TAIL(CS) \
+ "add %[ct], %[ct], #" #CS "\n\t" \
+ "add %[cb], %[cb], #" #CS "\n\t"
+
+
+static inline __attribute__((always_inline)) void dd_b0_first(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #1\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #2\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #3\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #4\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #5\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #6\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_NEXT(1024, "ld1d ") DDSET0_S_TAIL(1024)
+ "mov w12, #7\n\t" DDSET0_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET0_S_LAST DDSET0_S_TAIL(1024)
+ : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc)
+ :: "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b0_pure(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #1\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #2\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #3\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #4\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #5\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #6\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_NEXT(1024, "ld1d ") DDPURE0_P_TAIL(1024)
+ "mov w12, #7\n\t" DDPURE0_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE0_P_LAST DDPURE0_P_TAIL(1024)
+ : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc)
+ :: "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b4_zlast(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #1\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #2\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #3\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #4\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #5\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #6\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #7\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_LAST DDSET4_S_TAIL(1024)
+ : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc)
+ :: "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b4_zpure(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #1\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #2\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #3\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #4\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #5\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #6\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #7\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_LAST DDPURE4_P_TAIL(1024)
+ : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc)
+ :: "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b4_pure(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #1\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #2\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #3\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #4\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #5\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #6\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_NEXT(1024, "ld1d ") DDPURE4_P_TAIL(1024)
+ "mov w12, #7\n\t" DDPURE4_P_BODY(1024, 1024, 8192, 8256, "ld1d ") DDPURE4_P_LAST DDPURE4_P_TAIL(1024)
+ : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc)
+ :: "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b4_last(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8192;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "mov w12, #0\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #1\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #2\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #3\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #4\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #5\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #6\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_NEXT(1024, "ld1d ") DDSET4_S_TAIL(1024)
+ "mov w12, #7\n\t" DDSET4_S_BODY(1024, 1024, 8192, 8256, "ld1d ") DDSET4_S_LAST DDSET4_S_TAIL(1024)
+ : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc)
+ :: "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b0_rem(const double* a, const double* b, long k)
+{
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "1:\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za0.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za1.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za2.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za3.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "subs %[k], %[k], #2\n\t"
+ "b.ne 1b\n\t"
+ : [a] "+&r"(a),[b] "+&r"(b),[k] "+&r"(k)
+ :: "memory","cc",VCLOB,PCLOB);
+}
+
+static inline __attribute__((always_inline)) void dd_b4_rem(const double* a, const double* b, long k)
+{
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "1:\n\t"
+ "ld1d z8.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z0.d, z4.d\n\t"
+ "ld1d z9.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z0.d, z5.d\n\t"
+ "ld1d z12.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z1.d, z4.d\n\t"
+ "ld1d z13.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z1.d, z5.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "fmopa za4.d, p0/m, p0/m, z8.d, z12.d\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "fmopa za5.d, p0/m, p0/m, z8.d, z13.d\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "fmopa za6.d, p0/m, p0/m, z9.d, z12.d\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "fmopa za7.d, p0/m, p0/m, z9.d, z13.d\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #1024\n\t"
+ "subs %[k], %[k], #2\n\t"
+ "b.ne 1b\n\t"
+ : [a] "+&r"(a),[b] "+&r"(b),[k] "+&r"(k)
+ :: "memory","cc",VCLOB,PCLOB);
+}
+
+static void dd_flush_b0_set(double* c, long cs)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8 * cs;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "mov w12, #0\n\t"
+ "1:\n\t"
+ "mova z16.d, p0/m, za0h.d[w12, 0]\n\t"
+ "mova z18.d, p0/m, za1h.d[w12, 0]\n\t"
+ "mova z20.d, p0/m, za2h.d[w12, 0]\n\t"
+ "mova z22.d, p0/m, za3h.d[w12, 0]\n\t"
+ "st1d z16.d, p0, [%[ct], #0, mul vl]\n\t"
+ "st1d z18.d, p0, [%[ct], #1, mul vl]\n\t"
+ "st1d z20.d, p0, [%[cb], #0, mul vl]\n\t"
+ "st1d z22.d, p0, [%[cb], #1, mul vl]\n\t"
+ "add %[ct], %[ct], %[cs]\n\t"
+ "add %[cb], %[cb], %[cs]\n\t"
+ "add w12, w12, #1\n\t"
+ "cmp w12, #8\n\t"
+ "b.ne 1b\n\t"
+ : [ct] "+&r"(ct),[cb] "+&r"(cb)
+ : [cs] "r"(cs)
+ : "memory","cc","x12",VCLOB,PCLOB);
+}
+
+static void dd_flush_b4_set(double* c, long cs)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 8 * cs;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "mov w12, #0\n\t"
+ "1:\n\t"
+ "mova z16.d, p0/m, za4h.d[w12, 0]\n\t"
+ "mova z18.d, p0/m, za5h.d[w12, 0]\n\t"
+ "mova z20.d, p0/m, za6h.d[w12, 0]\n\t"
+ "mova z22.d, p0/m, za7h.d[w12, 0]\n\t"
+ "st1d z16.d, p0, [%[ct], #0, mul vl]\n\t"
+ "st1d z18.d, p0, [%[ct], #1, mul vl]\n\t"
+ "st1d z20.d, p0, [%[cb], #0, mul vl]\n\t"
+ "st1d z22.d, p0, [%[cb], #1, mul vl]\n\t"
+ "add %[ct], %[ct], %[cs]\n\t"
+ "add %[cb], %[cb], %[cs]\n\t"
+ "add w12, w12, #1\n\t"
+ "cmp w12, #8\n\t"
+ "b.ne 1b\n\t"
+ : [ct] "+&r"(ct),[cb] "+&r"(cb)
+ : [cs] "r"(cs)
+ : "memory","cc","x12",VCLOB,PCLOB);
+}
+
 static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
@@ -4609,8 +5335,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         tnext = __atomic_fetch_add((long*)&c->next, 1, __ATOMIC_RELAXED);
         tkn = tnext < c->ntask_items ? &c->tasks[tnext] : NULL;
     }
+    // DDX：对角双 bank + K64 分块（mode2 全面板；消 za_dump 转存）
+    const int ddx_on = c->ddx && g_diag_compact && (mode == 2) && nci == nc && kc == 64 && ncp == 128;   // ct+8192 硬编码 = 8 行 × ncp8
+    int ddx_did = 0;
+    double* ddx_d4c = tb->xpan;   // 跨瓦片/跨条 bank4 排水链（初始指哑区）
     // XPW：EV 托管步双写 Xp 的启用谓词（compact 对角 + special 布局 + 整面板 + 非末行块）
-    const int xpw_on = c->xpw && g_diag_compact && (mode == 2 || mode == 4) && c->xptm && nci == nc && (i + 1 < c->nrb);
+    const int xpw_on = c->xpw && !ddx_on && g_diag_compact && (mode == 2 || mode == 4) && c->xptm && nci == nc && (i + 1 < c->nrb);
     char* pend_xq = NULL;
     {
         const double* D = c->diag + c->diag_off[i];
@@ -4628,6 +5358,77 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
         for (int s = 0; s < S; s++) {
             const double* A = D + diag_strip_off(s);
             long K = 16L * (s + 1);
+            if (ddx_on && K >= 64) {
+                // DDX：双 bank K64 分块调度（nch=总块数含余块；块序保证 A 重读 L1 命中 + 排水列不相交）
+                if (pend) { PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0; }
+                long nch = (K + 63) / 64, rem = K % 64;
+                for (long t = 0; t < ntile; t++) {
+                    double* cur = cb + 16L * s * ncp + 32 * t;
+                    const double* B0x = cb + 32 * t;
+                    const double* B4x = B0x + 16;
+                    const char* apx = (s + 1 < S) ? (const char*)(D + diag_strip_off(s + 1)) + t * K * 32
+                                                  : (const char*)tb->scratch2;
+                    const char* pcx = (const char*)cur;
+#define DDA(ck) (A + (ck) * 1024)
+#define DDB0(ck) (B0x + (ck) * 64 * ncp)
+#define DDB4(ck) (B4x + (ck) * 64 * ncp)
+#define DDBP(ck) ((const char*)DDA((ck) + 1))
+                    if (nch == 1) {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_zlast(DDA(0), DDB4(0), cur, apx, DDBP(0), pcx), t_dkloop);
+                    } else if (nch == 2 && rem) {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_rem(DDA(1), DDB0(1), rem), t_dkloop);
+                        PROF_T(c, dd_b4_zlast(DDA(0), DDB4(0), cur, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_rem(DDA(1), DDB4(1), rem), t_dkloop);
+                    } else if (nch == 2) {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(1), DDB0(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_zpure(DDA(0), DDB4(0), tb->xpan, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_last(DDA(1), DDB4(1), cur, apx, DDBP(1), pcx), t_dkloop);
+                    } else if (nch == 3 && rem) {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_zpure(DDA(0), DDB4(0), tb->xpan, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(1), DDB0(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_rem(DDA(2), DDB0(2), rem), t_dkloop);
+                        PROF_T(c, dd_b4_last(DDA(1), DDB4(1), cur, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_rem(DDA(2), DDB4(2), rem), t_dkloop);
+                    } else if (nch == 3) {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_zpure(DDA(0), DDB4(0), tb->xpan, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(1), DDB0(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_pure(DDA(1), DDB4(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(2), DDB0(2), tb->xpan, apx, DDBP(2), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_last(DDA(2), DDB4(2), cur, apx, DDBP(2), pcx), t_dkloop);
+                    } else if (nch == 4 && rem) {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_zpure(DDA(0), DDB4(0), tb->xpan, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(1), DDB0(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_pure(DDA(1), DDB4(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(2), DDB0(2), tb->xpan, apx, DDBP(2), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_rem(DDA(3), DDB0(3), rem), t_dkloop);
+                        PROF_T(c, dd_b4_last(DDA(2), DDB4(2), cur, apx, DDBP(2), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_rem(DDA(3), DDB4(3), rem), t_dkloop);
+                    } else {
+                        PROF_T(c, dd_b0_first(DDA(0), DDB0(0), ddx_d4c, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_zpure(DDA(0), DDB4(0), tb->xpan, apx, DDBP(0), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(1), DDB0(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_pure(DDA(1), DDB4(1), tb->xpan, apx, DDBP(1), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(2), DDB0(2), tb->xpan, apx, DDBP(2), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_pure(DDA(2), DDB4(2), tb->xpan, apx, DDBP(2), pcx), t_dkloop);
+                        PROF_T(c, dd_b0_pure(DDA(3), DDB0(3), tb->xpan, apx, DDBP(3), pcx), t_dkloop);
+                        PROF_T(c, dd_b4_last(DDA(3), DDB4(3), cur, apx, DDBP(3), pcx), t_dkloop);
+                    }
+#undef DDA
+#undef DDB0
+#undef DDB4
+#undef DDBP
+                    ddx_d4c = cur + 16;
+                    if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
+                }
+                ddx_did = 1;
+                continue;
+            }
             for (long t = 0; t < ntile; t++) {
                 pf_t pf = pf_dummy;
                 if (pf_on && s + 1 < S) pf.p2 = (const char*)(D + diag_strip_off(s + 1)) + t * K * 32;
@@ -4663,11 +5464,14 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 if (c->prof >= 2) { tb->n_kstep += K; tb->n_dkstep += K; }
             }
             // 条末落地：默认同步 epi；PCHAIN 且下一条首内核 K>=64 时跨条托管（(s,末瓦片) 只被 (s+1,末瓦片) 读，落地先于其使用）
-            if (pend && !(c->pchain && s + 1 < S && 16L * (s + 2) >= 64)) {
+            // DDX 域：下一条走 duplex（无 EV 宿主槽），必须同步落地
+            if (pend && !(c->pchain && !ddx_on && s + 1 < S && 16L * (s + 2) >= 64)) {
                 PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi); pend = 0;
             }
         }
     }
+
+    if (ddx_did) PROF_T(c, dd_flush_b4_set(ddx_d4c, cs), t_depi);   // DDX：末条末瓦片 bank4 同步冲刷（先于 store 读 cbuf）
 
     // 4. C 块 → Xp（同步，消费者要读）→ X（可托管到后续 K 循环），发布 flag
     {
@@ -6893,6 +7697,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.pchain = env_int("TRSM_PCHAIN", 1) || c.xpw;   // 跨条 pend 链默认开（xw93 双节点认证 −1.5%~−1.8% 三件套之一）
         c.dpf = env_int("TRSM_DPF", 1);
         c.packnt = env_int("TRSM_PACKNT", 0);   // P0：筛查中
+        c.ddx = env_int("TRSM_DDX", 0);          // DDX：筛查中
         c.steal = env_int("TRSM_STEAL", 1);      // STEAL：面板粒度尾部窃取（争用税对策；v60 默认开——st73 扰动 −82%、
                                                  // st74 双节点干净认证无回归、gen 竞态三档全绿）
         c.xptm = env_int("TRSM_XPTM", 0);
