@@ -1,0 +1,84 @@
+Basic Details:
+    jobId                               	1604520                                           	
+    name                                	trsm-breakthrough56                               	
+    state                               	SUCCEEDED                                         	
+    user                                	niujiayin                                         	
+    queue                               	q_pacopt                                          	
+    account                             	common                                            	
+    cmd                                 	bash /home/share/niujiayin/trsm-breakthrough56-20260914/worker.sh	
+    submitNode                          	login07                                           	
+    createTime                          	2026/09/14 17:54:49                               	
+    startTime                           	2026/09/14 17:54:52                               	
+    lastModifiedTime                    	-                                                 	
+    endTime                             	2026/09/14 18:50:02                               	
+    currentOperation                    	EMPTY                                             	
+    jobRequeueMaxCnt                    	0                                                 	
+    jobRequeueCurrentCnt                	0                                                 	
+    mpiType                             	DEFAULT                                           	
+    interactionMode                     	DEFAULT                                           	
+    assistJob                           	DEFAULT                                           	
+    x11ForwardEnabled                   	false                                             	
+    description                         	-                                                 	
+    transferType                        	LOCAL                                             	
+    forwardTime                         	-                                                 	
+    recallTime                          	-                                                 	
+    autoResize                          	false                                             	
+Scheduling Details:
+    exclusive                           	true                                              	
+    priority                            	1                                                 	
+    adminPriority                       	-1                                                	
+    expectSchedTime                     	-                                                 	
+    startTimeEstimated                  	-                                                 	
+    reserveRes                          	-                                                 	
+    backfillRes                         	-                                                 	
+    backfilledRes                       	-                                                 	
+Resource Details:
+    reqJobLicense                       	-
+    allocJobLicense                     	-
+    resGroup[0]:
+        replica                         	1                                                 	
+        labels                          	queue_q_pacopt aarch64                            	
+        preferNodes                     	cn20486                                           	
+        reqNodeSelectPolicy             	-                                                 	
+        effNodeSelectPolicy             	SEQUENCE                                          	
+        reqCPU                          	38                                                	
+        reqMem                          	60000                                             	
+        reqGPU                          	gpu:0
+        reqNPU                          	0
+        allocCPU                        	38                                                	
+        allocMem                        	60000                                             	
+        allocGPU                        	gpu:0
+        allocNPU                        	0
+        reqTaskLicense                  	-
+        allocTaskLicense                	-
+Runtime Details:
+    execNodes                           	cn20486                                           	
+    execNodeCnt                         	1                                                 	
+    execPath                            	/home/share/niujiayin                             	
+    resizeCmd                           	-                                                 	
+    timeout                             	3600                                              	
+    stderrRedirectPath                  	/home/share/niujiayin/trsm-breakthrough56-20260914/worker_%J.err	
+    stderrRedirectType                  	override                                          	
+    stdoutRedirectPath                  	/home/share/niujiayin/trsm-breakthrough56-20260914/worker_%J.out	
+    stdoutRedirectType                  	override                                          	
+    totalUtime                          	3405                                              	
+    totalStime                          	171                                               	
+    totalMaxMemSwp                      	2926                                              	
+    totalMaxMem                         	2926                                              	
+    hostPreHookRunTime                  	0                                                 	
+    preHookRunTime                      	0                                                 	
+    jobWallclockDuration                	3303                                              	
+    postHookRunTime                     	0                                                 	
+    hostPostHookRunTime                 	0                                                 	
+    jobSstoppedTime                     	0                                                 	
+    coreHours                           	2008224                                           	
+    jobExitCode                         	0                                                 	
+    systemExitCode                      	0                                                 	
+    exitMessage                         	Job execution succeeded                           	
+    stderrRedirectOutputPath            	/home/share/niujiayin/trsm-breakthrough56-20260914/worker_1604520.err	
+    stdoutRedirectOutputPath            	/home/share/niujiayin/trsm-breakthrough56-20260914/worker_1604520.out	
+    traceMessages                       	2026/09/14 17:54:49    :    [JOB_ADD] Job 1604520 is submitted by niujiayin, job state is PENDING.	
+                                        	2026/09/14 17:54:51    :    [JOB_START] Job 1604520 start message has been sent.	
+                                        	2026/09/14 17:54:51    :    [JOB_START_ACK] Job 1604520 start message has been received by agent cn20486.	
+                                        	2026/09/14 17:54:52    :    [JOB_EXECUTION] Job 1604520 state is from PENDING to RUNNING, execution path: /home/share/niujiayin.	
+                                        	2026/09/14 18:50:02    :    [JOB_FINISH] Job 1604520 state is from RUNNING to SUCCEEDED.	

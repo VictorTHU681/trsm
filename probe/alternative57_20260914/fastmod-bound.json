@@ -1,0 +1,93 @@
+[
+  {
+    "p": 251,
+    "magic": 8555712,
+    "max_abs_dot": 32000000,
+    "residue_bound": "2071817/16384",
+    "bound_float": 126.45367431640625
+  },
+  {
+    "p": 241,
+    "magic": 8910721,
+    "max_abs_dot": 29491200,
+    "residue_bound": "1999697/16384",
+    "bound_float": 122.05181884765625
+  },
+  {
+    "p": 239,
+    "magic": 8985287,
+    "max_abs_dot": 29001728,
+    "residue_bound": "126083687/1048576",
+    "bound_float": 120.24277400970459
+  },
+  {
+    "p": 233,
+    "magic": 9216668,
+    "max_abs_dot": 27557888,
+    "residue_bound": "1909577/16384",
+    "bound_float": 116.55133056640625
+  },
+  {
+    "p": 229,
+    "magic": 9377658,
+    "max_abs_dot": 26615808,
+    "residue_bound": "15062977/131072",
+    "bound_float": 114.92139434814453
+  },
+  {
+    "p": 227,
+    "magic": 9460280,
+    "max_abs_dot": 26150912,
+    "residue_bound": "15017131/131072",
+    "bound_float": 114.57161712646484
+  },
+  {
+    "p": 223,
+    "magic": 9629972,
+    "max_abs_dot": 25233408,
+    "residue_bound": "29561723/262144",
+    "bound_float": 112.76902389526367
+  },
+  {
+    "p": 211,
+    "magic": 10177648,
+    "max_abs_dot": 22579200,
+    "residue_bound": "6969173/65536",
+    "bound_float": 106.34114074707031
+  },
+  {
+    "p": 199,
+    "magic": 10791375,
+    "max_abs_dot": 20072448,
+    "residue_bound": "104558735/1048576",
+    "bound_float": 99.71498012542725
+  },
+  {
+    "p": 197,
+    "magic": 10900932,
+    "max_abs_dot": 19668992,
+    "residue_bound": "6481707/65536",
+    "bound_float": 98.90299987792969
+  },
+  {
+    "p": 193,
+    "magic": 11126858,
+    "max_abs_dot": 18874368,
+    "residue_bound": "49651/512",
+    "bound_float": 96.974609375
+  },
+  {
+    "p": 191,
+    "magic": 11243370,
+    "max_abs_dot": 18483200,
+    "residue_bound": "50168779/524288",
+    "bound_float": 95.68935203552246
+  },
+  {
+    "p": 181,
+    "magic": 11864551,
+    "max_abs_dot": 16588800,
+    "residue_bound": "23892107/262144",
+    "bound_float": 91.14115524291992
+  }
+]

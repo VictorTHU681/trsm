@@ -1,0 +1,251 @@
+INDEPENDENT m=64 n=96 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=64 n=96 mode=0 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=1 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=64 n=96 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=0 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=1 reuse=1 maxerr=1.388e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=128 n=192 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=0 maxerr=5.551e-17 PASS
+INDEPENDENT m=128 n=192 mode=3 reuse=1 maxerr=5.551e-17 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=192 n=288 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=256 n=384 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=0 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=96 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=96 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=320 n=96 mode=3 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=192 mode=0 reuse=1 maxerr=1.145e-16 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=384 n=192 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=0 maxerr=1.110e-16 PASS
+INDEPENDENT m=384 n=192 mode=2 reuse=1 maxerr=1.110e-16 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=384 n=192 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=512 n=288 mode=0 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=512 n=288 mode=1 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=0 maxerr=1.665e-16 PASS
+INDEPENDENT m=512 n=288 mode=2 reuse=1 maxerr=1.665e-16 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=0 maxerr=2.776e-16 PASS
+INDEPENDENT m=512 n=288 mode=3 reuse=1 maxerr=2.220e-16 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=0 maxerr=2.054e-15 PASS
+INDEPENDENT m=768 n=96 mode=0 reuse=1 maxerr=2.054e-15 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=0 maxerr=1.998e-15 PASS
+INDEPENDENT m=768 n=96 mode=1 reuse=1 maxerr=2.220e-15 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=0 maxerr=2.776e-15 PASS
+INDEPENDENT m=768 n=96 mode=2 reuse=1 maxerr=2.165e-15 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=0 maxerr=2.054e-15 PASS
+INDEPENDENT m=768 n=96 mode=3 reuse=1 maxerr=2.054e-15 PASS
+INDEPENDENT_TOTAL cases=64 failures=0 maxerr=2.776e-15
+TILED_RIGHT_FORMAL m=512 n=19968 nb=128 nc=32
+TILED_RIGHT m=512 n=19968 nb=128 nc=32 mb=256 prep_ms=0.447781 copyin_ms=1.379593 diag_ms=3.894227 pack_ms=0.418820 update_ms=1.452516 copyout_ms=0.711732 total_ms=8.847464
+TILED_RIGHT m=512 n=19968 nb=128 nc=32 mb=256 prep_ms=0.226550 copyin_ms=0.568446 diag_ms=3.136925 pack_ms=0.060753 update_ms=1.462926 copyout_ms=0.710622 total_ms=6.174272
+TILED_RIGHT m=512 n=19968 nb=128 nc=32 mb=256 prep_ms=0.224770 copyin_ms=0.558395 diag_ms=3.132974 pack_ms=0.062303 update_ms=1.446466 copyout_ms=0.710322 total_ms=6.143901
+TILED_RIGHT m=512 n=19968 nb=128 nc=32 mb=256 prep_ms=0.224110 copyin_ms=0.569956 diag_ms=3.141933 pack_ms=0.063233 update_ms=1.445057 copyout_ms=0.711393 total_ms=6.164672
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         6.28     833.6704     2.16e-15     PASS
+TILED_RIGHT_FORMAL m=512 n=19968 nb=128 nc=128
+TILED_RIGHT m=512 n=19968 nb=128 nc=128 mb=256 prep_ms=0.444390 copyin_ms=1.350202 diag_ms=3.699200 pack_ms=0.414009 update_ms=1.618013 copyout_ms=0.686002 total_ms=8.711619
+TILED_RIGHT m=512 n=19968 nb=128 nc=128 mb=256 prep_ms=0.222500 copyin_ms=0.590227 diag_ms=3.128422 pack_ms=0.058463 update_ms=1.626886 copyout_ms=0.695341 total_ms=6.329329
+TILED_RIGHT m=512 n=19968 nb=128 nc=128 mb=256 prep_ms=0.222070 copyin_ms=0.588177 diag_ms=3.134484 pack_ms=0.058772 update_ms=1.613004 copyout_ms=0.694272 total_ms=6.319469
+TILED_RIGHT m=512 n=19968 nb=128 nc=128 mb=256 prep_ms=0.231501 copyin_ms=0.585496 diag_ms=3.096833 pack_ms=0.060463 update_ms=1.617763 copyout_ms=0.688411 total_ms=6.288308
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         6.43     814.3743     2.16e-15     PASS
+TILED_RIGHT_FORMAL m=512 n=19968 nb=256 nc=32
+TILED_RIGHT m=512 n=19968 nb=256 nc=32 mb=256 prep_ms=1.293749 copyin_ms=1.399954 diag_ms=5.129255 pack_ms=0.320354 update_ms=1.213716 copyout_ms=0.707452 total_ms=10.608546
+TILED_RIGHT m=512 n=19968 nb=256 nc=32 mb=256 prep_ms=1.021236 copyin_ms=0.569867 diag_ms=4.587149 pack_ms=0.026251 update_ms=1.151573 copyout_ms=0.718583 total_ms=8.080349
+TILED_RIGHT m=512 n=19968 nb=256 nc=32 mb=256 prep_ms=1.072349 copyin_ms=0.560566 diag_ms=4.581659 pack_ms=0.025791 update_ms=1.150613 copyout_ms=0.712603 total_ms=8.109731
+TILED_RIGHT m=512 n=19968 nb=256 nc=32 mb=256 prep_ms=1.057748 copyin_ms=0.558406 diag_ms=4.568528 pack_ms=0.023401 update_ms=1.169564 copyout_ms=0.707943 total_ms=8.092100
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         8.21     637.2150     2.05e-15     PASS
+TILED_RIGHT_FORMAL m=512 n=19968 nb=256 nc=128
+TILED_RIGHT m=512 n=19968 nb=256 nc=128 mb=256 prep_ms=1.283039 copyin_ms=1.311230 diag_ms=5.120264 pack_ms=0.319285 update_ms=1.119351 copyout_ms=0.685081 total_ms=10.348754
+TILED_RIGHT m=512 n=19968 nb=256 nc=128 mb=256 prep_ms=1.066139 copyin_ms=0.588296 diag_ms=4.583350 pack_ms=0.026161 update_ms=1.122792 copyout_ms=0.694161 total_ms=8.086970
+TILED_RIGHT m=512 n=19968 nb=256 nc=128 mb=256 prep_ms=1.060909 copyin_ms=0.583467 diag_ms=4.624071 pack_ms=0.024511 update_ms=1.111731 copyout_ms=0.699242 total_ms=8.109821
+TILED_RIGHT m=512 n=19968 nb=256 nc=128 mb=256 prep_ms=1.067618 copyin_ms=0.585787 diag_ms=4.545719 pack_ms=0.024441 update_ms=1.120031 copyout_ms=0.684181 total_ms=8.034517
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         8.19     638.8662     2.05e-15     PASS
+TILED_RIGHT_FORMAL m=512 n=19968 nb=512 nc=32
+TILED_RIGHT m=512 n=19968 nb=512 nc=32 mb=256 prep_ms=33.563863 copyin_ms=1.414835 diag_ms=8.979730 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.726153 total_ms=45.263178
+TILED_RIGHT m=512 n=19968 nb=512 nc=32 mb=256 prep_ms=35.659378 copyin_ms=0.563776 diag_ms=8.502229 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.712632 total_ms=45.442445
+TILED_RIGHT m=512 n=19968 nb=512 nc=32 mb=256 prep_ms=34.883524 copyin_ms=0.560175 diag_ms=8.498619 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.713562 total_ms=44.660290
+TILED_RIGHT m=512 n=19968 nb=512 nc=32 mb=256 prep_ms=33.567113 copyin_ms=0.564016 diag_ms=8.351012 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.719503 total_ms=43.205554
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968        44.56     117.4710     2.22e-16     PASS
+TILED_RIGHT_FORMAL m=512 n=19968 nb=512 nc=128
+TILED_RIGHT m=512 n=19968 nb=512 nc=128 mb=256 prep_ms=35.601926 copyin_ms=1.358502 diag_ms=8.990251 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.694631 total_ms=47.169434
+TILED_RIGHT m=512 n=19968 nb=512 nc=128 mb=256 prep_ms=35.804466 copyin_ms=0.589297 diag_ms=8.511889 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.692501 total_ms=45.603243
+TILED_RIGHT m=512 n=19968 nb=512 nc=128 mb=256 prep_ms=35.750963 copyin_ms=0.591617 diag_ms=8.496278 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.690521 total_ms=45.533469
+TILED_RIGHT m=512 n=19968 nb=512 nc=128 mb=256 prep_ms=35.030620 copyin_ms=0.588447 diag_ms=8.513839 pack_ms=0.000000 update_ms=0.000000 copyout_ms=0.692811 total_ms=44.829817
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968        45.44     115.1895     2.22e-16     PASS
+TILED_RIGHT_FORMAL m=2432 n=17024 nb=128 nc=32
+TILED_RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 prep_ms=0.563596 copyin_ms=35.722351 diag_ms=13.360576 pack_ms=0.924102 update_ms=69.244477 copyout_ms=2.911553 total_ms=123.317992
+TILED_RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 prep_ms=0.215070 copyin_ms=2.518915 diag_ms=12.661917 pack_ms=0.510294 update_ms=69.477500 copyout_ms=2.915913 total_ms=88.314080
+TILED_RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 prep_ms=0.208109 copyin_ms=2.529786 diag_ms=12.729731 pack_ms=0.519025 update_ms=69.993842 copyout_ms=2.915213 total_ms=88.911706
+TILED_RIGHT m=2432 n=17024 nb=128 nc=32 mb=256 prep_ms=0.212220 copyin_ms=2.484183 diag_ms=12.781704 pack_ms=0.515404 update_ms=68.911314 copyout_ms=2.914683 total_ms=87.837828
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        88.48    1138.0046     6.49e-15     PASS
+TILED_RIGHT_FORMAL m=2432 n=17024 nb=128 nc=128
+TILED_RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 prep_ms=0.566336 copyin_ms=36.777868 diag_ms=13.349881 pack_ms=0.961855 update_ms=35.288556 copyout_ms=2.672041 total_ms=90.224707
+TILED_RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 prep_ms=0.209740 copyin_ms=2.492023 diag_ms=12.701880 pack_ms=0.516095 update_ms=35.263208 copyout_ms=2.646861 total_ms=53.851397
+TILED_RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 prep_ms=0.211109 copyin_ms=2.498814 diag_ms=12.633224 pack_ms=0.507184 update_ms=35.334055 copyout_ms=2.664932 total_ms=53.871598
+TILED_RIGHT m=2432 n=17024 nb=128 nc=128 mb=256 prep_ms=0.205249 copyin_ms=2.491154 diag_ms=12.612638 pack_ms=0.506551 update_ms=35.380885 copyout_ms=2.654641 total_ms=53.871628
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        54.00    1864.7815     6.49e-15     PASS
+TILED_RIGHT_FORMAL m=2432 n=17024 nb=256 nc=32
+TILED_RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 prep_ms=1.251547 copyin_ms=35.537839 diag_ms=19.042785 pack_ms=0.781076 update_ms=66.537105 copyout_ms=2.927493 total_ms=126.563628
+TILED_RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 prep_ms=0.999105 copyin_ms=2.484664 diag_ms=18.305824 pack_ms=0.345094 update_ms=66.712022 copyout_ms=3.235268 total_ms=92.094217
+TILED_RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 prep_ms=1.001606 copyin_ms=2.492884 diag_ms=18.393287 pack_ms=0.339396 update_ms=66.534363 copyout_ms=2.934814 total_ms=91.707200
+TILED_RIGHT m=2432 n=17024 nb=256 nc=32 mb=256 prep_ms=1.003656 copyin_ms=2.489504 diag_ms=18.427767 pack_ms=0.344326 update_ms=66.791616 copyout_ms=2.918953 total_ms=91.987303
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        92.06    1093.7761     6.49e-15     PASS
+TILED_RIGHT_FORMAL m=2432 n=17024 nb=256 nc=128
+TILED_RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 prep_ms=1.290819 copyin_ms=36.800986 diag_ms=18.886658 pack_ms=0.793477 update_ms=33.181392 copyout_ms=2.683332 total_ms=94.166479
+TILED_RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 prep_ms=0.982335 copyin_ms=2.516084 diag_ms=18.236512 pack_ms=0.345914 update_ms=33.211812 copyout_ms=2.698333 total_ms=58.004010
+TILED_RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 prep_ms=0.980205 copyin_ms=2.501973 diag_ms=18.358153 pack_ms=0.345386 update_ms=33.233525 copyout_ms=2.711154 total_ms=58.143407
+TILED_RIGHT m=2432 n=17024 nb=256 nc=128 mb=256 prep_ms=0.979245 copyin_ms=2.495053 diag_ms=18.194828 pack_ms=0.344407 update_ms=33.225472 copyout_ms=2.726774 total_ms=57.977699
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        58.16    1731.2503     6.49e-15     PASS
+TILED_RIGHT_FORMAL m=2432 n=17024 nb=512 nc=32
+TILED_RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 prep_ms=34.861687 copyin_ms=36.341144 diag_ms=33.810430 pack_ms=0.659339 update_ms=56.661430 copyout_ms=2.918483 total_ms=165.789567
+TILED_RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 prep_ms=35.350969 copyin_ms=2.479333 diag_ms=32.942058 pack_ms=0.240421 update_ms=56.540562 copyout_ms=2.934524 total_ms=130.497787
+TILED_RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 prep_ms=34.031797 copyin_ms=2.530285 diag_ms=33.073053 pack_ms=0.238110 update_ms=57.381071 copyout_ms=2.924803 total_ms=130.189261
+TILED_RIGHT m=2432 n=17024 nb=512 nc=32 mb=256 prep_ms=35.556517 copyin_ms=2.479912 diag_ms=33.040673 pack_ms=0.241941 update_ms=56.802273 copyout_ms=2.993526 total_ms=131.125302
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024       130.73     770.2085     6.61e-15     PASS
+TILED_RIGHT_FORMAL m=2432 n=17024 nb=512 nc=128
+TILED_RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 prep_ms=33.964214 copyin_ms=36.337233 diag_ms=33.590347 pack_ms=0.641369 update_ms=30.653894 copyout_ms=2.646111 total_ms=138.373822
+TILED_RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 prep_ms=34.748240 copyin_ms=2.488123 diag_ms=33.136387 pack_ms=0.239030 update_ms=30.968148 copyout_ms=2.654230 total_ms=104.243479
+TILED_RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 prep_ms=35.616748 copyin_ms=2.454272 diag_ms=33.115094 pack_ms=0.237880 update_ms=30.793100 copyout_ms=2.649650 total_ms=104.876194
+TILED_RIGHT m=2432 n=17024 nb=512 nc=128 mb=256 prep_ms=33.958272 copyin_ms=2.492863 diag_ms=34.040647 pack_ms=0.239632 update_ms=30.946074 copyout_ms=2.643341 total_ms=104.330619
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024       104.61     962.4885     6.61e-15     PASS
+TILED_RIGHT_FORMAL m=17024 n=512 nb=128 nc=32
+TILED_RIGHT m=17024 n=512 nb=128 nc=32 mb=256 prep_ms=2.595338 copyin_ms=4.153858 diag_ms=8.907800 pack_ms=31.897702 update_ms=106.854986 copyout_ms=0.578866 total_ms=155.559236
+TILED_RIGHT m=17024 n=512 nb=128 nc=32 mb=256 prep_ms=1.217545 copyin_ms=0.586917 diag_ms=9.229805 pack_ms=31.287407 update_ms=106.663730 copyout_ms=0.576707 total_ms=149.618146
+TILED_RIGHT m=17024 n=512 nb=128 nc=32 mb=256 prep_ms=1.214415 copyin_ms=0.575016 diag_ms=8.575639 pack_ms=31.146012 update_ms=107.260959 copyout_ms=0.562756 total_ms=149.378691
+TILED_RIGHT m=17024 n=512 nb=128 nc=32 mb=256 prep_ms=1.211945 copyin_ms=0.577646 diag_ms=8.833484 pack_ms=31.212370 update_ms=106.295618 copyout_ms=0.561586 total_ms=148.752499
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       149.39     993.2529     1.53e-14     PASS
+TILED_RIGHT_FORMAL m=17024 n=512 nb=128 nc=128
+TILED_RIGHT m=17024 n=512 nb=128 nc=128 mb=256 prep_ms=2.287554 copyin_ms=3.923048 diag_ms=9.354536 pack_ms=24.093597 update_ms=60.880045 copyout_ms=0.499472 total_ms=101.631692
+TILED_RIGHT m=17024 n=512 nb=128 nc=128 mb=256 prep_ms=1.249797 copyin_ms=0.582276 diag_ms=9.185497 pack_ms=23.536155 update_ms=60.617365 copyout_ms=0.497993 total_ms=95.749284
+TILED_RIGHT m=17024 n=512 nb=128 nc=128 mb=256 prep_ms=1.233386 copyin_ms=0.592517 diag_ms=9.043991 pack_ms=23.763969 update_ms=61.048037 copyout_ms=0.501712 total_ms=96.261238
+TILED_RIGHT m=17024 n=512 nb=128 nc=128 mb=256 prep_ms=1.241176 copyin_ms=0.588137 diag_ms=9.015073 pack_ms=23.762676 update_ms=60.475903 copyout_ms=0.498452 total_ms=95.672329
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        96.03    1545.1514     1.53e-14     PASS
+TILED_RIGHT_FORMAL m=17024 n=512 nb=256 nc=32
+TILED_RIGHT m=17024 n=512 nb=256 nc=32 mb=256 prep_ms=3.357472 copyin_ms=4.125127 diag_ms=8.629982 pack_ms=14.819560 update_ms=81.372349 copyout_ms=0.572456 total_ms=113.385729
+TILED_RIGHT m=17024 n=512 nb=256 nc=32 mb=256 prep_ms=2.607468 copyin_ms=0.564536 diag_ms=8.046345 pack_ms=14.869542 update_ms=82.699278 copyout_ms=0.574936 total_ms=109.412579
+TILED_RIGHT m=17024 n=512 nb=256 nc=32 mb=256 prep_ms=2.616958 copyin_ms=0.560426 diag_ms=7.917887 pack_ms=14.415113 update_ms=82.477421 copyout_ms=0.569126 total_ms=108.607042
+TILED_RIGHT m=17024 n=512 nb=256 nc=32 mb=256 prep_ms=2.595888 copyin_ms=0.558705 diag_ms=8.553568 pack_ms=14.345759 update_ms=82.791573 copyout_ms=0.572116 total_ms=109.467992
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       109.31    1357.4522     1.53e-14     PASS
+TILED_RIGHT_FORMAL m=17024 n=512 nb=256 nc=128
+TILED_RIGHT m=17024 n=512 nb=256 nc=128 mb=256 prep_ms=3.345221 copyin_ms=3.875866 diag_ms=8.685704 pack_ms=13.304404 update_ms=51.087523 copyout_ms=0.503093 total_ms=81.370124
+TILED_RIGHT m=17024 n=512 nb=256 nc=128 mb=256 prep_ms=2.540555 copyin_ms=0.562005 diag_ms=8.440031 pack_ms=14.862545 update_ms=50.619573 copyout_ms=0.501362 total_ms=77.596182
+TILED_RIGHT m=17024 n=512 nb=256 nc=128 mb=256 prep_ms=2.594158 copyin_ms=0.577166 diag_ms=8.263104 pack_ms=12.897130 update_ms=50.553250 copyout_ms=0.500632 total_ms=75.456846
+TILED_RIGHT m=17024 n=512 nb=256 nc=128 mb=256 prep_ms=2.610378 copyin_ms=0.569646 diag_ms=8.259776 pack_ms=12.923219 update_ms=50.544303 copyout_ms=0.496213 total_ms=75.473407
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        76.32    1944.2814     1.53e-14     PASS
+TILED_RIGHT_FORMAL m=17024 n=512 nb=512 nc=32
+TILED_RIGHT m=17024 n=512 nb=512 nc=32 mb=256 prep_ms=40.312863 copyin_ms=3.954369 diag_ms=10.038073 pack_ms=10.080886 update_ms=70.038479 copyout_ms=0.657680 total_ms=135.584332
+TILED_RIGHT m=17024 n=512 nb=512 nc=32 mb=256 prep_ms=37.980278 copyin_ms=0.541644 diag_ms=9.681829 pack_ms=9.647988 update_ms=70.379221 copyout_ms=0.565036 total_ms=128.825146
+TILED_RIGHT m=17024 n=512 nb=512 nc=32 mb=256 prep_ms=37.736137 copyin_ms=0.534094 diag_ms=9.875144 pack_ms=9.636318 update_ms=70.000765 copyout_ms=0.586546 total_ms=128.398186
+TILED_RIGHT m=17024 n=512 nb=512 nc=32 mb=256 prep_ms=36.096193 copyin_ms=0.540224 diag_ms=9.667739 pack_ms=9.620232 update_ms=70.526721 copyout_ms=0.586196 total_ms=127.065597
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       128.24    1157.0773     1.53e-14     PASS
+TILED_RIGHT_FORMAL m=17024 n=512 nb=512 nc=128
+TILED_RIGHT m=17024 n=512 nb=512 nc=128 mb=256 prep_ms=40.155494 copyin_ms=4.086655 diag_ms=10.506260 pack_ms=10.020715 update_ms=53.492969 copyout_ms=0.500992 total_ms=119.322411
+TILED_RIGHT m=17024 n=512 nb=512 nc=128 mb=256 prep_ms=38.304690 copyin_ms=0.555626 diag_ms=10.119438 pack_ms=9.569382 update_ms=53.238944 copyout_ms=0.505573 total_ms=112.325654
+TILED_RIGHT m=17024 n=512 nb=512 nc=128 mb=256 prep_ms=38.022227 copyin_ms=0.552945 diag_ms=9.898494 pack_ms=9.591742 update_ms=53.434428 copyout_ms=0.507263 total_ms=112.043091
+TILED_RIGHT m=17024 n=512 nb=512 nc=128 mb=256 prep_ms=37.398959 copyin_ms=0.554665 diag_ms=9.831386 pack_ms=9.551351 update_ms=53.512459 copyout_ms=0.505053 total_ms=111.392192
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512       112.07    1324.0772     1.53e-14     PASS
+8c0b4e984fbb3b01492790a40b939bf59040351ab6cface5ee841f7f699eb7ff  tiled_right.c
+d1c9e19dc0a11550ca6aba3bb53449d20446fd96c1a462c7eb6ee7fe8b2d4d67  right-update.h
+827504388dbf309b22ea74b0fa0c3117349732451a5cd5d9b5e254a4d81a32cb  fullinv-compact.h
+1f6a3dc4712bbb04c4a7f8cfbc042ba8c306681bcfd253a51242a47b4c518350  trsm-v55.c
+e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac  bench_trsm.c
+TILED_RIGHT_DONE

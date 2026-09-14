@@ -1,0 +1,124 @@
+BLOCKED_INV m=512 n=19968 nc=32 kc=64
+FULLINV m=512 n=19968 nc=32 init_ms=0.718294 inverse_ms=9.429858 pack_ms=1.654176 gemm_ms=3.386824 free_ms=0.000330 total_ms=15.189482
+FULLINV m=512 n=19968 nc=32 init_ms=0.030041 inverse_ms=0.554029 pack_ms=0.666352 gemm_ms=3.268580 free_ms=0.000330 total_ms=4.519332
+FULLINV m=512 n=19968 nc=32 init_ms=0.026601 inverse_ms=0.557299 pack_ms=0.727654 gemm_ms=3.274151 free_ms=0.000480 total_ms=4.586185
+FULLINV m=512 n=19968 nc=32 init_ms=0.027121 inverse_ms=0.541449 pack_ms=0.662102 gemm_ms=3.284771 free_ms=0.000410 total_ms=4.515853
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         4.67    1121.6918     2.22e-16     PASS
+BLOCKED_INV m=512 n=19968 nc=32 kc=128
+FULLINV m=512 n=19968 nc=32 init_ms=0.713404 inverse_ms=9.683606 pack_ms=1.730149 gemm_ms=3.787817 free_ms=0.000410 total_ms=15.915386
+FULLINV m=512 n=19968 nc=32 init_ms=0.026981 inverse_ms=0.574939 pack_ms=0.660883 gemm_ms=3.689504 free_ms=0.000410 total_ms=4.952717
+FULLINV m=512 n=19968 nc=32 init_ms=0.028601 inverse_ms=0.536508 pack_ms=0.671083 gemm_ms=3.679564 free_ms=0.000400 total_ms=4.916156
+FULLINV m=512 n=19968 nc=32 init_ms=0.025691 inverse_ms=0.468906 pack_ms=0.655982 gemm_ms=3.662373 free_ms=0.000060 total_ms=4.813012
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         5.02    1042.2812     2.22e-16     PASS
+BLOCKED_INV m=512 n=19968 nc=32 kc=256
+FULLINV m=512 n=19968 nc=32 init_ms=0.813888 inverse_ms=13.285908 pack_ms=1.659016 gemm_ms=3.994735 free_ms=0.000280 total_ms=19.753827
+FULLINV m=512 n=19968 nc=32 init_ms=0.027071 inverse_ms=0.550069 pack_ms=0.660812 gemm_ms=3.937213 free_ms=0.000570 total_ms=5.175735
+FULLINV m=512 n=19968 nc=32 init_ms=0.025760 inverse_ms=0.538389 pack_ms=0.660702 gemm_ms=3.943753 free_ms=0.000400 total_ms=5.169004
+FULLINV m=512 n=19968 nc=32 init_ms=0.023871 inverse_ms=0.514097 pack_ms=0.706454 gemm_ms=3.944663 free_ms=0.000400 total_ms=5.189485
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         5.30     987.9495     2.22e-16     PASS
+BLOCKED_INV m=512 n=19968 nc=128 kc=64
+FULLINV m=512 n=19968 nc=128 init_ms=0.739884 inverse_ms=10.573787 pack_ms=1.830812 gemm_ms=2.907078 free_ms=0.000410 total_ms=16.051971
+FULLINV m=512 n=19968 nc=128 init_ms=0.028351 inverse_ms=0.541558 pack_ms=0.898040 gemm_ms=2.513665 free_ms=0.000380 total_ms=3.981994
+FULLINV m=512 n=19968 nc=128 init_ms=0.027071 inverse_ms=0.550479 pack_ms=0.902200 gemm_ms=2.516975 free_ms=0.000320 total_ms=3.997045
+FULLINV m=512 n=19968 nc=128 init_ms=0.026141 inverse_ms=0.558919 pack_ms=0.897760 gemm_ms=2.493374 free_ms=0.000430 total_ms=3.976624
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         4.11    1272.2249     2.22e-16     PASS
+BLOCKED_INV m=512 n=19968 nc=128 kc=128
+FULLINV m=512 n=19968 nc=128 init_ms=0.719475 inverse_ms=9.312923 pack_ms=1.828212 gemm_ms=2.841446 free_ms=0.000410 total_ms=14.702466
+FULLINV m=512 n=19968 nc=128 init_ms=0.027661 inverse_ms=0.541848 pack_ms=0.895590 gemm_ms=2.443993 free_ms=0.000410 total_ms=3.909502
+FULLINV m=512 n=19968 nc=128 init_ms=0.026091 inverse_ms=0.546688 pack_ms=0.894620 gemm_ms=2.447083 free_ms=0.000290 total_ms=3.914772
+FULLINV m=512 n=19968 nc=128 init_ms=0.023741 inverse_ms=0.537868 pack_ms=0.889140 gemm_ms=2.465943 free_ms=0.000300 total_ms=3.916992
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         4.04    1296.5575     2.22e-16     PASS
+BLOCKED_INV m=512 n=19968 nc=128 kc=256
+FULLINV m=512 n=19968 nc=128 init_ms=0.752825 inverse_ms=11.840589 pack_ms=2.124482 gemm_ms=2.915878 free_ms=0.000290 total_ms=17.634064
+FULLINV m=512 n=19968 nc=128 init_ms=0.026941 inverse_ms=0.548778 pack_ms=0.905461 gemm_ms=2.421091 free_ms=0.000410 total_ms=3.902681
+FULLINV m=512 n=19968 nc=128 init_ms=0.026231 inverse_ms=0.540738 pack_ms=0.915121 gemm_ms=2.430382 free_ms=0.000300 total_ms=3.912772
+FULLINV m=512 n=19968 nc=128 init_ms=0.026611 inverse_ms=0.523028 pack_ms=0.893760 gemm_ms=2.426202 free_ms=0.000400 total_ms=3.870001
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         4.02    1301.7027     2.22e-16     PASS
+BLOCKED_INV m=2432 n=17024 nc=32 kc=64
+FULLINV m=2432 n=17024 nc=32 init_ms=0.942852 inverse_ms=23.906975 pack_ms=20.819372 gemm_ms=54.459384 free_ms=0.000410 total_ms=100.128993
+FULLINV m=2432 n=17024 nc=32 init_ms=0.166595 inverse_ms=5.666161 pack_ms=2.719582 gemm_ms=54.043920 free_ms=0.000310 total_ms=62.596568
+FULLINV m=2432 n=17024 nc=32 init_ms=0.169745 inverse_ms=5.707753 pack_ms=2.711981 gemm_ms=53.997809 free_ms=0.000560 total_ms=62.587848
+FULLINV m=2432 n=17024 nc=32 init_ms=0.170326 inverse_ms=5.658610 pack_ms=2.712262 gemm_ms=53.998729 free_ms=0.000560 total_ms=62.540487
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        62.72    1605.5033     2.22e-16     PASS
+BLOCKED_INV m=2432 n=17024 nc=32 kc=128
+FULLINV m=2432 n=17024 nc=32 init_ms=0.916211 inverse_ms=19.392092 pack_ms=22.009900 gemm_ms=51.265605 free_ms=0.000290 total_ms=93.584098
+FULLINV m=2432 n=17024 nc=32 init_ms=0.169196 inverse_ms=5.698511 pack_ms=2.707562 gemm_ms=51.156930 free_ms=0.000620 total_ms=59.732819
+FULLINV m=2432 n=17024 nc=32 init_ms=0.170365 inverse_ms=5.662211 pack_ms=2.703921 gemm_ms=51.157201 free_ms=0.000400 total_ms=59.694098
+FULLINV m=2432 n=17024 nc=32 init_ms=0.168246 inverse_ms=5.672291 pack_ms=2.715321 gemm_ms=51.203673 free_ms=0.000430 total_ms=59.759961
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        59.87    1681.8248     2.22e-16     PASS
+BLOCKED_INV m=2432 n=17024 nc=32 kc=256
+FULLINV m=2432 n=17024 nc=32 init_ms=0.960653 inverse_ms=23.311544 pack_ms=20.916233 gemm_ms=50.789249 free_ms=0.000410 total_ms=95.978089
+FULLINV m=2432 n=17024 nc=32 init_ms=0.167836 inverse_ms=5.742823 pack_ms=2.740522 gemm_ms=50.845908 free_ms=0.000340 total_ms=59.497429
+FULLINV m=2432 n=17024 nc=32 init_ms=0.166965 inverse_ms=5.622279 pack_ms=2.736092 gemm_ms=50.839578 free_ms=0.000410 total_ms=59.365324
+FULLINV m=2432 n=17024 nc=32 init_ms=0.167356 inverse_ms=5.737043 pack_ms=2.709591 gemm_ms=50.691813 free_ms=0.000420 total_ms=59.306223
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        59.53    1691.4874     2.22e-16     PASS
+BLOCKED_INV m=2432 n=17024 nc=128 kc=64
+FULLINV m=2432 n=17024 nc=128 init_ms=0.968513 inverse_ms=23.226890 pack_ms=19.787775 gemm_ms=33.657471 free_ms=0.000650 total_ms=77.641299
+FULLINV m=2432 n=17024 nc=128 init_ms=0.167566 inverse_ms=5.662870 pack_ms=3.767276 gemm_ms=33.132593 free_ms=0.000340 total_ms=42.730645
+FULLINV m=2432 n=17024 nc=128 init_ms=0.168696 inverse_ms=5.682031 pack_ms=3.760356 gemm_ms=33.125523 free_ms=0.000320 total_ms=42.736926
+FULLINV m=2432 n=17024 nc=128 init_ms=0.168196 inverse_ms=5.729983 pack_ms=3.762486 gemm_ms=33.108952 free_ms=0.000330 total_ms=42.769947
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        42.91    2346.5024     2.22e-16     PASS
+BLOCKED_INV m=2432 n=17024 nc=128 kc=128
+FULLINV m=2432 n=17024 nc=128 init_ms=0.908820 inverse_ms=22.201255 pack_ms=20.102845 gemm_ms=32.040025 free_ms=0.000410 total_ms=75.253355
+FULLINV m=2432 n=17024 nc=128 init_ms=0.169135 inverse_ms=5.705592 pack_ms=3.665653 gemm_ms=31.689653 free_ms=0.000320 total_ms=41.230353
+FULLINV m=2432 n=17024 nc=128 init_ms=0.168066 inverse_ms=5.652030 pack_ms=3.701594 gemm_ms=31.727974 free_ms=0.000320 total_ms=41.249984
+FULLINV m=2432 n=17024 nc=128 init_ms=0.168065 inverse_ms=5.716282 pack_ms=3.622451 gemm_ms=31.722585 free_ms=0.000330 total_ms=41.229713
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        41.38    2433.4302     2.22e-16     PASS
+BLOCKED_INV m=2432 n=17024 nc=128 kc=256
+FULLINV m=2432 n=17024 nc=128 init_ms=0.838158 inverse_ms=20.898651 pack_ms=19.987900 gemm_ms=36.964991 free_ms=0.000410 total_ms=78.690110
+FULLINV m=2432 n=17024 nc=128 init_ms=0.168616 inverse_ms=5.710562 pack_ms=3.775206 gemm_ms=36.859467 free_ms=0.000430 total_ms=46.514281
+FULLINV m=2432 n=17024 nc=128 init_ms=0.168576 inverse_ms=5.690451 pack_ms=3.790737 gemm_ms=36.734081 free_ms=0.000320 total_ms=46.384165
+FULLINV m=2432 n=17024 nc=128 init_ms=0.167965 inverse_ms=5.762273 pack_ms=3.755066 gemm_ms=36.764632 free_ms=0.000330 total_ms=46.450266
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        46.59    2161.2588     2.22e-16     PASS
+e18db0de84a8610e31bff37576f87ef36efed88973417145d7f9c3f22ee742a8  fullinv-blocked.c
+827504388dbf309b22ea74b0fa0c3117349732451a5cd5d9b5e254a4d81a32cb  fullinv-compact.h
+e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac  bench_trsm.c
+BLOCKED_INVERSE_DONE

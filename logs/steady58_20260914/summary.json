@@ -1,0 +1,666 @@
+[
+  {
+    "file": "501-tc3compact.sh.log",
+    "m": 17024,
+    "n": 512,
+    "header": "TC3COMPACT_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 4183.5587,
+        "range": [
+          4136.2575,
+          4200.0025
+        ],
+        "vs_off": {
+          "paired_percent": 0.08212597599825164,
+          "bootstrap95": [
+            -0.32388547074223045,
+            0.5332629001587649
+          ],
+          "positive_pairs": 6,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 4179.57655,
+        "range": [
+          4123.5209,
+          4201.1935
+        ],
+        "vs_control": {
+          "paired_percent": -0.0820585845847738,
+          "bootstrap95": [
+            -0.5385772641718276,
+            0.3354588350243984
+          ],
+          "positive_pairs": 6,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 4208.232749999999,
+        "range": [
+          4193.1084,
+          4216.4058
+        ],
+        "vs_control": {
+          "paired_percent": 0.6572016065056671,
+          "bootstrap95": [
+            0.4222575885055874,
+            0.927196633623267
+          ],
+          "positive_pairs": 12,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 0.7398673157375425,
+          "bootstrap95": [
+            0.49546873107231176,
+            1.0568792536675322
+          ],
+          "positive_pairs": 12,
+          "pairs": 12
+        }
+      }
+    }
+  },
+  {
+    "file": "502-owner-outline.sh.log",
+    "m": 512,
+    "n": 19968,
+    "header": "OWNER58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 6,
+        "median": 2724.26015,
+        "range": [
+          2679.5772,
+          2749.456
+        ],
+        "vs_off": {
+          "paired_percent": -0.6569722658948204,
+          "bootstrap95": [
+            -1.3051250442247235,
+            -0.004562913712981814
+          ],
+          "positive_pairs": 2,
+          "pairs": 6
+        }
+      },
+      "nocpf": {
+        "rounds": 6,
+        "median": 2696.0315,
+        "range": [
+          2670.386,
+          2708.1054
+        ],
+        "vs_control": {
+          "paired_percent": -1.088074582147847,
+          "bootstrap95": [
+            -1.9603324781653986,
+            -0.21387067346671979
+          ],
+          "positive_pairs": 1,
+          "pairs": 6
+        },
+        "vs_off": {
+          "paired_percent": -1.7378984998057043,
+          "bootstrap95": [
+            -2.2996788246852646,
+            -1.1164786718749395
+          ],
+          "positive_pairs": 0,
+          "pairs": 6
+        }
+      },
+      "off": {
+        "rounds": 6,
+        "median": 2733.1016,
+        "range": [
+          2722.0454,
+          2767.9818
+        ],
+        "vs_control": {
+          "paired_percent": 0.661316934745767,
+          "bootstrap95": [
+            0.004563121924301104,
+            1.322383806463652
+          ],
+          "positive_pairs": 4,
+          "pairs": 6
+        }
+      },
+      "outline": {
+        "rounds": 6,
+        "median": 2724.26075,
+        "range": [
+          2714.6009,
+          2741.7034
+        ],
+        "vs_control": {
+          "paired_percent": 0.26094019526374074,
+          "bootstrap95": [
+            -0.21972467324472153,
+            0.8226750307656893
+          ],
+          "positive_pairs": 3,
+          "pairs": 6
+        },
+        "vs_off": {
+          "paired_percent": -0.39774637534454066,
+          "bootstrap95": [
+            -0.6938047544388298,
+            -0.1478422461324783
+          ],
+          "positive_pairs": 0,
+          "pairs": 6
+        }
+      }
+    }
+  },
+  {
+    "file": "503-panel-preload.sh.log",
+    "m": 512,
+    "n": 19968,
+    "header": "PRELOAD58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 6,
+        "median": 2730.45025,
+        "range": [
+          2684.6373,
+          2765.071
+        ],
+        "vs_off": {
+          "paired_percent": 0.3476192090845107,
+          "bootstrap95": [
+            -0.9688292457185105,
+            1.4637589203841748
+          ],
+          "positive_pairs": 4,
+          "pairs": 6
+        }
+      },
+      "off": {
+        "rounds": 6,
+        "median": 2719.4305,
+        "range": [
+          2678.9488,
+          2754.7182
+        ],
+        "vs_control": {
+          "paired_percent": -0.3464150039874987,
+          "bootstrap95": [
+            -1.4426421176971622,
+            0.9783073736676235
+          ],
+          "positive_pairs": 2,
+          "pairs": 6
+        }
+      },
+      "prefetch": {
+        "rounds": 6,
+        "median": 2591.6288999999997,
+        "range": [
+          2583.0358,
+          2603.2487
+        ],
+        "vs_control": {
+          "paired_percent": -4.948762304026744,
+          "bootstrap95": [
+            -5.758799127695863,
+            -4.044706557370916
+          ],
+          "positive_pairs": 0,
+          "pairs": 6
+        },
+        "vs_off": {
+          "paired_percent": -4.618345943322962,
+          "bootstrap95": [
+            -5.227162077835224,
+            -3.9195589732566565
+          ],
+          "positive_pairs": 0,
+          "pairs": 6
+        }
+      },
+      "preload": {
+        "rounds": 6,
+        "median": 2606.14395,
+        "range": [
+          2582.1855,
+          2627.5832
+        ],
+        "vs_control": {
+          "paired_percent": -4.4492761734216595,
+          "bootstrap95": [
+            -5.09451202523501,
+            -3.558368155049467
+          ],
+          "positive_pairs": 0,
+          "pairs": 6
+        },
+        "vs_off": {
+          "paired_percent": -4.117123502981186,
+          "bootstrap95": [
+            -4.545111950606657,
+            -3.6470428498690435
+          ],
+          "positive_pairs": 0,
+          "pairs": 6
+        }
+      }
+    }
+  },
+  {
+    "file": "504-final-confirm.sh.log",
+    "m": 17024,
+    "n": 512,
+    "header": "FINAL58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 4190.334650000001,
+        "range": [
+          4145.6305,
+          4223.6296
+        ],
+        "vs_off": {
+          "paired_percent": -0.20226537736216468,
+          "bootstrap95": [
+            -0.5756327601196984,
+            0.19833435163938762
+          ],
+          "positive_pairs": 3,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 4201.51155,
+        "range": [
+          4161.552,
+          4224.5923
+        ],
+        "vs_control": {
+          "paired_percent": 0.20267531936169195,
+          "bootstrap95": [
+            -0.18322875183875617,
+            0.5846831448957374
+          ],
+          "positive_pairs": 9,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 4215.2642,
+        "range": [
+          4186.3833,
+          4235.378
+        ],
+        "vs_control": {
+          "paired_percent": 0.5292944163026755,
+          "bootstrap95": [
+            0.23477515596046372,
+            0.829692915478165
+          ],
+          "positive_pairs": 10,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 0.3259584595920177,
+          "bootstrap95": [
+            -0.005987364829584482,
+            0.6471903882521169
+          ],
+          "positive_pairs": 9,
+          "pairs": 12
+        }
+      }
+    }
+  },
+  {
+    "file": "504-final-confirm.sh.log",
+    "m": 2432,
+    "n": 17024,
+    "header": "FINAL58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 4307.5026,
+        "range": [
+          4257.0458,
+          4337.453
+        ],
+        "vs_off": {
+          "paired_percent": 0.5553230123839805,
+          "bootstrap95": [
+            0.28903033775548864,
+            0.8380384506996085
+          ],
+          "positive_pairs": 11,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 4270.9103,
+        "range": [
+          4253.5873,
+          4307.3805
+        ],
+        "vs_control": {
+          "paired_percent": -0.5522562065815131,
+          "bootstrap95": [
+            -0.8287027494656615,
+            -0.28657590994691834
+          ],
+          "positive_pairs": 1,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 4300.1244,
+        "range": [
+          4243.9074,
+          4317.5028
+        ],
+        "vs_control": {
+          "paired_percent": -0.055208042030783624,
+          "bootstrap95": [
+            -0.3579163041421939,
+            0.24685249877369445
+          ],
+          "positive_pairs": 6,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 0.4998083873911126,
+          "bootstrap95": [
+            0.18964547209827534,
+            0.8031101248757438
+          ],
+          "positive_pairs": 9,
+          "pairs": 12
+        }
+      }
+    }
+  },
+  {
+    "file": "504-final-confirm.sh.log",
+    "m": 512,
+    "n": 19968,
+    "header": "FINAL58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 2744.56445,
+        "range": [
+          2707.708,
+          2767.2183
+        ],
+        "vs_off": {
+          "paired_percent": 1.7223459019031577,
+          "bootstrap95": [
+            -0.0821578913857333,
+            4.93615107863211
+          ],
+          "positive_pairs": 9,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 2739.49905,
+        "range": [
+          2297.9965,
+          2752.2243
+        ],
+        "vs_control": {
+          "paired_percent": -1.693183426544365,
+          "bootstrap95": [
+            -4.692621685165003,
+            0.08414921820822131
+          ],
+          "positive_pairs": 3,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 2748.1914500000003,
+        "range": [
+          2689.0997,
+          2780.1051
+        ],
+        "vs_control": {
+          "paired_percent": 0.13403988689786797,
+          "bootstrap95": [
+            -0.5704886715787855,
+            0.8150275701389336
+          ],
+          "positive_pairs": 7,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 1.8586944192999248,
+          "bootstrap95": [
+            -0.21606670365202674,
+            5.142035532289658
+          ],
+          "positive_pairs": 7,
+          "pairs": 12
+        }
+      }
+    }
+  },
+  {
+    "file": "506-second-confirm.sh.log",
+    "m": 17024,
+    "n": 512,
+    "header": "FINAL58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 4210.00505,
+        "range": [
+          4174.2716,
+          4217.6335
+        ],
+        "vs_off": {
+          "paired_percent": 0.01681832455904209,
+          "bootstrap95": [
+            -0.27924386153179953,
+            0.33233906726129553
+          ],
+          "positive_pairs": 8,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 4205.7808,
+        "range": [
+          4163.9483,
+          4219.917
+        ],
+        "vs_control": {
+          "paired_percent": -0.016815496474268297,
+          "bootstrap95": [
+            -0.3239387930882516,
+            0.2778736073425216
+          ],
+          "positive_pairs": 4,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 4221.8957,
+        "range": [
+          4193.9871,
+          4231.0304
+        ],
+        "vs_control": {
+          "paired_percent": 0.3805223099609894,
+          "bootstrap95": [
+            0.19935863913819518,
+            0.5815320239516962
+          ],
+          "positive_pairs": 11,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 0.3974046319971433,
+          "bootstrap95": [
+            0.1771460981130751,
+            0.635580322556502
+          ],
+          "positive_pairs": 10,
+          "pairs": 12
+        }
+      }
+    }
+  },
+  {
+    "file": "506-second-confirm.sh.log",
+    "m": 2432,
+    "n": 17024,
+    "header": "FINAL58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 4301.6444,
+        "range": [
+          4286.0264,
+          4324.9152
+        ],
+        "vs_off": {
+          "paired_percent": 0.8054008717165745,
+          "bootstrap95": [
+            0.5163447654464163,
+            1.1945689779305202
+          ],
+          "positive_pairs": 12,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 4275.26795,
+        "range": [
+          4204.3869,
+          4285.1421
+        ],
+        "vs_control": {
+          "paired_percent": -0.7989659926470768,
+          "bootstrap95": [
+            -1.168137533653088,
+            -0.5157191839633604
+          ],
+          "positive_pairs": 0,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 4312.179,
+        "range": [
+          4285.6235,
+          4323.3232
+        ],
+        "vs_control": {
+          "paired_percent": 0.1419494152814159,
+          "bootstrap95": [
+            -0.1326459951661077,
+            0.3895499900753872
+          ],
+          "positive_pairs": 8,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 0.9484935488260624,
+          "bootstrap95": [
+            0.7039406883243476,
+            1.2131186371645564
+          ],
+          "positive_pairs": 12,
+          "pairs": 12
+        }
+      }
+    }
+  },
+  {
+    "file": "506-second-confirm.sh.log",
+    "m": 512,
+    "n": 19968,
+    "header": "FINAL58_FORMAL",
+    "modes": {
+      "control": {
+        "rounds": 12,
+        "median": 2748.0723500000004,
+        "range": [
+          2715.8502,
+          2775.0926
+        ],
+        "vs_off": {
+          "paired_percent": 0.12041056551382204,
+          "bootstrap95": [
+            -0.40961946199415816,
+            0.6584652371642016
+          ],
+          "positive_pairs": 6,
+          "pairs": 12
+        }
+      },
+      "off": {
+        "rounds": 12,
+        "median": 2745.1164,
+        "range": [
+          2695.8359,
+          2779.8074
+        ],
+        "vs_control": {
+          "paired_percent": -0.12026575284070538,
+          "bootstrap95": [
+            -0.6427435359989827,
+            0.40055294897979643
+          ],
+          "positive_pairs": 6,
+          "pairs": 12
+        }
+      },
+      "on": {
+        "rounds": 12,
+        "median": 2755.9699,
+        "range": [
+          2712.227,
+          2774.026
+        ],
+        "vs_control": {
+          "paired_percent": 0.2870782227215671,
+          "bootstrap95": [
+            -0.15402597338412047,
+            0.7420369576504634
+          ],
+          "positive_pairs": 7,
+          "pairs": 12
+        },
+        "vs_off": {
+          "paired_percent": 0.4078344607468357,
+          "bootstrap95": [
+            -0.22061435342506835,
+            1.023794271971634
+          ],
+          "positive_pairs": 7,
+          "pairs": 12
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "complete": [
+    500,
+    501,
+    502,
+    503,
+    504,
+    505,
+    506
+  ],
+  "source_hashes": 23,
+  "independent_cases": 448,
+  "bench_pass_rows": 316,
+  "guard_comparisons": 356352,
+  "changed_inputs": 12,
+  "binary_hashes": {
+    "control": "fadd745ea2c2f1d405e6b8a61433a9786fc8cf815615e730b7982519cc50c18b",
+    "candidate": "c87a3d48d52038058a8430f33cb3548a7b1ef446da2324ee9df390277af7254b"
+  },
+  "production_matches_validated_candidate": true
+}

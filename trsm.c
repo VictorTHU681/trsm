@@ -750,6 +750,138 @@ static inline void NAME(const double* pa, long ase, long aso, const double* pb, 
 #define LDA_CUR LDA_NT_INSN
 DEF_FIXED_PLAIN(kloop_fixed_plain)
 DEF_FIXED_EPI64(kloop_fixed_epi, EV_SUB)
+// NC128 diagonal kernels: no hosted X copy; prefetch C only during the first 64 hosted steps.
+#define DEF_COMPACT_DIAG_PLAIN(NAME)                                                                                     \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf) \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    long k = K - 1, pfc = pf->pfn;                                                                                 \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+                                                                                                           \
+        KLOOP_INIT                                                                                                \
+        KLOOP_REST                                                                                                \
+                                                                                                           \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs) \
+        : "memory", "cc", "x9",  VCLOB, PCLOB);                                                            \
+}
+
+#define DEF_COMPACT_DIAG_EPI(NAME, EV)                                                                                   \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long K, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols)                                    \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    long k = K - 65, pfc = pf->pfn;                                                                                \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+                                                                                                           \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #8\n\t"                                                                                         \
+        "3:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KLOOP_REST                                                                                                \
+                                                                                                           \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [k] "+&r"(k), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs) \
+        : "memory", "cc", "x9", "x10",  VCLOB, PCLOB);                                                     \
+}
+
+#define DEF_COMPACT_DIAG_EPI64(NAME, EV)                                                                                 \
+static inline void NAME(const double* pa, long ase, long aso, const double* pb, long bs, long cols, const pf_t* pf, \
+                        const double* scratch, double* c, long cs, long ecols)                                    \
+{                                                                                                                 \
+    const double* xa = pa;                                                                                        \
+    const double* xb = pb;                                                                                        \
+    const char* xpf = pf->p;                                                                                      \
+    const char* xpf2 = pf->p2;                                                                                    \
+    const char* xpc = pf->pc;                                                                                     \
+    const char* xs = (const char*)scratch;                                                                        \
+    char* xc = (char*)c;                                                                                          \
+    long pfc = pf->pfn;                                                                                           \
+    (void)cols;                                                                                                   \
+    asm volatile(                                                                                                 \
+                                                                                                           \
+        SET_EPI_PREDS                                                                                             \
+        KLOOP_INIT                                                                                                \
+        "mov x10, #8\n\t"                                                                                         \
+        "2:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 2b\n\t"                                                                                             \
+        "sub %[xs], %[xs], #3840\n\t"                                                                             \
+        "mov x10, #7\n\t"                                                                                         \
+        "3:\n\t" KROWP(EV)                                                                                        \
+        "subs x10, x10, #1\n\t"                                                                                   \
+        "b.ne 3b\n\t"                                                                                             \
+        KS_EVEN EV(0, "p1", "z16", "z17") HPF1                                                                    \
+        KS_ODD  EV(1, "p2", "z18", "z19") HPF2                                                                    \
+        KS_EVEN EV(2, "p3", "z16", "z17") HPF1                                                                    \
+        FM_ODD  EV(3, "p4", "z18", "z19")                                                                         \
+                                                                                                           \
+        : [xa] "+&r"(xa), [xb] "+&r"(xb), [xpf] "+&r"(xpf), [pfc] "+&r"(pfc), [xpf2] "+&r"(xpf2), [xpc] "+&r"(xpc), [xs] "+&r"(xs), [xc] "+&r"(xc) \
+        : [pfn] "r"(pf->pfn), [pfj] "r"(pf->pfj), [pcs] "r"(pf->pcs) \
+        : "memory", "cc", "x9", "x10",  VCLOB, PCLOB);                                                     \
+}
+
+#pragma push_macro("SWS")
+#undef SWS
+#pragma push_macro("SWS_GATE_K")
+#undef SWS_GATE_K
+#pragma push_macro("SWS_GATE_R")
+#undef SWS_GATE_R
+#pragma push_macro("KLOOP_REST")
+#undef KLOOP_REST
+#define SWS
+#define SWS_GATE_K
+#define SWS_GATE_R
+#define KLOOP_REST                                                                \
+    "cbz %[k], 6f\n\t"                                                            \
+    "1:\n\t"                                                                      \
+    KS_EVEN PFL PFX SWS_GATE_K SWS                                                \
+    "subs %[k], %[k], #1\n\t"                                                     \
+    "b.eq 5f\n\t"                                                                 \
+    KS_ODD                                                                    \
+    "subs %[k], %[k], #1\n\t"                                                     \
+    "b.ne 1b\n\t"                                                                 \
+    "6:\n\t" FM_EVEN                                                              \
+    "b 7f\n\t"                                                                    \
+    "5:\n\t" FM_ODD                                                               \
+    "7:\n\t"
+
+
+#undef LDA_CUR
+#define LDA_CUR "ld1d "
+DEF_COMPACT_DIAG_PLAIN(kloop_diag_plain_compact)
+#undef DEF_COMPACT_DIAG_PLAIN
+DEF_COMPACT_DIAG_EPI(kloop_diag_set_compact, EV_SET)
+#undef DEF_COMPACT_DIAG_EPI
+DEF_COMPACT_DIAG_EPI64(kloop_diag64_set_compact, EV_SET)
+#undef DEF_COMPACT_DIAG_EPI64
+#pragma pop_macro("KLOOP_REST")
+#pragma pop_macro("SWS_GATE_R")
+#pragma pop_macro("SWS_GATE_K")
+#pragma pop_macro("SWS")
+
+#undef LDA_CUR
+#define LDA_CUR LDA_NT_INSN
+
 #undef K_MOP
 #define K_MOP "fmops "
 DEF_FIXED_PLAIN(kloop_fixed_direct)
@@ -3465,6 +3597,7 @@ static inline __attribute__((always_inline)) void kloop_hoist_bank4(const double
 // Select the address-hoisted KC64 kernels once per solve. Keeping both task
 // versions permits same-binary profiling without changing the owner path.
 static int g_abhoist;
+static int g_diag_compact;
 static inline __attribute__((always_inline)) long run_task_special_impl(const ctx_t* c, tbuf_t* tb, const task_t* tk, const task_t* tkn_guess, int tid, int mode, int hoist)
 {
     if (tk->kind == 1) { run_pack_task(c, tk, tb); return -1; }
@@ -3780,12 +3913,12 @@ static inline __attribute__((always_inline)) long run_task_special_impl(const ct
                 sw_advance(tb);
                 sme_zero_za();
                 if (pend && K >= 65) {
-                    PROF_T(c, kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    PROF_T(c, (g_diag_compact ? kloop_diag_set_compact(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi_set(A, 128, 128, cb + 32 * t, cs, K, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
                 } else if (pend && K == 64) {
-                    PROF_T(c, kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols), t_dkloop);
+                    PROF_T(c, (g_diag_compact ? kloop_diag64_set_compact(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols) : kloop_epi64_set(A, 128, 128, cb + 32 * t, cs, cols, &pf, scratch, pend_c, cs, pend_cols)), t_dkloop);
                 } else {
                     if (pend) PROF_T(c, epi_set_std(scratch, pend_c, cs, pend_cols), t_depi);
-                    PROF_T(c, kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf), t_dkloop);
+                    PROF_T(c, (g_diag_compact ? kloop_diag_plain_compact(A, 128, 128, cb + 32 * t, cs, K, cols, &pf) : kloop_plain(A, 128, 128, cb + 32 * t, cs, K, cols, &pf)), t_dkloop);
                 }
                 PROF_T(c, za_dump(scratch), t_ddump);
                 pend = 1; pend_c = cb + 16L * s * ncp + 32 * t; pend_cols = cols;
@@ -5996,6 +6129,8 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
     // Tune B prefetch separately for the paired-row owner loop.
     if (c.special == 5) c.loadpf = env_int("TRSM_LOADPF", 0);
 
+    // Full NC128 specializations use fixed strides and no hosted X copy.
+    g_diag_compact=env_int("TRSM_DIAG_COMPACT",1) && (c.special==2 || c.special==4) && !c.swhost;
     g_implicit_owner = env_int("TRSM_IMPLICIT_OWNER",1) && c.special==5 && c.m<=1024
         && (c.cshift==0 || c.cfold) && c.ppmode==0 && c.mb==64 && c.nc==96 && c.kc==64
         && c.m%64==0 && c.n%96==0 && env_int("TRSM_KHEADW",0)==0

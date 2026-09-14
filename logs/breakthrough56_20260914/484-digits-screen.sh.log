@@ -1,0 +1,234 @@
+DIGIT_CHECK M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 input=0 outputs=1024 maxerr=4.720e-11 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.115736 product_ms=0.022471 total_ms=0.138207 product_GFLOPS=46.663 total_GFLOPS=7.587
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.100325 product_ms=0.024021 total_ms=0.124346 product_GFLOPS=43.652 total_GFLOPS=8.433
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.100305 product_ms=0.018101 total_ms=0.118406 product_GFLOPS=57.929 total_GFLOPS=8.856
+DIGIT_CHECK M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 input=0 outputs=1024 maxerr=4.720e-11 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.100905 product_ms=0.014530 total_ms=0.115435 product_GFLOPS=72.167 total_GFLOPS=9.084
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.100274 product_ms=0.014631 total_ms=0.114905 product_GFLOPS=71.668 total_GFLOPS=9.126
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.098875 product_ms=0.013930 total_ms=0.112805 product_GFLOPS=75.275 total_GFLOPS=9.295
+DIGIT_CHECK M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 input=0 outputs=1024 maxerr=4.720e-11 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.099654 product_ms=0.012411 total_ms=0.112065 product_GFLOPS=84.487 total_GFLOPS=9.357
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.098815 product_ms=0.012450 total_ms=0.111265 product_GFLOPS=84.223 total_GFLOPS=9.424
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.099224 product_ms=0.012231 total_ms=0.111455 product_GFLOPS=85.731 total_GFLOPS=9.408
+DIGIT_CHECK M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 input=0 outputs=1024 maxerr=2.102e-13 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.120646 product_ms=0.022041 total_ms=0.142687 product_GFLOPS=47.574 total_GFLOPS=7.349
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.117976 product_ms=0.021351 total_ms=0.139327 product_GFLOPS=49.111 total_GFLOPS=7.526
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.117525 product_ms=0.020881 total_ms=0.138406 product_GFLOPS=50.217 total_GFLOPS=7.576
+DIGIT_CHECK M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 input=0 outputs=1024 maxerr=2.099e-13 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.120185 product_ms=0.017501 total_ms=0.137686 product_GFLOPS=59.915 total_GFLOPS=7.616
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.119256 product_ms=0.017091 total_ms=0.136347 product_GFLOPS=61.353 total_GFLOPS=7.690
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.117785 product_ms=0.017001 total_ms=0.134786 product_GFLOPS=61.677 total_GFLOPS=7.780
+DIGIT_CHECK M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 input=0 outputs=1024 maxerr=2.102e-13 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.120126 product_ms=0.015031 total_ms=0.135157 product_GFLOPS=69.761 total_GFLOPS=7.758
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.118185 product_ms=0.014681 total_ms=0.132866 product_GFLOPS=71.424 total_GFLOPS=7.892
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.118536 product_ms=0.014390 total_ms=0.132926 product_GFLOPS=72.868 total_GFLOPS=7.888
+DIGIT_CHECK M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 input=0 outputs=1024 maxerr=1.128e-13 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.156538 product_ms=0.038011 total_ms=0.194549 product_GFLOPS=27.586 total_GFLOPS=5.390
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.151697 product_ms=0.036481 total_ms=0.188178 product_GFLOPS=28.743 total_GFLOPS=5.572
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.151367 product_ms=0.036462 total_ms=0.187829 product_GFLOPS=28.758 total_GFLOPS=5.583
+DIGIT_CHECK M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 input=0 outputs=1024 maxerr=1.128e-13 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.157347 product_ms=0.030512 total_ms=0.187859 product_GFLOPS=34.366 total_GFLOPS=5.582
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.152267 product_ms=0.029081 total_ms=0.181348 product_GFLOPS=36.057 total_GFLOPS=5.782
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.151867 product_ms=0.028821 total_ms=0.180688 product_GFLOPS=36.382 total_GFLOPS=5.803
+DIGIT_CHECK M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 input=0 outputs=1024 maxerr=1.124e-13 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.154307 product_ms=0.023951 total_ms=0.178258 product_GFLOPS=43.780 total_GFLOPS=5.882
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.150937 product_ms=0.023581 total_ms=0.174518 product_GFLOPS=44.467 total_GFLOPS=6.008
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.151267 product_ms=0.022881 total_ms=0.174148 product_GFLOPS=45.827 total_GFLOPS=6.021
+DIGIT_CHECK M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 input=1 outputs=1024 maxerr=4.193e-10 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.115516 product_ms=0.019371 total_ms=0.134887 product_GFLOPS=54.131 total_GFLOPS=7.774
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.100515 product_ms=0.026601 total_ms=0.127116 product_GFLOPS=39.419 total_GFLOPS=8.249
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.100065 product_ms=0.017451 total_ms=0.117516 product_GFLOPS=60.087 total_GFLOPS=8.923
+DIGIT_CHECK M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 input=1 outputs=1024 maxerr=4.193e-10 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.100335 product_ms=0.013930 total_ms=0.114265 product_GFLOPS=75.275 total_GFLOPS=9.177
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.098294 product_ms=0.014111 total_ms=0.112405 product_GFLOPS=74.309 total_GFLOPS=9.329
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.098095 product_ms=0.014130 total_ms=0.112225 product_GFLOPS=74.209 total_GFLOPS=9.344
+DIGIT_CHECK M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 input=1 outputs=1024 maxerr=4.193e-10 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.099794 product_ms=0.012071 total_ms=0.111865 product_GFLOPS=86.867 total_GFLOPS=9.374
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.098285 product_ms=0.012740 total_ms=0.111025 product_GFLOPS=82.306 total_GFLOPS=9.444
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.098905 product_ms=0.011891 total_ms=0.110796 product_GFLOPS=88.182 total_GFLOPS=9.464
+DIGIT_CHECK M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 input=1 outputs=1024 maxerr=9.663e-13 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.121655 product_ms=0.021061 total_ms=0.142716 product_GFLOPS=49.788 total_GFLOPS=7.347
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.117136 product_ms=0.020961 total_ms=0.138097 product_GFLOPS=50.025 total_GFLOPS=7.593
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.116585 product_ms=0.021061 total_ms=0.137646 product_GFLOPS=49.787 total_GFLOPS=7.618
+DIGIT_CHECK M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 input=1 outputs=1024 maxerr=9.663e-13 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.119936 product_ms=0.017140 total_ms=0.137076 product_GFLOPS=61.177 total_GFLOPS=7.650
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.117755 product_ms=0.016831 total_ms=0.134586 product_GFLOPS=62.300 total_GFLOPS=7.791
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.117046 product_ms=0.016730 total_ms=0.133776 product_GFLOPS=62.676 total_GFLOPS=7.838
+DIGIT_CHECK M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 input=1 outputs=1024 maxerr=9.663e-13 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.121016 product_ms=0.014881 total_ms=0.135897 product_GFLOPS=70.464 total_GFLOPS=7.716
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.117735 product_ms=0.014891 total_ms=0.132626 product_GFLOPS=70.417 total_GFLOPS=7.906
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.117456 product_ms=0.014370 total_ms=0.131826 product_GFLOPS=72.969 total_GFLOPS=7.954
+DIGIT_CHECK M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 input=1 outputs=1024 maxerr=8.527e-13 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.157047 product_ms=0.036972 total_ms=0.194019 product_GFLOPS=28.361 total_GFLOPS=5.405
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.150697 product_ms=0.036972 total_ms=0.187669 product_GFLOPS=28.361 total_GFLOPS=5.587
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.150507 product_ms=0.036662 total_ms=0.187169 product_GFLOPS=28.601 total_GFLOPS=5.602
+DIGIT_CHECK M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 input=1 outputs=1024 maxerr=8.527e-13 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.155537 product_ms=0.029322 total_ms=0.184859 product_GFLOPS=35.761 total_GFLOPS=5.672
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.151557 product_ms=0.029041 total_ms=0.180598 product_GFLOPS=36.107 total_GFLOPS=5.806
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.150847 product_ms=0.028961 total_ms=0.179808 product_GFLOPS=36.206 total_GFLOPS=5.832
+DIGIT_CHECK M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 input=1 outputs=1024 maxerr=8.527e-13 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.153807 product_ms=0.022861 total_ms=0.176668 product_GFLOPS=45.867 total_GFLOPS=5.935
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.150687 product_ms=0.023261 total_ms=0.173948 product_GFLOPS=45.079 total_GFLOPS=6.028
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.150407 product_ms=0.022831 total_ms=0.173238 product_GFLOPS=45.928 total_GFLOPS=6.053
+DIGIT_CHECK M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 input=2 outputs=1024 maxerr=1.638e-12 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.120735 product_ms=0.019491 total_ms=0.140226 product_GFLOPS=53.798 total_GFLOPS=7.478
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.102365 product_ms=0.024151 total_ms=0.126516 product_GFLOPS=43.417 total_GFLOPS=8.288
+DIGIT_PERF M=32 K=512 KC=128 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.100915 product_ms=0.017230 total_ms=0.118145 product_GFLOPS=60.858 total_GFLOPS=8.875
+DIGIT_CHECK M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 input=2 outputs=1024 maxerr=1.638e-12 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.102685 product_ms=0.014921 total_ms=0.117606 product_GFLOPS=70.275 total_GFLOPS=8.916
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.099455 product_ms=0.014180 total_ms=0.113635 product_GFLOPS=73.948 total_GFLOPS=9.228
+DIGIT_PERF M=32 K=512 KC=256 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.098285 product_ms=0.013691 total_ms=0.111976 product_GFLOPS=76.589 total_GFLOPS=9.364
+DIGIT_CHECK M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 input=2 outputs=1024 maxerr=1.638e-12 declared_bound=2.341e-09 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.101235 product_ms=0.013081 total_ms=0.114316 product_GFLOPS=80.161 total_GFLOPS=9.173
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.098295 product_ms=0.011950 total_ms=0.110245 product_GFLOPS=87.747 total_GFLOPS=9.511
+DIGIT_PERF M=32 K=512 KC=512 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.098685 product_ms=0.012090 total_ms=0.110775 product_GFLOPS=86.731 total_GFLOPS=9.466
+DIGIT_CHECK M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 input=2 outputs=1024 maxerr=3.775e-15 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.123726 product_ms=0.022261 total_ms=0.145987 product_GFLOPS=47.104 total_GFLOPS=7.183
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.117766 product_ms=0.020861 total_ms=0.138627 product_GFLOPS=50.265 total_GFLOPS=7.564
+DIGIT_PERF M=32 K=512 KC=128 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.118345 product_ms=0.020801 total_ms=0.139146 product_GFLOPS=50.410 total_GFLOPS=7.536
+DIGIT_CHECK M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 input=2 outputs=1024 maxerr=3.775e-15 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.121265 product_ms=0.017251 total_ms=0.138516 product_GFLOPS=60.783 total_GFLOPS=7.570
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.117536 product_ms=0.016761 total_ms=0.134297 product_GFLOPS=62.560 total_GFLOPS=7.808
+DIGIT_PERF M=32 K=512 KC=256 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.117425 product_ms=0.016961 total_ms=0.134386 product_GFLOPS=61.823 total_GFLOPS=7.803
+DIGIT_CHECK M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 input=2 outputs=1024 maxerr=3.775e-15 declared_bound=1.822e-11 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.119596 product_ms=0.014650 total_ms=0.134246 product_GFLOPS=71.575 total_GFLOPS=7.811
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.118136 product_ms=0.014581 total_ms=0.132717 product_GFLOPS=71.914 total_GFLOPS=7.901
+DIGIT_PERF M=32 K=512 KC=512 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.117455 product_ms=0.014491 total_ms=0.131946 product_GFLOPS=72.360 total_GFLOPS=7.947
+DIGIT_CHECK M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 input=2 outputs=1024 maxerr=3.331e-15 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.155737 product_ms=0.037561 total_ms=0.193298 product_GFLOPS=27.917 total_GFLOPS=5.425
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.151317 product_ms=0.036872 total_ms=0.188189 product_GFLOPS=28.438 total_GFLOPS=5.572
+DIGIT_PERF M=32 K=512 KC=128 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.150377 product_ms=0.036281 total_ms=0.186658 product_GFLOPS=28.902 total_GFLOPS=5.618
+DIGIT_CHECK M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 input=2 outputs=1024 maxerr=3.331e-15 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.153967 product_ms=0.029611 total_ms=0.183578 product_GFLOPS=35.412 total_GFLOPS=5.712
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.151137 product_ms=0.028801 total_ms=0.179938 product_GFLOPS=36.408 total_GFLOPS=5.827
+DIGIT_PERF M=32 K=512 KC=256 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.149927 product_ms=0.028822 total_ms=0.178749 product_GFLOPS=36.381 total_GFLOPS=5.866
+DIGIT_CHECK M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 input=2 outputs=1024 maxerr=3.331e-15 declared_bound=1.368e-11 PASS
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.153827 product_ms=0.023521 total_ms=0.177348 product_GFLOPS=44.580 total_GFLOPS=5.913
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.150927 product_ms=0.022981 total_ms=0.173908 product_GFLOPS=45.628 total_GFLOPS=6.029
+DIGIT_PERF M=32 K=512 KC=512 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.150537 product_ms=0.022981 total_ms=0.173518 product_GFLOPS=45.628 total_GFLOPS=6.043
+DIGIT_THREADS=1
+DIGIT_CHECK M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 rep=0 encode_ms=8.508084 product_ms=30.228559 total_ms=38.736643 product_GFLOPS=35.521 total_GFLOPS=27.719
+DIGIT_PERF M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 rep=1 encode_ms=8.632820 product_ms=30.280452 total_ms=38.913272 product_GFLOPS=35.460 total_GFLOPS=27.593
+DIGIT_PERF M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 rep=2 encode_ms=8.529065 product_ms=30.254011 total_ms=38.783076 product_GFLOPS=35.491 total_GFLOPS=27.686
+DIGIT_CHECK M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 rep=0 encode_ms=8.302704 product_ms=23.133681 total_ms=31.436385 product_GFLOPS=46.415 total_GFLOPS=34.156
+DIGIT_PERF M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 rep=1 encode_ms=8.209760 product_ms=23.110060 total_ms=31.319820 product_GFLOPS=46.462 total_GFLOPS=34.283
+DIGIT_PERF M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 rep=2 encode_ms=8.204920 product_ms=23.124731 total_ms=31.329651 product_GFLOPS=46.433 total_GFLOPS=34.272
+DIGIT_CHECK M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 rep=0 encode_ms=7.585201 product_ms=19.833169 total_ms=27.418370 product_GFLOPS=54.139 total_GFLOPS=39.161
+DIGIT_PERF M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 rep=1 encode_ms=7.587552 product_ms=19.871130 total_ms=27.458682 product_GFLOPS=54.035 total_GFLOPS=39.104
+DIGIT_PERF M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 rep=2 encode_ms=7.531109 product_ms=19.833208 total_ms=27.364317 product_GFLOPS=54.139 total_GFLOPS=39.239
+DIGIT_CHECK M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 rep=0 encode_ms=7.325769 product_ms=19.069063 total_ms=26.394832 product_GFLOPS=56.308 total_GFLOPS=40.680
+DIGIT_PERF M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 rep=1 encode_ms=7.324789 product_ms=19.065883 total_ms=26.390672 product_GFLOPS=56.317 total_GFLOPS=40.686
+DIGIT_PERF M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 rep=2 encode_ms=7.325019 product_ms=19.055002 total_ms=26.380021 product_GFLOPS=56.350 total_GFLOPS=40.703
+DIGIT_CHECK M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 rep=0 encode_ms=6.889229 product_ms=17.193806 total_ms=24.083035 product_GFLOPS=62.449 total_GFLOPS=44.585
+DIGIT_PERF M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 rep=1 encode_ms=6.880799 product_ms=17.212517 total_ms=24.093316 product_GFLOPS=62.381 total_GFLOPS=44.566
+DIGIT_PERF M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 rep=2 encode_ms=6.877729 product_ms=17.236718 total_ms=24.114447 product_GFLOPS=62.294 total_GFLOPS=44.527
+DIGIT_CHECK M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 rep=0 encode_ms=9.704159 product_ms=36.650427 total_ms=46.354586 product_GFLOPS=29.297 total_GFLOPS=23.164
+DIGIT_PERF M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 rep=1 encode_ms=9.700159 product_ms=36.683298 total_ms=46.383457 product_GFLOPS=29.271 total_GFLOPS=23.149
+DIGIT_PERF M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 rep=2 encode_ms=9.708099 product_ms=36.666097 total_ms=46.374196 product_GFLOPS=29.284 total_GFLOPS=23.154
+DIGIT_CHECK M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 rep=0 encode_ms=9.492088 product_ms=29.242751 total_ms=38.734839 product_GFLOPS=36.718 total_GFLOPS=27.720
+DIGIT_PERF M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 rep=1 encode_ms=9.468058 product_ms=29.160587 total_ms=38.628645 product_GFLOPS=36.822 total_GFLOPS=27.797
+DIGIT_PERF M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 rep=2 encode_ms=9.445296 product_ms=29.104495 total_ms=38.549791 product_GFLOPS=36.893 total_GFLOPS=27.853
+DIGIT_CHECK M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 rep=0 encode_ms=8.963004 product_ms=25.514659 total_ms=34.477663 product_GFLOPS=42.083 total_GFLOPS=31.143
+DIGIT_PERF M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 rep=1 encode_ms=8.943223 product_ms=25.541250 total_ms=34.484473 product_GFLOPS=42.040 total_GFLOPS=31.137
+DIGIT_PERF M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 rep=2 encode_ms=8.951133 product_ms=25.534180 total_ms=34.485313 product_GFLOPS=42.051 total_GFLOPS=31.136
+DIGIT_CHECK M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 rep=0 encode_ms=8.775315 product_ms=25.710048 total_ms=34.485363 product_GFLOPS=41.764 total_GFLOPS=31.136
+DIGIT_PERF M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 rep=1 encode_ms=8.783135 product_ms=25.723629 total_ms=34.506764 product_GFLOPS=41.741 total_GFLOPS=31.117
+DIGIT_PERF M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 rep=2 encode_ms=8.769846 product_ms=25.692357 total_ms=34.462203 product_GFLOPS=41.792 total_GFLOPS=31.157
+DIGIT_CHECK M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 rep=0 encode_ms=8.664040 product_ms=23.511416 total_ms=32.175456 product_GFLOPS=45.669 total_GFLOPS=33.371
+DIGIT_PERF M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 rep=1 encode_ms=8.646700 product_ms=23.516576 total_ms=32.163276 product_GFLOPS=45.659 total_GFLOPS=33.384
+DIGIT_PERF M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 rep=2 encode_ms=8.650959 product_ms=23.487145 total_ms=32.138104 product_GFLOPS=45.716 total_GFLOPS=33.410
+DIGIT_CHECK M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.639e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 rep=0 encode_ms=12.090319 product_ms=64.675078 total_ms=76.765397 product_GFLOPS=16.602 total_GFLOPS=13.987
+DIGIT_PERF M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 rep=1 encode_ms=12.082988 product_ms=64.736081 total_ms=76.819069 product_GFLOPS=16.586 total_GFLOPS=13.978
+DIGIT_PERF M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 rep=2 encode_ms=12.080338 product_ms=64.712720 total_ms=76.793058 product_GFLOPS=16.592 total_GFLOPS=13.982
+DIGIT_CHECK M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.603e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 rep=0 encode_ms=11.769994 product_ms=51.152273 total_ms=62.922267 product_GFLOPS=20.991 total_GFLOPS=17.065
+DIGIT_PERF M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 rep=1 encode_ms=11.767174 product_ms=51.060724 total_ms=62.827898 product_GFLOPS=21.029 total_GFLOPS=17.090
+DIGIT_PERF M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 rep=2 encode_ms=11.760132 product_ms=51.138748 total_ms=62.898880 product_GFLOPS=20.997 total_GFLOPS=17.071
+DIGIT_CHECK M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.612e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 rep=0 encode_ms=11.328252 product_ms=48.662544 total_ms=59.990796 product_GFLOPS=22.065 total_GFLOPS=17.898
+DIGIT_PERF M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 rep=1 encode_ms=11.328552 product_ms=48.674284 total_ms=60.002836 product_GFLOPS=22.060 total_GFLOPS=17.895
+DIGIT_PERF M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 rep=2 encode_ms=11.344893 product_ms=48.702225 total_ms=60.047118 product_GFLOPS=22.047 total_GFLOPS=17.882
+DIGIT_CHECK M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.621e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 rep=0 encode_ms=11.218947 product_ms=42.998703 total_ms=54.217650 product_GFLOPS=24.971 total_GFLOPS=19.804
+DIGIT_PERF M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 rep=1 encode_ms=11.193317 product_ms=43.039904 total_ms=54.233221 product_GFLOPS=24.948 total_GFLOPS=19.799
+DIGIT_PERF M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 rep=2 encode_ms=11.211567 product_ms=43.114017 total_ms=54.325584 product_GFLOPS=24.905 total_GFLOPS=19.765
+DIGIT_CHECK M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.608e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 rep=0 encode_ms=10.693403 product_ms=40.401232 total_ms=51.094635 product_GFLOPS=26.577 total_GFLOPS=21.015
+DIGIT_PERF M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 rep=1 encode_ms=10.698784 product_ms=40.572330 total_ms=51.271114 product_GFLOPS=26.465 total_GFLOPS=20.942
+DIGIT_PERF M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 rep=2 encode_ms=10.696643 product_ms=40.655615 total_ms=51.352258 product_GFLOPS=26.411 total_GFLOPS=20.909
+DIGIT_THREADS=38
+DIGIT_CHECK M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.611218 product_ms=1.214796 total_ms=1.826014 product_GFLOPS=883.887 total_GFLOPS=588.025
+DIGIT_PERF M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.613049 product_ms=1.173534 total_ms=1.786583 product_GFLOPS=914.964 total_GFLOPS=601.003
+DIGIT_PERF M=512 K=2048 KC=128 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.577607 product_ms=1.200075 total_ms=1.777682 product_GFLOPS=894.729 total_GFLOPS=604.012
+DIGIT_CHECK M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.631840 product_ms=1.003436 total_ms=1.635276 product_GFLOPS=1070.065 total_GFLOPS=656.612
+DIGIT_PERF M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.608008 product_ms=0.973895 total_ms=1.581903 product_GFLOPS=1102.523 total_GFLOPS=678.766
+DIGIT_PERF M=512 K=2048 KC=256 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.622029 product_ms=0.989536 total_ms=1.611565 product_GFLOPS=1085.096 total_GFLOPS=666.273
+DIGIT_CHECK M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.719853 product_ms=0.962205 total_ms=1.682058 product_GFLOPS=1115.918 total_GFLOPS=638.350
+DIGIT_PERF M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.740174 product_ms=0.947084 total_ms=1.687258 product_GFLOPS=1133.734 total_GFLOPS=636.383
+DIGIT_PERF M=512 K=2048 KC=512 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.718323 product_ms=0.931873 total_ms=1.650196 product_GFLOPS=1152.240 total_GFLOPS=650.675
+DIGIT_CHECK M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.793996 product_ms=0.954774 total_ms=1.748770 product_GFLOPS=1124.603 total_GFLOPS=613.998
+DIGIT_PERF M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.765186 product_ms=0.929213 total_ms=1.694399 product_GFLOPS=1155.539 total_GFLOPS=633.701
+DIGIT_PERF M=512 K=2048 KC=1024 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.776576 product_ms=0.946524 total_ms=1.723100 product_GFLOPS=1134.405 total_GFLOPS=623.145
+DIGIT_CHECK M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 input=0 outputs=64 maxerr=7.610e-11 declared_bound=9.364e-09 PASS
+DIGIT_PERF M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 rep=0 encode_ms=0.920092 product_ms=1.055449 total_ms=1.975541 product_GFLOPS=1017.332 total_GFLOPS=543.518
+DIGIT_PERF M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 rep=1 encode_ms=0.960784 product_ms=1.042838 total_ms=2.003622 product_GFLOPS=1029.634 total_GFLOPS=535.900
+DIGIT_PERF M=512 K=2048 KC=2048 p=5 bits=8 karatsuba=0 rep=2 encode_ms=0.951723 product_ms=1.059439 total_ms=2.011162 product_GFLOPS=1013.500 total_GFLOPS=533.891
+DIGIT_CHECK M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.613879 product_ms=1.435576 total_ms=2.049455 product_GFLOPS=747.952 total_GFLOPS=523.916
+DIGIT_PERF M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.614118 product_ms=1.419116 total_ms=2.033234 product_GFLOPS=756.627 total_GFLOPS=528.096
+DIGIT_PERF M=512 K=2048 KC=128 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.611538 product_ms=1.423316 total_ms=2.034854 product_GFLOPS=754.395 total_GFLOPS=527.675
+DIGIT_CHECK M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.669111 product_ms=1.184775 total_ms=1.853886 product_GFLOPS=906.283 total_GFLOPS=579.184
+DIGIT_PERF M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.649120 product_ms=1.210206 total_ms=1.859326 product_GFLOPS=887.239 total_GFLOPS=577.490
+DIGIT_PERF M=512 K=2048 KC=256 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.641480 product_ms=1.178994 total_ms=1.820474 product_GFLOPS=910.727 total_GFLOPS=589.814
+DIGIT_CHECK M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.717143 product_ms=1.153473 total_ms=1.870616 product_GFLOPS=930.877 total_GFLOPS=574.004
+DIGIT_PERF M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.729644 product_ms=1.152183 total_ms=1.881827 product_GFLOPS=931.919 total_GFLOPS=570.585
+DIGIT_PERF M=512 K=2048 KC=512 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.727534 product_ms=1.148563 total_ms=1.876097 product_GFLOPS=934.857 total_GFLOPS=572.327
+DIGIT_CHECK M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 rep=0 encode_ms=0.792846 product_ms=1.168824 total_ms=1.961670 product_GFLOPS=918.651 total_GFLOPS=547.361
+DIGIT_PERF M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.835489 product_ms=1.173844 total_ms=2.009333 product_GFLOPS=914.723 total_GFLOPS=534.377
+DIGIT_PERF M=512 K=2048 KC=1024 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.774086 product_ms=1.162464 total_ms=1.936550 product_GFLOPS=923.677 total_GFLOPS=554.461
+DIGIT_CHECK M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 input=0 outputs=64 maxerr=3.251e-13 declared_bound=7.287e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 rep=0 encode_ms=1.059219 product_ms=1.185134 total_ms=2.244353 product_GFLOPS=906.009 total_GFLOPS=478.419
+DIGIT_PERF M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 rep=1 encode_ms=0.966295 product_ms=1.183154 total_ms=2.149449 product_GFLOPS=907.525 total_GFLOPS=499.543
+DIGIT_PERF M=512 K=2048 KC=2048 p=6 bits=8 karatsuba=0 rep=2 encode_ms=0.983955 product_ms=1.196175 total_ms=2.180130 product_GFLOPS=897.646 total_GFLOPS=492.513
+DIGIT_CHECK M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.639e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.594407 product_ms=2.198382 total_ms=2.792789 product_GFLOPS=488.424 total_GFLOPS=384.469
+DIGIT_PERF M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.597827 product_ms=2.205952 total_ms=2.803779 product_GFLOPS=486.748 total_GFLOPS=382.962
+DIGIT_PERF M=512 K=2048 KC=128 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.591397 product_ms=2.157389 total_ms=2.748786 product_GFLOPS=497.704 total_GFLOPS=390.624
+DIGIT_CHECK M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.603e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.654150 product_ms=1.765882 total_ms=2.420032 product_GFLOPS=608.048 total_GFLOPS=443.689
+DIGIT_PERF M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.658350 product_ms=1.772882 total_ms=2.431232 product_GFLOPS=605.648 total_GFLOPS=441.645
+DIGIT_PERF M=512 K=2048 KC=256 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.709063 product_ms=1.777502 total_ms=2.486565 product_GFLOPS=604.073 total_GFLOPS=431.817
+DIGIT_CHECK M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.612e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.762855 product_ms=1.659366 total_ms=2.422221 product_GFLOPS=647.080 total_GFLOPS=443.288
+DIGIT_PERF M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.739924 product_ms=1.673557 total_ms=2.413481 product_GFLOPS=641.593 total_GFLOPS=444.893
+DIGIT_PERF M=512 K=2048 KC=512 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.753485 product_ms=1.651676 total_ms=2.405161 product_GFLOPS=650.092 total_GFLOPS=446.432
+DIGIT_CHECK M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.621e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 rep=0 encode_ms=0.823528 product_ms=1.833615 total_ms=2.657143 product_GFLOPS=585.587 total_GFLOPS=404.096
+DIGIT_PERF M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 rep=1 encode_ms=0.808648 product_ms=1.846315 total_ms=2.654963 product_GFLOPS=581.559 total_GFLOPS=404.428
+DIGIT_PERF M=512 K=2048 KC=1024 p=7 bits=7 karatsuba=1 rep=2 encode_ms=0.834619 product_ms=1.801103 total_ms=2.635722 product_GFLOPS=596.158 total_GFLOPS=407.381
+DIGIT_CHECK M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 input=0 outputs=64 maxerr=1.608e-13 declared_bound=5.471e-11 PASS
+DIGIT_PERF M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 rep=0 encode_ms=1.088471 product_ms=2.800459 total_ms=3.888930 product_GFLOPS=383.416 total_GFLOPS=276.102
+DIGIT_PERF M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 rep=1 encode_ms=1.041498 product_ms=2.790349 total_ms=3.831847 product_GFLOPS=384.806 total_GFLOPS=280.215
+DIGIT_PERF M=512 K=2048 KC=2048 p=7 bits=7 karatsuba=1 rep=2 encode_ms=1.116681 product_ms=2.836941 total_ms=3.953622 product_GFLOPS=378.486 total_GFLOPS=271.584
+3310efc63e1ca8abf5aee170d150ae8577de9e408e68a69da162a1eddcac2e75  digits.c
+50818fc9d620725ba677327e74009c619a0e6a959fd834358f2379095579ec61  digit-kernels.h
+1f6a3dc4712bbb04c4a7f8cfbc042ba8c306681bcfd253a51242a47b4c518350  trsm-v55.c
+DIGIT_SCREEN_DONE
