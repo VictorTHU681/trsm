@@ -2920,6 +2920,33 @@ static inline __attribute__((always_inline)) void kloop_owner_bank0(const double
  "mov w12, #6\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_NEXT(768, "ldnt1d ") DUPLEX0_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#ifdef TRSM_KDUP_LD1D
+// o9 诊断专用：kloop_owner_bank0 的 ld1d 版（A 走普通载入，让 L2 硬件预取器有机会接管 A 流；仅 kdup 编译）
+static inline __attribute__((always_inline)) void kloop_owner_bank0_ld(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za0.d, za1.d, za2.d, za3.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #768\n\t"
+ "mov w12, #0\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_NEXT(768, "ld1d ") DUPLEX0_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX0_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX0_U_LAST DUPLEX0_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#endif
 #undef DUPLEX0_U_BODY
 #undef DUPLEX0_U_NEXT
 #undef DUPLEX0_U_LAST
@@ -3104,6 +3131,33 @@ static inline __attribute__((always_inline)) void kloop_owner_bank4(const double
  "mov w12, #6\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_NEXT(768, "ldnt1d ") DUPLEX4_U_TAIL(768)
  "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ldnt1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
 : [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#ifdef TRSM_KDUP_LD1D
+// o9 诊断专用：kloop_owner_bank4 的 ld1d 版（A 走普通载入，让 L2 硬件预取器有机会接管 A 流；仅 kdup 编译）
+static inline __attribute__((always_inline)) void kloop_owner_bank4_ld(const double* a, const double* b, double* c,
+                                      const char* ap, const char* bp, const char* pc)
+{
+    char* ct = (char*)c;
+    char* cb = ct + 6144;
+    asm volatile(
+ "ptrue p0.d\n\t"
+ "zero {za4.d, za5.d, za6.d, za7.d}\n\t"
+ "mov w12, #0\n\t"
+ "ld1d z0.d, p0/z, [%[a]]\n\t"
+ "ld1d z1.d, p0/z, [%[a], #1, mul vl]\n\t"
+ "ld1d z4.d, p0/z, [%[b]]\n\t"
+ "ld1d z5.d, p0/z, [%[b], #1, mul vl]\n\t"
+ "add %[a], %[a], #128\n\t"
+ "add %[b], %[b], #768\n\t"
+ "mov w12, #0\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #1\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #2\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #3\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #4\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #5\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #6\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_NEXT(768, "ld1d ") DUPLEX4_U_TAIL(768)
+ "mov w12, #7\n\t" DUPLEX4_U_BODY(768, 768, 6144, 6208, "ld1d ") DUPLEX4_U_LAST DUPLEX4_U_TAIL(768)
+: [a] "+&r"(a),[b] "+&r"(b),[ct] "+&r"(ct),[cb] "+&r"(cb),[ap] "+&r"(ap),[bp] "+&r"(bp),[pc] "+&r"(pc):: "memory","cc","x12",VCLOB,PCLOB);}
+#endif
 #undef DUPLEX4_U_BODY
 #undef DUPLEX4_U_NEXT
 #undef DUPLEX4_U_LAST

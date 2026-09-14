@@ -146,6 +146,50 @@ int main(void)
             double r = (double)(cyc() - t0) / steps / K * (1.55e9 / (double)cyc_hz());
             show(sc == 0 ? "o2 owner 真实模式（A 224K 重读+cbuf 393K）" : sc == 1 ? "o5 o2 但 A 恒热（32K 别名）" : sc == 2 ? "o6 o2 但 B/C 恒热（48K 别名）" : "o2d o2 游标 dummy（无预取上限）", r);
         }
+        // ---- o9：A 真流（修复 o2 的 ch%7 别名——审计 §10w 账 1）：任务 i 有专属 32i KB 连续区（照 pp 布局），
+        //      每面板重扫 896KB 池（>L2，DRAM 重取如生产）。四变体判定 L2 硬件预取器能否接管 A 流
+        //      （o9d ld1d 无软预取 ≈ o9a → HW 预取器可带流 = 对手结构猜想成立，OANT −10% 应归因 L2 污染）。
+        {
+            static const char* nm9[4] = { "o9a 真流 ldnt+软预取（=修正版 o2）", "o9b 真流 ldnt 无预取",
+                                          "o9c 真流 ld1d+软预取", "o9d 真流 ld1d 无预取（HW 预取器裸测）" };
+            double* Apool = al(1 << 20);   // 896 KB 任务区 + 尾部越界预取余量
+            for (int v9 = 0; v9 < 4; v9++) {
+                const int LD9 = v9 >= 2, PF9 = !(v9 & 1);
+                uint64_t t0 = 0; long steps = 0;
+                const long panels = 60, warm = 10;
+                for (long pnl = 0; pnl < panels; pnl++) {
+                    if (pnl == warm) t0 = cyc();
+                    double* pend_c = NULL;
+                    for (long i = 1; i < 8; i++) {
+                        double* blk = CB + (i % 8) * 64 * 96;
+                        const double* Abase = Apool + 4096UL * i * (i - 1) / 2;   // off[i] = 32·i(i−1)/2 KB
+                        for (long ch = 0; ch < i; ch++) {
+                            const double* Bch = CB + (ch % 8) * 64 * 96;
+                            for (int r = 0; r < 4; r += 2) {
+                                const double* A = Abase + (ch * 4 + r) * 1024;
+                                for (int t = 0; t < 6; t++) {
+                                    double* cur = blk + 16 * r * 96 + 16 * t;
+                                    const char* ap = PF9 ? (const char*)(A + 2048) + t * 2048 : dummy;
+                                    const char* ap2 = PF9 ? ap + 6 * 2048 : dummy;
+                                    if (LD9) {
+#ifdef TRSM_KDUP_LD1D
+                                        kloop_owner_bank0_ld(A, Bch + 16 * t, pend_c ? pend_c : cur, ap, ap2, (const char*)cur);
+                                        kloop_owner_bank4_ld(A + 1024, Bch + 16 * t, cur, ap + 1024, ap2 + 1024, (const char*)(cur + 16 * 96));
+#endif
+                                    } else {
+                                        kloop_owner_bank0(A, Bch + 16 * t, pend_c ? pend_c : cur, ap, ap2, (const char*)cur);
+                                        kloop_owner_bank4(A + 1024, Bch + 16 * t, cur, ap + 1024, ap2 + 1024, (const char*)(cur + 16 * 96));
+                                    }
+                                    pend_c = cur + 16 * 96;
+                                    if (pnl >= warm) steps++;
+                                }
+                            }
+                        }
+                    }
+                }
+                show(nm9[v9], (double)(cyc() - t0) / steps / K * (1.55e9 / (double)cyc_hz()));
+            }
+        }
     }
 
     sme_stop();
