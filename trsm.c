@@ -1809,6 +1809,7 @@ typedef struct {
     long loadpf;            // 装载阶段（B 子块 → C 块）软件预取提前行数（TRSM_LOADPF，0 关）
     int dwpf;               // 对角窗内下一任务 B 子块预取（游标 1）开关（TRSM_DWPF，默认 1=现状；审计 #3 消融用）
     int slx;                // 回写‖装载相位交错（TRSM_SLX，默认 0）：owner 回写相逐行后接下一任务同面板 B 行装载
+    long slxb;              // SLX 块交错粒度（TRSM_SLXB，默认 8 行）：store 突发/load 突发轮替的段长
     int xptm;               // 专用路径 Xp（K×16 微面板）按列块主序写（TRSM_XPTM）
     long nrb, npan, ntask;
     long cshift;     // 面板边界平移（double 数，0..7）：X 基址非 64 B 对齐且行距为 64 B 整数倍时，内部面板起点按 X 的 cache 行对齐
@@ -2454,27 +2455,33 @@ static inline __attribute__((always_inline)) long run_task_impl(const ctx_t* c, 
             }
             // 非临时存储按 X 行的 cache 行对齐：头部分行（谓词）+ 整行 + 尾部分行。bench 的 B 只 16 B 对齐，
             // 若按 64 B 向量直接存，每个向量都跨两行 → 32 次部分行写/行；对齐后是 15 次整行 + 2 次部分行。
-            for (long r = 0; r < mbi; r++) {
-                const double* s = cb + r * ncp;
-                double* d = Bout + r * ldb;
-                if (na) {
-                    const char* q = na + r * nal;
-                    for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
-                    if (na2) {
-                        const char* q2 = na2 + r * 512;
-                        for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
+            // SLX 块交错：每 slxb 行回写后接同段下一任务 B 行装载突发（逐行交错已证伪：ROB 被 NT 写切碎、
+            // load 跨行 MLP 塌方 → store 0.124→0.447 净负 3.6%；块交错让 load 突发内部恢复满 MLP）。
+            const long slx_bs = slx_pre ? c->slxb : mbi;
+            for (long r0 = 0; r0 < mbi; r0 += slx_bs) {
+                long re = r0 + slx_bs; if (re > mbi) re = mbi;
+                for (long r = r0; r < re; r++) {
+                    const double* s = cb + r * ncp;
+                    double* d = Bout + r * ldb;
+                    if (na) {
+                        const char* q = na + r * nal;
+                        for (long b = 0; b < nal; b += 64) __builtin_prefetch(q + b, 0, 2);
+                        if (na2) {
+                            const char* q2 = na2 + r * 512;
+                            for (long b = 0; b < 512; b += 64) __builtin_prefetch(q2 + b, 0, 2);
+                        }
+                    }
+                    long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
+                    if (pre > nci) pre = nci;
+                    long j = 0;
+                    if (pre) { svbool_t ph = svwhilelt_b64(0L, pre); svstnt1_f64(ph, d, svld1_f64(ph, s)); j = pre; }
+                    for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
+                    if (j < nci) {
+                        svbool_t pj = svwhilelt_b64((long)j, (long)nci);
+                        svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
                     }
                 }
-                long pre = (long)(((64 - ((uintptr_t)d & 63)) & 63) >> 3);   // 到下一个 64 B 边界的 double 数（0..7）
-                if (pre > nci) pre = nci;
-                long j = 0;
-                if (pre) { svbool_t ph = svwhilelt_b64(0L, pre); svstnt1_f64(ph, d, svld1_f64(ph, s)); j = pre; }
-                for (; j + 8 <= nci; j += 8) svstnt1_f64(pg, d + j, svld1_f64(pg, s + j));
-                if (j < nci) {
-                    svbool_t pj = svwhilelt_b64((long)j, (long)nci);
-                    svstnt1_f64(pj, d + j, svld1_f64(pj, s + j));
-                }
-                if (slx_pre) {   // 下一任务第 r 行：B → 面板缓冲（demand load 与上面的 NT 写并置）
+                if (slx_pre) for (long r = r0; r < re; r++) {   // 下一任务行段：B → 面板缓冲（demand load 突发）
                     const double* s2 = sB + r * ldb;
                     double* d2 = sD + r * ncp;
                     for (long j2 = 0; j2 + 8 <= nc; j2 += 8) svst1_f64(pg, d2 + j2, svld1_f64(pg, s2 + j2));
@@ -5940,6 +5947,7 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
         c.loadpf = env_int("TRSM_LOADPF", 16);   // 官方 bench 交错两轮：case2 25.07/24.82 → 24.20/24.48，case1 2.32/2.37 → 2.28/2.29
         c.dwpf = env_int("TRSM_DWPF", 1);        // 对角窗游标 1（下一任务 B 预取）消融开关，默认开=现状
         c.slx = env_int("TRSM_SLX", 0);          // 回写‖装载相位交错（审计 #1）：store(i) 逐行后接 load(i+1)，默认关待筛查
+        c.slxb = env_int("TRSM_SLXB", 8);        // SLX 块交错粒度（行）；逐行版（=1）已证伪：ROB 稀释 MLP 塌方净负 3.6%
         c.xptm = env_int("TRSM_XPTM", 0);
     }
     // Admit a specialization only when every baked-in setting matches this call.
