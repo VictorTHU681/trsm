@@ -1,7 +1,7 @@
 {
-  "archived_logs": 6,
-  "observations": 556,
-  "formal_rows": 80,
+  "archived_logs": 8,
+  "observations": 646,
+  "formal_rows": 98,
   "formal_failures": 0,
   "best_screening_by_file_shape": [
     {
@@ -159,6 +159,48 @@
       "ms": "35.81",
       "gflops": "4143.8920",
       "error": "1.50e-15",
+      "result": "PASS"
+    },
+    {
+      "m": "512",
+      "n": "19968",
+      "nb": "128",
+      "mb": "128",
+      "jouter": "0",
+      "mode_header": "RECURSIVE_RIGHT_FORMAL",
+      "file": "489-recursive-right.sh.log",
+      "kind": "formal",
+      "ms": "7.93",
+      "gflops": "660.4871",
+      "error": "2.16e-15",
+      "result": "PASS"
+    },
+    {
+      "m": "2432",
+      "n": "17024",
+      "nb": "128",
+      "mb": "128",
+      "jouter": "0",
+      "mode_header": "RECURSIVE_RIGHT_FORMAL",
+      "file": "489-recursive-right.sh.log",
+      "kind": "formal",
+      "ms": "63.68",
+      "gflops": "1581.3015",
+      "error": "6.49e-15",
+      "result": "PASS"
+    },
+    {
+      "m": "17024",
+      "n": "512",
+      "nb": "256",
+      "mb": "128",
+      "jouter": "1",
+      "mode_header": "RECURSIVE_RIGHT_FORMAL",
+      "file": "489-recursive-right.sh.log",
+      "kind": "formal",
+      "ms": "84.37",
+      "gflops": "1758.7626",
+      "error": "1.53e-14",
       "result": "PASS"
     }
   ]

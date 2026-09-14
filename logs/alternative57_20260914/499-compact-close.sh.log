@@ -1,0 +1,144 @@
+951a1594b22b5f424f47fc5b0a7b7ce2c56cbb38601267ef45efbcdf2bd9c6f6  trsm-diagcompact.c
+cfe94a04a7c92026a6f18c7b923ca17289e8924caac3207598834f8a29be59a1  gen-strict.c
+c1a6d0e22514781ba6b162a781802ecfe60aca9aa8af14f0e3e2759a7dd6d0f2  validate.c
+c7a21ad9e66ba9c3794f1c5940b39b0acb9722dd224ba6217329563d4cb1824b  run.sh
+45322605b80b0799f2e275c5a3d579d860cd73a8bf23006139464c3d70151aa1  control
+4acddea804ed13b63617445e4aeea1f7e5098c47f7f298b8fa0ce3bda6b90f1b  diagcompact
+COMPACT_CLOSE_GENERAL
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.67e-16  ok
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+m=  161 n=  516 lda=  203 ldb=  546  maxerr=1.11e-16  ok
+m=  848 n=   56 lda=  906 ldb=   57  maxerr=1.11e-16  ok
+m=  261 n=  418 lda=  291 ldb=  460  maxerr=1.11e-16  ok
+m=  333 n=  504 lda=  390 ldb=  518  maxerr=1.11e-16  ok
+m=  535 n=  455 lda=  541 ldb=  484  maxerr=1.11e-16  ok
+m=  173 n=  680 lda=  206 ldb=  711  maxerr=1.11e-16  ok
+m=  453 n=    8 lda=  489 ldb=   67  maxerr=1.11e-16  ok
+m=   26 n=  661 lda=   92 ldb=  727  maxerr=1.67e-16  ok
+m=  202 n=  460 lda=  228 ldb=  469  maxerr=1.11e-16  ok
+m=   45 n=  249 lda=   97 ldb=  308  maxerr=1.11e-16  ok
+m=  238 n=  646 lda=  270 ldb=  664  maxerr=1.11e-16  ok
+m=  426 n=   23 lda=  450 ldb=   80  maxerr=6.94e-17  ok
+m=  833 n=    3 lda=  852 ldb=   33  maxerr=5.55e-17  ok
+m=   54 n=  290 lda=   98 ldb=  324  maxerr=1.11e-16  ok
+m=  725 n=  319 lda=  758 ldb=  359  maxerr=1.11e-16  ok
+m=  560 n=   32 lda=  589 ldb=  100  maxerr=1.11e-16  ok
+m=  272 n=  482 lda=  298 ldb=  544  maxerr=1.11e-16  ok
+m=  464 n=   57 lda=  528 ldb=   85  maxerr=1.11e-16  ok
+m=   96 n=  334 lda=  130 ldb=  352  maxerr=1.11e-16  ok
+m=  129 n=  553 lda=  150 ldb=  576  maxerr=1.11e-16  ok
+m=  639 n=  318 lda=  708 ldb=  377  maxerr=1.11e-16  ok
+m=  412 n=   29 lda=  420 ldb=   54  maxerr=1.11e-16  ok
+m=  808 n=  428 lda=  824 ldb=  464  maxerr=1.11e-16  ok
+m=  409 n=  577 lda=  470 ldb=  614  maxerr=2.22e-16  ok
+m=  229 n=  560 lda=  243 ldb=  587  maxerr=1.39e-16  ok
+m=  612 n=  510 lda=  645 ldb=  572  maxerr=1.67e-16  ok
+m=  595 n=  160 lda=  603 ldb=  182  maxerr=1.39e-16  ok
+m=  652 n=  320 lda=  706 ldb=  388  maxerr=1.67e-16  ok
+m=  713 n=  678 lda=  771 ldb=  704  maxerr=1.11e-16  ok
+m=  653 n=  227 lda=  654 ldb=  246  maxerr=1.11e-16  ok
+ALL PASS: 0 failures
+COMPACT_CLOSE_SPECIAL
+m=    1 n=    1 lda=    1 ldb=    1  maxerr=0.00e+00  ok
+m=    1 n=   40 lda=    5 ldb=   41  maxerr=0.00e+00  ok
+m=    7 n=    3 lda=    7 ldb=    3  maxerr=2.78e-17  ok
+m=   16 n=   32 lda=   16 ldb=   32  maxerr=6.94e-17  ok
+m=   17 n=   33 lda=   20 ldb=   40  maxerr=1.11e-16  ok
+m=   31 n=  100 lda=   31 ldb=  100  maxerr=1.11e-16  ok
+m=   33 n=    7 lda=   64 ldb=    9  maxerr=5.55e-17  ok
+m=  100 n=  100 lda=  100 ldb=  100  maxerr=1.11e-16  ok
+m=  128 n=  300 lda=  130 ldb=  300  maxerr=1.11e-16  ok
+m=  255 n=  257 lda=  256 ldb=  260  maxerr=1.11e-16  ok
+m=  256 n=  256 lda=  256 ldb=  256  maxerr=1.11e-16  ok
+m=  257 n=   33 lda=  300 ldb=   64  maxerr=1.11e-16  ok
+m=  300 n= 1000 lda=  364 ldb= 1064  maxerr=1.11e-16  ok
+m=  512 n=  640 lda=  576 ldb=  704  maxerr=1.11e-16  ok
+m=  600 n=   90 lda=  600 ldb=   90  maxerr=1.11e-16  ok
+m=  777 n=  555 lda=  800 ldb=  600  maxerr=1.67e-16  ok
+m= 1030 n=  260 lda= 1094 ldb=  324  maxerr=2.22e-16  ok
+m=  803 n=  271 lda=  848 ldb=  278  maxerr=1.11e-16  ok
+m=  165 n=  630 lda=  201 ldb=  667  maxerr=1.11e-16  ok
+m=  290 n=  672 lda=  322 ldb=  674  maxerr=1.11e-16  ok
+m=  761 n=  551 lda=  769 ldb=  599  maxerr=1.11e-16  ok
+m=  306 n=  372 lda=  363 ldb=  412  maxerr=1.11e-16  ok
+m=  442 n=  267 lda=  485 ldb=  286  maxerr=1.67e-16  ok
+m=  786 n=  296 lda=  844 ldb=  301  maxerr=1.11e-16  ok
+m=  457 n=  172 lda=  495 ldb=  174  maxerr=1.11e-16  ok
+m=  132 n=  218 lda=  186 ldb=  259  maxerr=1.11e-16  ok
+m=  297 n=   36 lda=  320 ldb=   50  maxerr=8.33e-17  ok
+ALL PASS: 0 failures
+COMPACT_CLOSE_CHANGED_INPUT
+changed-input case=1 iteration=0 maxerr=3.331e-16 PASS
+changed-input case=1 iteration=1 maxerr=3.886e-16 PASS
+changed-input case=1 iteration=2 maxerr=3.331e-16 PASS
+changed-input case=1 iteration=3 maxerr=3.331e-16 PASS
+changed-input case=2 iteration=0 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=1 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=2 maxerr=7.772e-16 PASS
+changed-input case=2 iteration=3 maxerr=7.772e-16 PASS
+changed-input case=3 iteration=0 maxerr=1.499e-15 PASS
+changed-input case=3 iteration=1 maxerr=1.332e-15 PASS
+changed-input case=3 iteration=2 maxerr=1.554e-15 PASS
+changed-input case=3 iteration=3 maxerr=1.665e-15 PASS
+COMPACT_CLOSE_RUNSH
+[run.sh] numactl -N 1 --preferred=17
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         1.96    2672.6933     3.33e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        23.54    4277.2184     7.77e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        35.15    4221.6704     1.50e-15     PASS
+COMPACT_CLOSE_ORIGINAL
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+   512 x 19968         2.78    1880.5902     3.33e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+  2432 x 17024        24.42    4123.4060     7.77e-16     PASS
+
+================================= TRSM测试 ================================
+     M       N     Time(ms)       GFLOPS 最大误差   校验
+---------------------------------------------------------------------------
+ 17024 x   512        34.94    4246.8944     1.50e-15     PASS
+951a1594b22b5f424f47fc5b0a7b7ce2c56cbb38601267ef45efbcdf2bd9c6f6  trsm.c
+e051d897622f73093179f93c33cfcf1b5511216f286a3050b814e1dd7582d8ac  bench_trsm.c
+c7a21ad9e66ba9c3794f1c5940b39b0acb9722dd224ba6217329563d4cb1824b  run.sh
+COMPACT_CLOSE_DONE
