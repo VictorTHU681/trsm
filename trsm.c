@@ -6461,9 +6461,12 @@ static void trsm_sme(long m, long n, const double* L, long lda, double* B, long 
                     const svbool_t pg = svptrue_b64();   // 流式模式下不能调 memcpy（NEON），用 SVE 拷贝，越界列补零
                     double* buf = g_tb[tid].cbuf;
                     if (w_on) {
-                        // W-GEMM：头部残段需要的是 RHS 前缀（X 已原地覆盖 B），从上一线程的暂存读入（其共享面板任务排最前，等待≈0）
-                        while (!__atomic_load_n(&g_w_stage_flag[tid], __ATOMIC_ACQUIRE)) asm volatile("yield");
-                        const double* sp = g_w_stage + (size_t)tid * c.m * 96;
+                        // W-GEMM：头部残段需要的是 RHS 前缀（X 已原地覆盖 B），从生产者的暂存读入（其共享面板任务排最前，等待≈0）。
+                        // 槽号 = 与本线程同区间起点的等界连跑的第一个线程（= 生产者 tid+1）——跳过空区间线程，两侧确定性一致
+                        long jslot = tid;
+                        { long a_ = c.owner_bound[tid]; while (jslot > 0 && c.owner_bound[jslot - 1] == a_) jslot--; }
+                        while (!__atomic_load_n(&g_w_stage_flag[jslot], __ATOMIC_ACQUIRE)) asm volatile("yield");
+                        const double* sp = g_w_stage + (size_t)jslot * c.m * 96;
                         for (long q = 0; q < ia * mb * 96; q += 8)
                             svst1_f64(pg, buf + q, svld1_f64(pg, sp + q));
                     } else {
