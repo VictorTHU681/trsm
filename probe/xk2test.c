@@ -27,8 +27,8 @@ int main(void)
     kloop_duplex_bank4(A, Xk + 1024, cb1, dy+64, dy+64, dy+128);
     // 被测对：pend==0 → bank0 排水目标哑区；旁流 bank0→cur（cols0-15）、bank4→cur+16
     sme_zero_za();
-    kloop_duplex_bank0_x(A, Xk, dumm, dy, dy, dy, (const char*)X, (char*)cb2, ldb*8);
-    kloop_duplex_bank4_x(A, Xk + 1024, cb2, dy+64, dy+64, dy+128, (const char*)X + 128, (char*)(cb2+16), ldb*8);
+    kloop_duplex_bank0_x(A, Xk, dumm, dy, dy, dy, (const char*)X, (char*)cb2, ldb*8-64);
+    kloop_duplex_bank4_x(A, Xk + 1024, cb2, dy+64, dy+64, dy+128, (const char*)X + 128, (char*)(cb2+16), ldb*8-64);
     sme_stop();
     (void)dum2;
     long bad=0, badc[2]={0,0};
