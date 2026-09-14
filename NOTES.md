@@ -1329,3 +1329,11 @@ xw93 双节点：simp ≈ all3 −1.5~1.8%，取无 XPW 的 simp 产品化（XPW
 XONE v3 双线槽（持平无收益）已回滚，TC1 热路径与 v63 位等同。
 
 门禁：gen 全绿（默认30/owner/steal/cfold/xpw/5thr），TC1 平、TC2 −1.8%、TC3 平。
+
+### OSW 终局（2026-09-14 夜，os96-98）
+
+os98 消融锁死相克项：**STEAL**（osw_nosteal/osw_min 唯二 PASS，其余 FAIL 误差 5.9e+01）。机理：victim 在对角相
+预领 tkn 后，STEAL 可改变实际执行序 → 排队守卫按 tkn 判定的"下任务写区"失真，cbuf 队列源被覆写。且唯一正确
+数据点（osw_nosteal 2.07 vs base 1.94，n=1）显示收益为负。**OSW 全线停车**：TRSM_OSW 默认 0、代码休眠；
+对角窗写侧 OSW/DXW/SLX/XPW 四连证伪收官。2a xpd 寄存器偏移 prfm 亦证伪（−5.5%，寄存器形式伤常态槽），
+白发问题留给"t=5 专用无 prfm 实例"形态（未试）。BLAS_NUM_THREADS=38 无效（kblas 按形状自限，池照缩）。
