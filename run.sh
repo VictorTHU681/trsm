@@ -43,10 +43,11 @@ export OMP_WAIT_POLICY=active
 export GOMP_SPINCOUNT=infinite
 unset GOMP_CPU_AFFINITY OMP_THREAD_LIMIT 2>/dev/null || true
 
-# CPU 节点：默认绑 node 7（判题机为共享机器，避开常见默认 node 1 的共租户争用）；
+# CPU 节点：默认绑 node 9（判题机为共享机器，避开常见默认 node 1 的争用；node 7 的两个线上 TC1 样本
+# 2668/2656 均落历史波动带下沿，2026-09-14 用户裁定换 node 9 再抽签）。
 # 不存在或不可绑时回退 node 1，保证任何拓扑下都能出分。TRSM_CPUNODE 可强制指定。
 # 内存：优先使用与所选 CPU 节点相邻的纯内存节点（HBM），放不下时自动回落本地 DDR。
-cpunode="${TRSM_CPUNODE:-7}"
+cpunode="${TRSM_CPUNODE:-9}"
 numactl -N $cpunode true >/dev/null 2>&1 || cpunode=1
 hbm=""
 if [[ -r /sys/devices/system/node/node$cpunode/distance ]]; then
