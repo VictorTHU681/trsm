@@ -7373,7 +7373,13 @@ static void build_owner_bounds(ctx_t* c, int nth)
     // 把惩罚以 a 的倍数计入该线程份额（µs ÷ 每 i 斜率 8.7 µs，频率不变量），前向扫描 + 定点迭代。
     int shapep = env_int("TRSM_SHAPEP", 100);
     if (shapep > 0 && c->nrb >= 2) {
-        static const double PEN_US8[8] = {0, 56, 37, 60, 70, 149, 112, 78};   // nrb=8（TC1 形状）实测表
+        static double PEN_US8[8] = {0, 56, 37, 60, 70, 149, 112, 78};   // nrb=8（TC1 形状）实测表
+        {   // TRSM_PENV="0,56,37,60,70,149,112,78" 运行时覆盖（prof4 残尾诊断：ia=2 关键路径 idle=0，表值 37 疑过低）
+            const char* pv = getenv("TRSM_PENV");
+            if (pv) { double v[8]; int n = sscanf(pv, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf",
+                &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7]);
+                if (n == 8) for (int q = 0; q < 8; q++) PEN_US8[q] = v[q]; }
+        }
         double pen[/*ia*/ 64];
         long nrb = c->nrb; if (nrb > 64) nrb = 64;
         for (long r = 0; r < nrb; r++) {
